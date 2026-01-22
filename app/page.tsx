@@ -18,7 +18,7 @@ export default function Home() {
           </Button>
           <Button variant="outline" asChild>
             <a href="https://nextjs.org/learn" target="_blank" rel="noopener noreferrer">
-              Learn Next.js
+              Learn Next.js hi
             </a>
           </Button>
         </div>
