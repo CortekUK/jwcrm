@@ -1,0 +1,195 @@
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { Resend } from 'resend';
+
+interface SupportEmailRequest {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  attachment?: {
+    content: string;
+    filename: string;
+    contentType: string;
+  };
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Handle CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    // Get Resend API key
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (!resendApiKey) {
+      return res.status(500).json({ error: 'RESEND_API_KEY not configured' });
+    }
+
+    const { name, email, subject, message, attachment }: SupportEmailRequest = req.body;
+
+    // Validate required fields
+    if (!name || !email || !subject || !message) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Initialize Resend
+    const resend = new Resend(resendApiKey);
+
+    const adminEmail = 'ilyasghulam32@gmail.com';
+    const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+
+    console.log('Using FROM_EMAIL:', fromEmail);
+    console.log('Sending to admin:', adminEmail);
+
+    // Prepare admin email
+    const adminEmailData: any = {
+      from: fromEmail,
+      to: adminEmail,
+      replyTo: email,
+      subject: `[Support Request] ${subject}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <!-- Header with Branding -->
+          <div style="background: linear-gradient(135deg, #0C5536 0%, #128277 100%); padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <div style="display: inline-block; background-color: #C6A03B; width: 60px; height: 60px; border-radius: 50%; line-height: 60px; margin-bottom: 10px;">
+              <span style="color: white; font-size: 28px; font-weight: bold; font-family: 'Playfair Display', serif;">JW</span>
+            </div>
+            <h1 style="color: white; margin: 10px 0 5px 0; font-size: 28px; font-family: 'Playfair Display', serif; font-weight: 600;">JUST WILLS</h1>
+            <p style="color: rgba(255, 255, 255, 0.9); margin: 0; font-size: 14px; letter-spacing: 1px;">Professional Will Drafting Services</p>
+          </div>
+
+          <!-- Content -->
+          <div style="padding: 30px 20px; background-color: #ffffff; border-left: 1px solid #E6E6E4; border-right: 1px solid #E6E6E4;">
+            <h2 style="color: #0C5536; margin-top: 0; font-family: 'Playfair Display', serif; font-size: 22px;">New Support Request</h2>
+
+            <div style="background-color: #F8F6EC; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #C6A03B;">
+              <p style="margin: 8px 0; color: #333;"><strong style="color: #0C5536;">From:</strong> ${name}</p>
+              <p style="margin: 8px 0; color: #333;"><strong style="color: #0C5536;">Email:</strong> ${email}</p>
+              <p style="margin: 8px 0; color: #333;"><strong style="color: #0C5536;">Subject:</strong> ${subject}</p>
+            </div>
+
+            <div style="margin: 25px 0;">
+              <h3 style="color: #0C5536; font-size: 18px; margin-bottom: 10px;">Message:</h3>
+              <div style="background-color: #ffffff; padding: 20px; border: 1px solid #E6E6E4; border-radius: 8px;">
+                <p style="white-space: pre-wrap; color: #333; line-height: 1.6; margin: 0;">${message}</p>
+              </div>
+            </div>
+
+            ${attachment ? '<div style="background-color: #FFF9E6; padding: 15px; border-radius: 8px; border-left: 4px solid #C6A03B;"><p style="color: #C6A03B; margin: 0; font-weight: 600;">📎 Attachment included</p></div>' : ''}
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #FAFAF8; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; border: 1px solid #E6E6E4; border-top: 2px solid #C6A03B;">
+            <p style="color: #999; font-size: 12px; margin: 5px 0;">
+              This is an automated message from <strong style="color: #0C5536;">Just Wills</strong> support system.
+            </p>
+            <p style="color: #999; font-size: 11px; margin: 5px 0;">
+              Professional Will Drafting Services | Trusted Legal Documentation
+            </p>
+          </div>
+        </div>
+      `,
+    };
+
+    // Add attachment if provided
+    if (attachment) {
+      adminEmailData.attachments = [
+        {
+          content: attachment.content,
+          filename: attachment.filename,
+        },
+      ];
+    }
+
+    // Send email to admin
+    const adminResult = await resend.emails.send(adminEmailData);
+
+    if (adminResult.error) {
+      console.error('Resend API error (admin):', adminResult.error);
+      return res.status(500).json({ error: `Failed to send email to admin: ${adminResult.error.message}` });
+    }
+
+    console.log('Email sent successfully to admin, ID:', adminResult.data?.id);
+
+    // Send confirmation email to client
+    const clientEmailAddress = adminEmail; // Change this to 'email' after domain verification
+
+    const clientResult = await resend.emails.send({
+      from: fromEmail,
+      to: clientEmailAddress,
+      subject: `[Client Confirmation - Original: ${email}] We received your support request - Just Wills`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <!-- Header with Branding -->
+          <div style="background: linear-gradient(135deg, #0C5536 0%, #128277 100%); padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <div style="display: inline-block; background-color: #C6A03B; width: 60px; height: 60px; border-radius: 50%; line-height: 60px; margin-bottom: 10px;">
+              <span style="color: white; font-size: 28px; font-weight: bold; font-family: 'Playfair Display', serif;">JW</span>
+            </div>
+            <h1 style="color: white; margin: 10px 0 5px 0; font-size: 28px; font-family: 'Playfair Display', serif; font-weight: 600;">JUST WILLS</h1>
+            <p style="color: rgba(255, 255, 255, 0.9); margin: 0; font-size: 14px; letter-spacing: 1px;">Professional Will Drafting Services</p>
+          </div>
+
+          <!-- Content -->
+          <div style="padding: 30px 20px; background-color: #ffffff; border-left: 1px solid #E6E6E4; border-right: 1px solid #E6E6E4;">
+            <div style="text-align: center; margin-bottom: 25px;">
+              <h2 style="color: #0C5536; margin: 0; font-size: 24px; font-family: 'Playfair Display', serif;">Thank You!</h2>
+              <p style="color: #777; margin: 10px 0 0 0;">We've received your message</p>
+            </div>
+
+            <p style="color: #333; line-height: 1.6;">Dear ${name},</p>
+
+            <p style="color: #333; line-height: 1.6;">Thank you for contacting <strong style="color: #0C5536;">Just Wills</strong>. We have received your support request and our team will review it shortly.</p>
+
+            <div style="background-color: #F8F6EC; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #C6A03B;">
+              <p style="margin: 0 0 10px 0; color: #0C5536; font-weight: 600;">Your Request Summary:</p>
+              <p style="margin: 8px 0; color: #333;"><strong>Subject:</strong> ${subject}</p>
+              <div style="margin-top: 15px;">
+                <p style="margin: 0 0 8px 0; color: #0C5536; font-weight: 600;">Your message:</p>
+                <p style="white-space: pre-wrap; color: #555; line-height: 1.6; margin: 0;">${message}</p>
+              </div>
+            </div>
+
+            <p style="color: #333; line-height: 1.6; margin-top: 25px;">Best regards,</p>
+            <p style="color: #0C5536; font-weight: 600; margin: 5px 0; font-size: 16px;">The Just Wills Team</p>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #FAFAF8; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; border: 1px solid #E6E6E4; border-top: 2px solid #C6A03B;">
+            <p style="color: #999; font-size: 12px; margin: 5px 0;">
+              This is an automated confirmation from <strong style="color: #0C5536;">Just Wills</strong>.
+            </p>
+          </div>
+        </div>
+      `,
+    });
+
+    if (clientResult.error) {
+      console.warn('Failed to send confirmation to client:', clientResult.error);
+    } else {
+      console.log('Confirmation email sent to client, ID:', clientResult.data?.id);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Support email sent successfully',
+      adminEmailId: adminResult.data?.id,
+      clientEmailId: clientResult.data?.id,
+    });
+  } catch (error) {
+    console.error('Error sending support email:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return res.status(500).json({
+      success: false,
+      error: errorMessage,
+    });
+  }
+}

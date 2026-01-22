@@ -1,0 +1,240 @@
+"use client";
+
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/portal/PageHeader";
+import { Settings, Lock, Loader2, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useTranslation } from "react-i18next";
+import { toast } from "@/hooks/use-toast";
+
+export default function ClientSettings() {
+  const { profile } = useAuth();
+  const { t } = useTranslation(['portal', 'common', 'toast']);
+  const [loading, setLoading] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newPassword || !confirmPassword) {
+      toast({
+        title: t('toast:settings.validationError'),
+        description: t('toast:settings.fillAllFields'),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: t('toast:settings.validationError'),
+        description: t('toast:settings.passwordsDoNotMatch'),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast({
+        title: t('toast:settings.validationError'),
+        description: t('toast:settings.passwordTooShort'),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate password strength
+    const hasUpperCase = /[A-Z]/.test(newPassword);
+    const hasLowerCase = /[a-z]/.test(newPassword);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
+
+    if (!hasUpperCase || !hasLowerCase || !hasSpecialChar) {
+      toast({
+        title: t('toast:settings.weakPassword'),
+        description: t('toast:settings.passwordRequirements'),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: t('toast:success'),
+        description: t('toast:settings.passwordChangedSuccess'),
+        className: "bg-[hsl(var(--jw-primary-green))] text-white border-[hsl(var(--jw-gold-accent))]",
+      });
+
+      // Clear form
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      toast({
+        title: t('toast:error'),
+        description: error.message || t('toast:settings.failedToChangePassword'),
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={t('portal:settings.title')}
+        subtitle={t('portal:settings.subtitle')}
+      />
+
+      <div className="grid gap-6 max-w-2xl">
+        {/* Account Information */}
+        <Card className="rounded-lg border border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+              <Settings className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+              {t('portal:settings.accountInformation')}
+            </CardTitle>
+            <CardDescription className="text-sm text-[#777777]">
+              {t('portal:settings.yourAccountDetails')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label className="text-[#555555]">{t('portal:settings.fullName')}</Label>
+              <p className="mt-1 text-[#222222] font-medium">{profile?.full_name || t('admin:notAvailable')}</p>
+            </div>
+            <div>
+              <Label className="text-[#555555]">{t('portal:settings.languagePreference')}</Label>
+              <p className="mt-1 text-[#222222] font-medium">
+                {profile?.locale === 'ar' ? 'العربية (Arabic)' : 'English'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Change Password */}
+        <Card className="rounded-lg border border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+              <Lock className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+              {t('portal:settings.changePassword')}
+            </CardTitle>
+            <CardDescription className="text-sm text-[#777777]">
+              {t('portal:settings.updatePasswordSecure')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="newPassword" className="text-[#555555]">
+                  {t('portal:settings.newPassword')} <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value.replace(/\s/g, ''))}
+                    placeholder={t('portal:settings.enterNewPassword')}
+                    className="border-[#E6E6E4] ltr:pr-10 rtl:pl-10"
+                    disabled={loading}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute ltr:right-3 rtl:left-3 top-1/2 -translate-y-1/2 text-[#777777] hover:text-[#222222]"
+                  >
+                    {showNewPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-[#777777]">{t('portal:settings.passwordRequirements')}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-[#555555]">
+                  {t('portal:settings.confirmNewPassword')} <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value.replace(/\s/g, ''))}
+                    placeholder={t('portal:settings.confirmPasswordPlaceholder')}
+                    className="border-[#E6E6E4] ltr:pr-10 rtl:pl-10"
+                    disabled={loading}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute ltr:right-3 rtl:left-3 top-1/2 -translate-y-1/2 text-[#777777] hover:text-[#222222]"
+                  >
+                    {showConfirmPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 p-3 bg-[#E6F7F1] rounded-lg border border-[hsl(var(--jw-primary-green))]/20">
+                <CheckCircle2 className="h-4 w-4 text-[hsl(var(--jw-primary-green))] mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-[#555555]">
+                  <strong>{t('portal:settings.securityTip')}</strong> {t('portal:settings.securityTipMessage')}
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}
+                  disabled={loading}
+                  className="border-[#E6E6E4]"
+                >
+                  {t('portal:settings.clear')}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />
+                      {t('portal:settings.updating')}
+                    </>
+                  ) : (
+                    t('portal:settings.changePasswordButton')
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

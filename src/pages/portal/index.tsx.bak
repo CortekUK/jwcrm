@@ -1,0 +1,464 @@
+import Link from "next/link";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ScrollText, FileText, FolderOpen, ArrowRight, Clock, Download, Eye, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from "react-i18next";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { CLIENT_STATUS_MAP } from "@/lib/status-config";
+import { PageHeader } from "@/components/portal/PageHeader";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { flexDirection, textAlign } from "@/lib/rtl-utils";
+import { toast } from "@/hooks/use-toast";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PortalLayout } from "@/components/layouts/PortalLayout";
+import { usePortalStore } from "@/stores/portalStore";
+
+function PortalContent() {
+  const { profile, user } = useAuth();
+  const { t } = useTranslation('portal');
+  const { locale } = useLanguage();
+  const isRtl = locale === 'ar';
+  const [willsCount, setWillsCount] = useState(0);
+  const [documentsCount, setDocumentsCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [currentWill, setCurrentWill] = useState<Will | null>(null);
+  const [recentActivity, setRecentActivity] = useState<ActivityEvent[]>([]);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [viewingPdf, setViewingPdf] = useState(false);
+  const [hasDraftWithData, setHasDraftWithData] = useState(false);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Fetch wills count for current user (submitted only)
+        const { count: willsCount } = await supabase
+          .from('wills')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .not('submitted_at', 'is', null);
+
+        setWillsCount(willsCount || 0);
+
+        // Fetch documents count (wills that are draft_released or finalized) for current user
+        const { count: docsCount } = await supabase
+          .from('wills')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .in('status', ['draft_released', 'finalized']);
+
+        setDocumentsCount(docsCount || 0);
+
+        // Fetch current will status (most recent one)
+        const { data: willData, error: willError } = await supabase
+          .from('wills')
+          .select('id, status, submitted_at, created_at, pdf_path, answers')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (willError) {
+          console.error('Error fetching will:', willError);
+        }
+        setCurrentWill(willData as Will | null);
+
+        // Check if there's a draft will with Step 1 data (more than 1 field filled)
+        const answers = willData?.answers as WillAnswers | null;
+        if (willData && !willData.submitted_at && answers?.personal) {
+          const personal = answers.personal;
+          const filledFields = [
+            personal.full_name,
+            personal.contact_number,
+            personal.address,
+            personal.email,
+            personal.date,
+            personal.marital_status,
+            personal.religion
+          ].filter(field => field && field.toString().trim() !== '').length;
+
+          setHasDraftWithData(filledFields > 1);
+        } else {
+          setHasDraftWithData(false);
+        }
+
+        // Fetch recent activity for ALL user's wills
+        const { data: userWills } = await supabase
+          .from('wills')
+          .select('id')
+          .eq('user_id', user.id);
+
+        if (userWills && userWills.length > 0) {
+          const willIds = userWills.map(w => w.id);
+
+          const { data: activityData, error: activityError } = await supabase
+            .from('will_status_events')
+            .select('id, new_status, previous_status, changed_at, notes, will_id')
+            .in('will_id', willIds)
+            .order('changed_at', { ascending: false })
+            .limit(5);
+
+          if (activityError) {
+            console.error('Error fetching activity:', activityError);
+          } else {
+            console.log('Activity data received:', activityData);
+          }
+          setRecentActivity(activityData || []);
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [user]);
+
+  // Get status configuration for dynamic banner
+  const statusConfig = currentWill ? CLIENT_STATUS_MAP[currentWill.status] : null;
+  const IconComponent = statusConfig?.bannerIcon || ScrollText;
+
+  const handleDownloadPdf = async () => {
+    if (!currentWill?.pdf_path) {
+      toast({
+        title: "Error",
+        description: "No PDF available to download",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDownloadingPdf(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from('wills')
+        .createSignedUrl(currentWill.pdf_path, 3600);
+
+      if (error) throw error;
+
+      // Fetch the PDF and trigger download
+      const response = await fetch(data.signedUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `will-${currentWill.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "PDF downloaded successfully",
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download PDF",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  const handleViewPdf = async () => {
+    if (!currentWill?.pdf_path) {
+      toast({
+        title: "Error",
+        description: "No PDF available to view",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setViewingPdf(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from('wills')
+        .createSignedUrl(currentWill.pdf_path, 3600);
+
+      if (error) throw error;
+      window.open(data.signedUrl, '_blank');
+    } catch (error) {
+      console.error('View error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to view PDF",
+        variant: "destructive",
+      });
+    } finally {
+      setViewingPdf(false);
+    }
+  };
+
+  return (
+    <div className="space-y-12">
+      {/* Page Header */}
+      <PageHeader
+        title={`${t('welcome')}, ${profile?.full_name?.split(' ')[0] || t('common:user', 'User')}`}
+        subtitle={t('manageEstateSecurely')}
+      />
+
+      {/* Dynamic Status Banner */}
+      <Card className="border-[#E6E6E4] bg-gradient-to-br from-[#F8F6EC] via-white to-[#F8F6EC] shadow-[0_2px_10px_rgba(12,85,54,0.1)] hover:shadow-[0_4px_12px_rgba(12,85,54,0.12)] transition-all duration-300 rounded-lg overflow-hidden">
+        <div className="border-t-[1.5px] border-[rgba(198,160,59,0.8)] w-16 mb-0" />
+        <CardContent className="pt-6 pb-6">
+          <div className={`flex flex-col sm:flex-row items-start sm:items-center gap-6 ${flexDirection(isRtl)}`}>
+            <div
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-2"
+              style={{
+                backgroundColor: currentWill?.status === 'awaiting_review' ? 'rgba(198,160,59,0.1)' :
+                               currentWill?.status === 'under_review' || currentWill?.status === 'draft_ready' ? 'rgba(85,122,149,0.1)' :
+                               currentWill?.status === 'draft_released' ? 'rgba(18,130,119,0.1)' :
+                               currentWill?.status === 'finalized' ? 'rgba(8,61,41,0.1)' :
+                               'rgba(12,85,54,0.1)',
+                borderColor: currentWill?.status === 'awaiting_review' ? 'rgba(198,160,59,0.2)' :
+                            currentWill?.status === 'under_review' || currentWill?.status === 'draft_ready' ? 'rgba(85,122,149,0.2)' :
+                            currentWill?.status === 'draft_released' ? 'rgba(18,130,119,0.2)' :
+                            currentWill?.status === 'finalized' ? 'rgba(8,61,41,0.2)' :
+                            'rgba(12,85,54,0.2)'
+              }}
+            >
+              <IconComponent
+                className="h-8 w-8"
+                style={{
+                  color: currentWill?.status === 'awaiting_review' ? '#C6A03B' :
+                        currentWill?.status === 'under_review' || currentWill?.status === 'draft_ready' ? '#557A95' :
+                        currentWill?.status === 'draft_released' ? '#128277' :
+                        currentWill?.status === 'finalized' ? '#083D29' :
+                        '#0C5536'
+                }}
+              />
+            </div>
+            <div className={`flex-1 space-y-2 ${textAlign(isRtl)}`}>
+              <h2 className="text-[1.25rem] font-semibold text-[#0C5536] font-serif">
+                {statusConfig?.bannerTitle
+                  ? t(statusConfig.bannerTitle)
+                  : hasDraftWithData
+                    ? t('continueYourWill')
+                    : t('startYourWill')
+                }
+              </h2>
+              <p className="text-[#4B4B4B]">
+                {statusConfig?.bannerSubtitle
+                  ? t(statusConfig.bannerSubtitle)
+                  : hasDraftWithData
+                    ? t('continueYourWillDescription')
+                    : t('startYourWillDescription')
+                }
+              </p>
+            </div>
+            <div className={`flex flex-col sm:flex-row gap-3 ${flexDirection(isRtl)}`}>
+              {currentWill?.status === 'finalized' && currentWill.pdf_path ? (
+                <div className="flex items-center gap-3">
+                  <Button
+                    size="icon"
+                    onClick={handleViewPdf}
+                    disabled={viewingPdf}
+                    className="h-12 w-12 rounded-lg bg-[#0C5536] hover:bg-[#157347] text-white shadow-md hover:shadow-[0_0_6px_rgba(198,160,59,0.35),0_4px_12px_rgba(12,85,54,0.12)] transition-all duration-[250ms] disabled:opacity-50"
+                    title="View Will"
+                  >
+                    {viewingPdf ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </Button>
+                  <Button
+                    size="icon"
+                    onClick={handleDownloadPdf}
+                    disabled={downloadingPdf}
+                    className="h-12 w-12 rounded-lg bg-[#0C5536] hover:bg-[#157347] text-white shadow-md hover:shadow-[0_0_6px_rgba(198,160,59,0.35),0_4px_12px_rgba(12,85,54,0.12)] transition-all duration-[250ms] disabled:opacity-50"
+                    title="Download Will"
+                  >
+                    {downloadingPdf ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Download className="h-5 w-5" />
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {statusConfig?.primaryCTA && (
+                    <Link href={statusConfig.primaryCTA.route}>
+                      <Button
+                        size="lg"
+                        className="rounded-lg px-8 bg-[#0C5536] hover:bg-[#157347] text-white shadow-md hover:shadow-[0_0_6px_rgba(198,160,59,0.35),0_4px_12px_rgba(12,85,54,0.12)] transition-all duration-[250ms] ease-out group"
+                      >
+                        {t(statusConfig.primaryCTA.label)}
+                        <ArrowRight className={`h-5 w-5 transition-transform group-hover:translate-x-1 ${isRtl ? 'mr-2 rotate-180 group-hover:-translate-x-1' : 'ml-2'}`} />
+                      </Button>
+                    </Link>
+                  )}
+                  {statusConfig?.secondaryCTA && (
+                    <Link href={statusConfig.secondaryCTA.route}>
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="rounded-lg px-8 border-2 border-[#0C5536] text-[#0C5536] hover:bg-[#0C5536] hover:text-white transition-all duration-[250ms]"
+                      >
+                        {t(statusConfig.secondaryCTA.label)}
+                      </Button>
+                    </Link>
+                  )}
+                  {!statusConfig && (
+                    <>
+                      {hasDraftWithData ? (
+                        <Link href="/portal/will">
+                          <Button
+                            size="lg"
+                            className="rounded-lg px-8 bg-[#0C5536] hover:bg-[#157347] text-white shadow-md hover:shadow-[0_0_6px_rgba(198,160,59,0.35),0_4px_12px_rgba(12,85,54,0.12)] transition-all duration-[250ms] ease-out group"
+                          >
+                            {t('continueWill')}
+                            <ArrowRight className={`h-5 w-5 transition-transform group-hover:translate-x-1 ${isRtl ? 'mr-2 rotate-180 group-hover:-translate-x-1' : 'ml-2'}`} />
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Link href="/portal/will">
+                          <Button
+                            size="lg"
+                            className="rounded-lg px-8 bg-[#0C5536] hover:bg-[#157347] text-white shadow-md hover:shadow-[0_0_6px_rgba(198,160,59,0.35),0_4px_12px_rgba(12,85,54,0.12)] transition-all duration-[250ms] ease-out group"
+                          >
+                            {t('getStarted')}
+                            <ArrowRight className={`h-5 w-5 transition-transform group-hover:translate-x-1 ${isRtl ? 'mr-2 rotate-180 group-hover:-translate-x-1' : 'ml-2'}`} />
+                          </Button>
+                        </Link>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Stats */}
+      <div className="grid gap-10 md:grid-cols-2">
+        <Card className="border-[#E6E6E4] shadow-[0_2px_10px_rgba(12,85,54,0.1)] hover:shadow-[0_4px_12px_rgba(12,85,54,0.12)] transition-all duration-300 rounded-lg">
+          <CardHeader className="pb-3">
+            <div className={`flex items-center justify-between ${flexDirection(isRtl)}`}>
+              <CardTitle className={`text-[1.25rem] font-semibold text-[#0C5536] ${textAlign(isRtl)}`}>
+                {t('willsCreated')}
+              </CardTitle>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0C5536]/10">
+                <FileText className="h-5 w-5 text-[#0C5536]" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="h-10 w-20 bg-muted animate-pulse rounded" />
+            ) : (
+              <div className="text-4xl font-bold tracking-tight text-foreground">
+                {willsCount}
+              </div>
+            )}
+            <p className={`text-xs text-muted-foreground mt-2 ${textAlign(isRtl)}`}>
+              {t('totalWillsAccount')}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-[#E6E6E4] shadow-[0_2px_10px_rgba(12,85,54,0.1)] hover:shadow-[0_4px_12px_rgba(12,85,54,0.12)] transition-all duration-300 rounded-lg">
+          <CardHeader className="pb-3">
+            <div className={`flex items-center justify-between ${flexDirection(isRtl)}`}>
+              <CardTitle className={`text-[1.25rem] font-semibold text-[#0C5536] ${textAlign(isRtl)}`}>
+                {t('documentsCount')}
+              </CardTitle>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0C5536]/10">
+                <FolderOpen className="h-5 w-5 text-[#0C5536]" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="h-10 w-20 bg-muted animate-pulse rounded" />
+            ) : (
+              <div className="text-4xl font-bold tracking-tight text-foreground">
+                {documentsCount}
+              </div>
+            )}
+            <p className={`text-xs text-muted-foreground mt-2 ${textAlign(isRtl)}`}>
+              {t('generatedPdfDocuments')}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Activity */}
+      <Card className="border-[#E6E6E4] shadow-[0_2px_10px_rgba(12,85,54,0.1)] rounded-lg overflow-hidden">
+        <div className="border-t-[1.5px] border-[rgba(198,160,59,0.8)] w-16 mb-0" />
+        <CardHeader className="pt-6">
+          <CardTitle className={`text-[1.25rem] font-semibold text-[#0C5536] ${textAlign(isRtl)}`}>{t('recentActivity')}</CardTitle>
+          <CardDescription className={`text-[#4B4B4B] ${textAlign(isRtl)}`}>{t('latestActionsUpdates')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recentActivity.length > 0 ? (
+            <div className="space-y-4 max-h-[500px] overflow-y-auto">
+              {recentActivity.map((event) => {
+                const eventStatusConfig = CLIENT_STATUS_MAP[event.new_status];
+                const EventIcon = eventStatusConfig?.bannerIcon;
+                return (
+                  <div key={event.id} className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 border border-muted">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10">
+                      {EventIcon && <EventIcon className="h-5 w-5 text-accent" />}
+                    </div>
+                    <div className={`flex-1 space-y-1 ${isRtl ? 'text-right' : 'text-left'}`}>
+                      <p className="text-sm font-medium text-foreground">
+                        {t('statusChangedTo')}: <span className="text-accent">{eventStatusConfig?.timelineLabel ? t(eventStatusConfig.timelineLabel) : event.new_status}</span>
+                      </p>
+                      {event.notes && (
+                        <p className="text-sm text-muted-foreground">{event.notes}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(event.changed_at).toLocaleDateString(isRtl ? 'ar-SA' : 'en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className={`flex flex-col items-center justify-center py-12 text-center ${textAlign(isRtl)}`}>
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#4F8A63]/10 mb-4">
+                <Clock className="h-8 w-8 text-[#4F8A63]" />
+              </div>
+              <p className="text-foreground font-medium">{t('noActivity')}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t('activityEmptyState')}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default function Portal() {
+  return (
+    <ProtectedRoute requiredRole="client">
+      <PortalLayout>
+        <PortalContent />
+      </PortalLayout>
+    </ProtectedRoute>
+  );
+}

@@ -1,0 +1,1110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Just Wills Brand Colors */
+    --jw-primary-green: 157 73% 19%;        /* #0C5536 */
+    --jw-hover-green: 157 66% 27%;          /* #157347 */
+    --jw-gold-accent: 43 54% 51%;           /* #C6A03B */
+    --jw-sage-bg: 149 30% 89%;              /* #DCE9E2 */
+    --jw-text-charcoal: 0 0% 12%;           /* #1F1F1F */
+    --jw-subtext-grey: 0 0% 42%;            /* #6B6B6B */
+    --jw-divider: 147 25% 93%;              /* #E8EFEA */
+    --jw-dark-sidebar: 150 44% 7%;          /* #0B1C14 */
+    --jw-muted-green: 157 30% 50%;          /* #4F8A63 */
+    --jw-light-cream: 60 33% 97%;           /* #FAFAF8 */
+    --jw-soft-grey: 60 7% 90%;              /* #E6E6E4 */
+
+    --background: 0 0% 97.25%;              /* #F8F8F6 - soft warm grey */
+    --foreground: 0 0% 7%;                  /* #121212 - pure black */
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 12%;
+
+    --primary: 0 0% 12%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 215 15% 96%;
+    --secondary-foreground: 0 0% 12%;
+
+    --muted: 215 15% 96%;
+    --muted-foreground: 0 0% 42%;           /* Subtext grey */
+
+    --accent: 157 73% 19%;                  /* Primary green */
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 25 75% 47%;              /* #B8693C - warm amber-brown */
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 90%;                     /* #E6E6E4 */
+    --input: 0 0% 90%;
+    --ring: 157 73% 19%;                    /* Primary green */
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 157 65% 21%;      /* #0E4B33 - rich legal green */
+    --sidebar-foreground: 0 0% 97%;         /* #F7F7F5 - light neutral */
+    --sidebar-primary: 43 54% 51%;          /* #C6A03B - gold */
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 43 54% 51%;           /* #C6A03B - gold */
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 157 73% 22%;          /* Slightly lighter than bg */
+    --sidebar-ring: 43 54% 51%;             /* Gold focus ring */
+    --sidebar-icon-inactive: 0 0% 89%;      /* #E2E2E0 - inactive icons */
+
+    /* Premium shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+
+    /* Transitions */
+    --transition-base: all 0.2s ease-in-out;
+
+    /* Typography Tokens */
+    --heading-color: #0C5536;
+    --heading-size-h1: 1.75rem;
+    --heading-size-h2: 1.25rem;
+    --heading-weight-h1: 700;
+    --heading-weight-h2: 600;
+    --subtitle-color: #4B4B4B;
+    --subtitle-size: 1rem;
+    --body-color: #5C5C5C;
+    --body-size: 0.95rem;
+    --caption-color: #777;
+    --caption-size: 0.8rem;
+
+    /* Admin page specific colors */
+    --admin-hover-row: 60 33% 99%;              /* #FDFBF4 - soft gold tint */
+    --admin-divider: 147 25% 93%;               /* #EAEAE8 */
+    --admin-gold-accent: 43 54% 51% / 0.25;     /* Gold with opacity for borders */
+  }
+
+  .dark {
+    --background: 215 25% 10%;
+    --foreground: 0 0% 98%;
+
+    --card: 215 25% 12%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 215 25% 12%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 12%;
+
+    --secondary: 215 25% 18%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 215 25% 18%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 157 73% 19%;                  /* Primary green */
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 25 75% 47%;              /* #B8693C - warm amber-brown */
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 147 25% 93%;
+    --input: 215 25% 20%;
+    --ring: 157 73% 19%;
+
+    --sidebar-background: 157 65% 21%;      /* #0E4B33 - rich legal green */
+    --sidebar-foreground: 0 0% 97%;         /* #F7F7F5 - light neutral */
+    --sidebar-primary: 43 54% 51%;          /* #C6A03B - gold */
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 43 54% 51%;           /* #C6A03B - gold */
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 157 73% 22%;          /* Slightly lighter than bg */
+    --sidebar-ring: 43 54% 51%;             /* Gold focus ring */
+    --sidebar-icon-inactive: 0 0% 89%;      /* #E2E2E0 - inactive icons */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  html.font-arabic {
+    font-family: 'Cairo', system-ui, sans-serif;
+  }
+
+  /* RTL support */
+  [dir='rtl'] {
+    direction: rtl;
+  }
+
+  [dir='ltr'] {
+    direction: ltr;
+  }
+
+  /* Custom scrollbar for form stepper */
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--accent) / 0.3);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--accent) / 0.5);
+  }
+
+  /* Firefox scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--accent) / 0.3) hsl(var(--muted));
+  }
+
+  /* Typography refinements */
+  .heading-refined {
+    letter-spacing: -0.2px;
+    line-height: 1.3;
+  }
+
+  /* Admin timeline animation */
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Admin table hover animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Watermark styles - Visible on screen AND when printing */
+  .watermark-container {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .watermark-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: 120px;
+    font-weight: bold;
+    color: hsl(var(--jw-gold-accent));
+    opacity: 0.08;
+    white-space: nowrap;
+    user-select: none;
+    letter-spacing: 0.1em;
+    font-family: 'Playfair Display', serif;
+  }
+
+  @media print {
+    .watermark-container {
+      z-index: 9999 !important;
+    }
+
+    .watermark-text {
+      opacity: 0.1 !important; /* Slightly more visible when printing */
+    }
+  }
+}
+/* Will Document Styles - Screen and Print */
+
+.will-document {
+  max-width: 8.5in;
+  margin: 0 auto;
+  padding: 0.75in 1in;
+  background: white;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 10.5pt;
+  line-height: 1.35;
+  color: #000;
+}
+
+/* Default text alignment for LTR (English) */
+.will-document[dir="ltr"] {
+  text-align: left;
+  direction: ltr;
+}
+
+.will-document[dir="ltr"] h2,
+.will-document[dir="ltr"] h3,
+.will-document[dir="ltr"] .person-details p,
+.will-document[dir="ltr"] .person-level,
+.will-document[dir="ltr"] .beneficiary-entry p,
+.will-document[dir="ltr"] .level-heading,
+.will-document[dir="ltr"] .info-label,
+.will-document[dir="ltr"] .info-value,
+.will-document[dir="ltr"] .info-item,
+.will-document[dir="ltr"] .info-item span {
+  text-align: left !important;
+}
+
+/* RTL text alignment for Arabic */
+.will-document[dir="rtl"] {
+  text-align: right;
+  direction: rtl;
+}
+
+.will-document[dir="rtl"] h2,
+.will-document[dir="rtl"] h3,
+.will-document[dir="rtl"] .person-details p,
+.will-document[dir="rtl"] .person-level,
+.will-document[dir="rtl"] .beneficiary-entry p,
+.will-document[dir="rtl"] .level-heading,
+.will-document[dir="rtl"] .info-label,
+.will-document[dir="rtl"] .info-value,
+.will-document[dir="rtl"] .info-item,
+.will-document[dir="rtl"] .info-item span {
+  text-align: right !important;
+}
+
+/* Just Wills Branding Header - Minimal/Reduced */
+.just-wills-brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #C6A03B;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo-icon {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #0C5536 0%, #128277 100%);
+  color: #C6A03B;
+  font-size: 12pt;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-family: 'Playfair Display', serif;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-size: 11pt;
+  font-weight: bold;
+  color: #0C5536;
+  margin: 0;
+  letter-spacing: 1px;
+  font-family: 'Playfair Display', serif;
+}
+
+.brand-tagline {
+  font-size: 7pt;
+  color: #C6A03B;
+  margin: 0;
+  font-style: italic;
+}
+
+.will-document[dir="ltr"] .brand-contact {
+  text-align: right;
+  font-size: 7pt;
+  color: #777;
+  line-height: 1.3;
+}
+
+.will-document[dir="rtl"] .brand-contact {
+  text-align: left;
+  font-size: 7pt;
+  color: #777;
+  line-height: 1.3;
+}
+
+.brand-contact p {
+  margin: 0.1rem 0;
+}
+
+.will-header {
+  text-align: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #000;
+}
+
+.will-title {
+  font-size: 18pt;
+  font-weight: bold;
+  letter-spacing: 4px;
+  margin-bottom: 0.5rem;
+  margin-top: 0;
+  color: #000;
+}
+
+.will-subtitle {
+  margin-top: 0.4rem;
+}
+
+.will-subtitle p {
+  margin: 0.1rem 0;
+  font-size: 11pt;
+  font-weight: normal;
+}
+
+.testator-name {
+  font-weight: bold;
+  text-decoration: underline;
+  font-size: 12pt !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.will-content {
+  margin-top: 1.5rem;
+}
+
+.will-section {
+  margin-bottom: 1.5rem;
+  page-break-inside: avoid;
+}
+
+.will-section h2 {
+  font-size: 11pt;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  margin-top: 1rem;
+  text-transform: uppercase;
+  color: #000;
+  border-bottom: 1px solid #333;
+  padding-bottom: 0.2rem;
+}
+
+.will-section h3 {
+  font-size: 11pt;
+  font-weight: bold;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-style: normal;
+  text-decoration: underline;
+}
+
+.will-paragraph {
+  text-align: justify;
+  margin-bottom: 0.4rem;
+  text-indent: 0;
+  line-height: 1.35;
+  font-size: 10.5pt;
+}
+
+.will-paragraph:first-child {
+  text-indent: 0;
+}
+
+.will-paragraph strong {
+  font-weight: bold;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 0.75rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.will-document[dir="ltr"] .info-grid {
+  direction: ltr;
+}
+
+.will-document[dir="rtl"] .info-grid {
+  direction: rtl;
+  /* This ensures grid items flow right-to-left in RTL */
+  grid-auto-flow: dense;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  padding: 0.2rem 0;
+  border-bottom: 1px dotted #999;
+}
+
+.will-document[dir="ltr"] .info-item {
+  align-items: flex-start;
+}
+
+.will-document[dir="rtl"] .info-item {
+  align-items: flex-end;
+}
+
+.info-label {
+  font-weight: bold;
+  font-size: 8.5pt;
+  color: #000;
+  margin-bottom: 0.1rem;
+  text-transform: none;
+  letter-spacing: 0;
+  width: 100%;
+  display: block;
+}
+
+.info-value {
+  font-size: 10pt;
+  color: #000;
+  width: 100%;
+  display: block;
+}
+
+.person-entry {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.65rem;
+  background: white;
+  border: none;
+  page-break-inside: avoid;
+}
+
+.will-document[dir="ltr"] .person-entry {
+  border-left: 2px solid #000;
+  border-right: none;
+}
+
+.will-document[dir="rtl"] .person-entry {
+  border-right: 2px solid #000;
+  border-left: none;
+}
+
+.person-level {
+  font-weight: bold;
+  font-size: 9.5pt;
+  margin-bottom: 0.3rem;
+  text-transform: none;
+  letter-spacing: 0;
+  text-decoration: underline;
+}
+
+.person-details p {
+  margin: 0.15rem 0;
+  font-size: 10pt;
+  line-height: 1.3;
+}
+
+.will-document[dir="ltr"] .person-entry-simple {
+  margin-bottom: 0.5rem;
+  padding-left: 0.75rem;
+  padding-right: 0;
+}
+
+.will-document[dir="rtl"] .person-entry-simple {
+  margin-bottom: 0.5rem;
+  padding-right: 0.75rem;
+  padding-left: 0;
+}
+
+.beneficiary-level {
+  margin-bottom: 0.75rem;
+}
+
+.level-heading {
+  font-weight: bold;
+  font-size: 10pt;
+  margin-bottom: 0.4rem;
+  text-decoration: underline;
+}
+
+.will-document[dir="ltr"] .beneficiary-entry {
+  margin-bottom: 0.4rem;
+  padding-left: 0.75rem;
+  padding-right: 0;
+}
+
+.will-document[dir="rtl"] .beneficiary-entry {
+  margin-bottom: 0.4rem;
+  padding-right: 0.75rem;
+  padding-left: 0;
+}
+
+.beneficiary-entry p {
+  margin: 0.1rem 0;
+  font-size: 10pt;
+  line-height: 1.3;
+}
+
+.beneficiary-comments {
+  font-style: italic;
+  color: #666;
+  font-size: 9pt;
+  margin-top: 0.25rem;
+}
+
+.will-document[dir="ltr"] .beneficiary-comments {
+  margin-left: 0.75rem;
+  margin-right: 0;
+}
+
+.will-document[dir="rtl"] .beneficiary-comments {
+  margin-right: 0.75rem;
+  margin-left: 0;
+}
+
+.asset-entry {
+  margin-bottom: 1.5rem;
+}
+
+.will-document[dir="ltr"] .asset-entry {
+  padding-left: 1rem;
+  padding-right: 0;
+  border-left: 3px solid #0C5536;
+  border-right: none;
+}
+
+.will-document[dir="rtl"] .asset-entry {
+  padding-right: 1rem;
+  padding-left: 0;
+  border-right: 3px solid #0C5536;
+  border-left: none;
+}
+
+.asset-category-badge {
+  padding: 0.25rem 0.75rem;
+  background-color: #f0f0f0;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+  text-transform: capitalize;
+}
+
+.will-document[dir="ltr"] .asset-category-badge {
+  margin-left: 1rem;
+  margin-right: 0;
+}
+
+.will-document[dir="rtl"] .asset-category-badge {
+  margin-right: 1rem;
+  margin-left: 0;
+}
+
+.assets-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 10pt;
+  border: 1px solid #000;
+}
+
+.assets-table th {
+  background: white;
+  color: #000;
+  padding: 0.3rem 0.4rem;
+  font-weight: bold;
+  border-bottom: 2px solid #000;
+  font-size: 9pt;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.will-document[dir="ltr"] .assets-table th {
+  text-align: left;
+}
+
+.will-document[dir="rtl"] .assets-table th {
+  text-align: right;
+}
+
+.assets-table td {
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid #000;
+  font-size: 10pt;
+}
+
+.assets-table tr:nth-child(even) {
+  background: white;
+}
+
+.special-request {
+  margin-bottom: 1rem;
+}
+
+.special-request h3 {
+  font-weight: bold;
+  font-size: 10pt;
+  margin-bottom: 0.4rem;
+  text-decoration: underline;
+}
+
+.special-request p {
+  text-align: justify;
+  font-size: 10pt;
+  line-height: 1.5;
+}
+
+.will-document[dir="ltr"] .special-request p {
+  margin-left: 0.75rem;
+  margin-right: 0;
+}
+
+.will-document[dir="rtl"] .special-request p {
+  margin-right: 0.75rem;
+  margin-left: 0;
+}
+
+.letter-of-wishes-note {
+  font-style: italic;
+  color: #666;
+  font-size: 9pt;
+  text-indent: 0 !important;
+  line-height: 1.4;
+}
+
+.signature-section {
+  margin-top: 2rem;
+  page-break-before: auto;
+  page-break-inside: avoid;
+}
+
+.signature-section h2 {
+  font-size: 12pt;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  border-bottom: 1px solid #000;
+  padding-bottom: 0.25rem;
+}
+
+.execution-text {
+  text-align: justify;
+  margin-bottom: 1.25rem;
+  line-height: 1.35;
+  font-size: 10.5pt;
+}
+
+.signature-block {
+  margin: 1.25rem 0;
+  text-align: center;
+}
+
+.signature-line {
+  margin: 1.25rem auto;
+  max-width: 350px;
+}
+
+.signature-space {
+  border-bottom: 1px solid #000;
+  min-height: 40px;
+  margin-bottom: 0.3rem;
+}
+
+.signature-label {
+  font-size: 8.5pt;
+  font-weight: normal;
+  margin: 0.15rem 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.signature-name {
+  font-size: 9.5pt;
+  margin: 0.15rem 0;
+}
+
+.witnesses-section {
+  margin-top: 2rem;
+  page-break-inside: avoid;
+}
+
+.witnesses-section h3 {
+  font-size: 11pt;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-bottom: 1px solid #000;
+  padding-bottom: 0.25rem;
+}
+
+.witness-text {
+  text-align: justify;
+  margin-bottom: 1.25rem;
+  font-style: italic;
+  line-height: 1.35;
+  font-size: 9.5pt;
+}
+
+.witness-signatures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.witness-block {
+  page-break-inside: avoid;
+}
+
+.witness-info p {
+  margin: 0.25rem 0;
+  font-size: 8.5pt;
+}
+
+.will-footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 3px solid #0C5536;
+  page-break-inside: avoid;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.footer-logo-icon {
+  width: 35px;
+  height: 35px;
+  background: linear-gradient(135deg, #0C5536 0%, #128277 100%);
+  color: #C6A03B;
+  font-size: 14pt;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-family: 'Playfair Display', serif;
+}
+
+.footer-brand-name {
+  font-size: 12pt;
+  font-weight: bold;
+  color: #0C5536;
+  letter-spacing: 1.5px;
+  font-family: 'Playfair Display', serif;
+}
+
+.footer-divider {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, #C6A03B, transparent);
+  margin: 0 1rem;
+}
+
+.footer-info {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.footer-text {
+  font-size: 8pt;
+  color: #666;
+  margin: 0;
+}
+
+.footer-legal {
+  text-align: center;
+}
+
+.footer-disclaimer {
+  font-size: 8pt;
+  color: #555;
+  margin: 0.5rem 0;
+  line-height: 1.4;
+}
+
+.footer-confidential {
+  font-size: 8pt;
+  color: #0C5536;
+  font-weight: bold;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: #F8F6EC;
+}
+
+.will-document[dir="ltr"] .footer-confidential {
+  border-left: 3px solid #C6A03B;
+  border-right: none;
+  text-align: left;
+}
+
+.will-document[dir="rtl"] .footer-confidential {
+  border-right: 3px solid #C6A03B;
+  border-left: none;
+  text-align: right;
+}
+
+/* Print Styles */
+@media print {
+  /* Remove browser headers/footers (date, URL, page numbers) */
+  @page {
+    size: A4;
+    margin: 0.75in 0.75in 0.75in 0.75in;
+  }
+
+  html {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    overflow: visible !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .will-document {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    background: white !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  /* Just Wills Branding - ensure colors print */
+  .just-wills-brand {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  .logo-icon {
+    background: linear-gradient(135deg, #0C5536 0%, #128277 100%) !important;
+    color: #C6A03B !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  .brand-name {
+    color: #0C5536 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .brand-tagline {
+    color: #C6A03B !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .footer-logo-icon {
+    background: linear-gradient(135deg, #0C5536 0%, #128277 100%) !important;
+    color: #C6A03B !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  .footer-brand-name {
+    color: #0C5536 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .will-document[dir="ltr"] .footer-confidential {
+    background: #F8F6EC !important;
+    color: #0C5536 !important;
+    border-left: 3px solid #C6A03B !important;
+    border-right: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  .will-document[dir="rtl"] .footer-confidential {
+    background: #F8F6EC !important;
+    color: #0C5536 !important;
+    border-right: 3px solid #C6A03B !important;
+    border-left: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  .will-header {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  .will-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .person-entry,
+  .beneficiary-level,
+  .signature-section,
+  .witnesses-section,
+  .witness-block,
+  .will-footer {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .signature-section {
+    page-break-before: auto;
+  }
+
+  .info-grid {
+    background: white !important;
+  }
+
+  .will-document[dir="ltr"] .person-entry {
+    background: white !important;
+    border: none !important;
+    border-left: 2px solid #000 !important;
+    border-right: none !important;
+  }
+
+  .will-document[dir="rtl"] .person-entry {
+    background: white !important;
+    border: none !important;
+    border-right: 2px solid #000 !important;
+    border-left: none !important;
+  }
+
+  .assets-table {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    width: 100% !important;
+  }
+
+  .assets-table th {
+    background: white !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  .assets-table tr:nth-child(even) {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  /* Ensure proper spacing for signatures */
+  .signature-space {
+    min-height: 60px;
+  }
+
+  /* Prevent text cutoff */
+  p, div, span {
+    orphans: 3;
+    widows: 3;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* Hide any non-essential elements */
+  nav,
+  button,
+  .no-print,
+  header,
+  footer,
+  aside {
+    display: none !important;
+  }
+}
+
+/* Screen-only: Add shadow for document appearance */
+@media screen {
+  .will-document {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+  }
+}
+
+/* TipTap Proposal Editor Styles */
+.proposal-editor .ProseMirror {
+  outline: none;
+}
+
+.proposal-editor .ProseMirror ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin: 0.5rem 0 !important;
+}
+
+.proposal-editor .ProseMirror ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin: 0.5rem 0 !important;
+}
+
+.proposal-editor .ProseMirror li {
+  margin: 0.25rem 0 !important;
+}
+
+.proposal-editor .ProseMirror li p {
+  margin: 0 !important;
+}
+
+.proposal-editor .ProseMirror p {
+  margin: 0.5rem 0 !important;
+}
+
+.proposal-editor .ProseMirror p:first-child {
+  margin-top: 0 !important;
+}
+
+.proposal-editor .ProseMirror p:last-child {
+  margin-bottom: 0 !important;
+}

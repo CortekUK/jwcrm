@@ -1,0 +1,445 @@
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { PasswordInput } from "@/components/auth/PasswordInput";
+import { resetPasswordSchema, updatePasswordSchema, ResetPasswordFormData, UpdatePasswordFormData } from "@/lib/auth-validation";
+import { Mail, CheckCircle2, Loader2, Lock as LockIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export default function AuthReset() {
+  const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [passwordUpdated, setPasswordUpdated] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [isUpdateMode, setIsUpdateMode] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
+  const { t } = useTranslation('auth');
+
+  // Detect recovery mode from either query string or URL hash (Supabase uses hash params)
+  useEffect(() => {
+    const queryType = router.query.type as string | undefined;
+    let typeFromHash: string | null = null;
+    let access_token: string | null = null;
+    let refresh_token: string | null = null;
+
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.startsWith('#')
+        ? window.location.hash.substring(1)
+        : window.location.hash;
+      const hashParams = new URLSearchParams(hash);
+      typeFromHash = hashParams.get('type');
+      access_token = hashParams.get('access_token');
+      refresh_token = hashParams.get('refresh_token');
+
+      // If tokens exist, set Supabase session so the user can update password
+      if (access_token && refresh_token) {
+        supabase.auth.setSession({ access_token, refresh_token }).catch(() => {});
+        // Clean the hash from URL to avoid re-processing on refresh
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    }
+
+    setIsUpdateMode((queryType || typeFromHash) === 'recovery');
+  }, [router.query]);
+
+  const {
+    register: registerReset,
+    handleSubmit: handleSubmitReset,
+    formState: { errors: resetErrors },
+  } = useForm<ResetPasswordFormData>({
+    resolver: zodResolver(resetPasswordSchema),
+  });
+
+  const {
+    register: registerUpdate,
+    handleSubmit: handleSubmitUpdate,
+    formState: { errors: updateErrors },
+  } = useForm<UpdatePasswordFormData>({
+    resolver: zodResolver(updatePasswordSchema),
+  });
+
+  const onSubmitReset = async (data: ResetPasswordFormData) => {
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
+        redirectTo: `${window.location.origin}/auth/reset`,
+      });
+
+      if (error) throw error;
+
+      setResetEmail(data.email);
+      setEmailSent(true);
+      setResendCooldown(60);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: t('toast:error'),
+        description: error.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend password reset email
+  const handleResendReset = async () => {
+    if (resendCooldown > 0 || !resetEmail) return;
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/auth/reset`,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: t('toast:auth.resetEmailResent'),
+      });
+
+      setResendCooldown(60);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: t('toast:error'),
+        description: error.message,
+      });
+    }
+  };
+
+  // Countdown timer for resend cooldown
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+  const onSubmitUpdate = async (data: UpdatePasswordFormData) => {
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: data.newPassword,
+      });
+
+      if (error) throw error;
+
+      setPasswordUpdated(true);
+
+      // Auto-redirect to login after 5 seconds
+      setTimeout(() => {
+        router.push('/auth');
+      }, 5000);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: t('toast:error'),
+        description: error.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Password updated success state
+  if (passwordUpdated) {
+    return (
+      <AuthLayout>
+        <div className="space-y-8 text-center animate-fade-in-up">
+          {/* Animated Checkmark Icon */}
+          <div className="relative animate-scale-in">
+            <div className="w-[70px] h-[70px] rounded-full bg-[#0C5536] flex items-center justify-center shadow-[0_0_10px_rgba(198,160,59,0.25)] mx-auto">
+              <CheckCircle2 className="h-9 w-9 text-[#C6A03B]" strokeWidth={2.5} />
+            </div>
+          </div>
+
+          {/* Success Message with gold underline */}
+          <div className="space-y-3">
+            <h1 className="text-[22px] font-serif font-semibold tracking-tight text-[#0C5536]">
+              {t('passwordResetSuccess')}
+            </h1>
+            <div className="w-16 h-[2px] bg-gradient-to-r from-transparent via-[#C6A03B] to-transparent mx-auto" />
+            <p className="text-[14px] text-[#555555] leading-[1.6] max-w-sm mx-auto">
+              {t('passwordResetSuccessMessage')}
+            </p>
+          </div>
+
+          {/* Return to Login Button */}
+          <Button
+            onClick={() => router.push('/auth')}
+            className={cn(
+              "w-[80%] h-[46px] bg-[#0C5536] text-white rounded-md mx-auto",
+              "font-semibold text-[15px]",
+              "hover:bg-[#09422A] hover:shadow-[0_0_6px_rgba(198,160,59,0.45)]",
+              "focus:ring-2 focus:ring-[#C6A03B] focus:ring-offset-2",
+              "transition-all duration-200 transform hover:-translate-y-0.5"
+            )}
+          >
+            {t('returnToLogin')}
+          </Button>
+
+          {/* Auto-redirect message with progress */}
+          <div className="space-y-2">
+            <p className="text-[12px] text-[#888888]">
+              Redirecting to login in 5 seconds...
+            </p>
+
+            {/* Progress bar */}
+            <div className="w-[80%] mx-auto h-1 bg-[#F0F0F0] rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-[#0C5536] to-[#C6A03B] w-full animate-pulse" />
+            </div>
+          </div>
+
+          {/* Security footer note with gold divider */}
+          <div className="pt-4 mt-2 border-t border-[#E6E6E4] relative">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-[2px] bg-gradient-to-r from-transparent via-[#C6A03B]/20 to-transparent" />
+            <p className="text-[12px] text-[#6B6B6B] leading-[1.4] mt-4">
+              🔒 {t('resetSecurityNote')}
+            </p>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  // Update password mode
+  if (isUpdateMode) {
+    return (
+      <AuthLayout>
+        <div className="space-y-6">
+          <div className="space-y-2 text-center mb-[30px]">
+            <h1 className="text-[24px] font-serif font-semibold tracking-tight text-[#121212] mb-2">
+              {t('setNewPassword')}
+            </h1>
+            <p className="text-[14px] text-[#555555] max-w-sm mx-auto">
+              {t('setNewPasswordSubtitle')}
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmitUpdate(onSubmitUpdate)} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword" className="text-[13px] font-semibold text-[#333333]">{t('newPassword')}</Label>
+              <PasswordInput
+                id="newPassword"
+                placeholder={t('passwordPlaceholder')}
+                error={!!updateErrors.newPassword}
+                {...registerUpdate("newPassword")}
+              />
+              <p className="text-[12px] text-[#888888] mt-1">
+                Password must be at least 8 characters long
+              </p>
+              {updateErrors.newPassword && (
+                <p className="text-[12px] text-[#C0392B] mt-1" role="alert" aria-live="polite">
+                  {t(updateErrors.newPassword.message as string)}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-[13px] font-semibold text-[#333333]">{t('confirmPassword')}</Label>
+              <PasswordInput
+                id="confirmPassword"
+                placeholder={t('passwordPlaceholder')}
+                error={!!updateErrors.confirmPassword}
+                {...registerUpdate("confirmPassword")}
+              />
+              {updateErrors.confirmPassword && (
+                <p className="text-[12px] text-[#C0392B] mt-1" role="alert" aria-live="polite">
+                  {t(updateErrors.confirmPassword.message as string)}
+                </p>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className={cn(
+                "w-full h-[46px] bg-[#0C5536] text-white rounded-md",
+                "font-semibold text-[15px]",
+                "hover:bg-[#09422A] hover:shadow-[0_0_6px_rgba(198,160,59,0.45)]",
+                "focus:ring-2 focus:ring-[#C6A03B] focus:ring-offset-2",
+                "disabled:bg-[#94B2A2] disabled:text-white/60 disabled:cursor-not-allowed",
+                "transition-all duration-200 transform hover:-translate-y-0.5"
+              )}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating…
+                </>
+              ) : (
+                t('updatePassword')
+              )}
+            </Button>
+          </form>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  // Email sent confirmation
+  if (emailSent) {
+    return (
+      <AuthLayout>
+        <div className="space-y-6 text-center animate-fade-in">
+          {/* Envelope Icon with Float Animation */}
+          <div className="flex justify-center">
+            <div className="w-[70px] h-[70px] rounded-full bg-[rgba(12,85,54,0.1)] flex items-center justify-center animate-float">
+              <Mail className="h-8 w-8 text-[#0C5536]" />
+            </div>
+          </div>
+
+          {/* Headline */}
+          <div className="space-y-3">
+            <h1 className="text-[24px] font-serif font-semibold tracking-tight text-[#121212]">
+              {t('checkYourInbox')}
+            </h1>
+            <p className="text-[14px] text-[#555555] leading-[1.6] max-w-[90%] mx-auto">
+              {t('resetEmailSentMessage')} <span className="font-medium text-[#0C5536]">{resetEmail}</span>.
+              <br />
+              {t('clickResetLink')}
+            </p>
+          </div>
+
+          {/* Open Email App Button */}
+          <a
+            href={`mailto:${resetEmail}`}
+            className="block"
+          >
+            <Button
+              className={cn(
+                "w-[80%] h-[46px] bg-[#0C5536] text-white rounded-md mx-auto",
+                "font-semibold text-[15px]",
+                "hover:bg-[#09422A] hover:shadow-[0_0_0_2px_rgba(198,160,59,0.25)]",
+                "transition-all duration-200"
+              )}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              {t('openEmailApp')}
+            </Button>
+          </a>
+
+          {/* Secondary Actions */}
+          <div className="space-y-3 pt-2">
+            <div>
+              <button
+                onClick={handleResendReset}
+                disabled={resendCooldown > 0}
+                className={cn(
+                  "text-[13px] font-medium",
+                  resendCooldown > 0
+                    ? "text-[#999999] cursor-not-allowed"
+                    : "text-[#0C5536] hover:underline"
+                )}
+              >
+                {resendCooldown > 0
+                  ? `${t('resendAvailableIn')} ${resendCooldown}s`
+                  : t('resendResetLink')
+                }
+              </button>
+            </div>
+
+            <div>
+              <Link
+                href="/auth"
+                className="text-[13px] text-[#0C5536] hover:underline font-medium"
+              >
+                {t('returnToLogin')}
+              </Link>
+            </div>
+          </div>
+
+          {/* Timing Note */}
+          <div className="pt-2">
+            <p className="text-[12px] text-[#777777] leading-[1.4] max-w-sm mx-auto">
+              {t('emailArrivalNote')}
+            </p>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  // Reset password request mode
+  return (
+    <AuthLayout>
+        <div className="space-y-6">
+          <div className="space-y-2 text-center mb-[30px]">
+            <h1 className="text-[24px] font-serif font-semibold tracking-tight text-[#121212] mb-2">
+              {t('resetYourPassword')}
+            </h1>
+            <p className="text-[14px] text-[#555555] max-w-sm mx-auto">
+              {t('resetPasswordSubtitle')}
+            </p>
+          </div>
+
+        <form onSubmit={handleSubmitReset(onSubmitReset)} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-[13px] font-semibold text-[#333333]">{t('email')}</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder={t('emailPlaceholder')}
+              className={cn(
+                "h-[44px] border rounded-md px-[14px] placeholder:text-[#A0A0A0]",
+                resetErrors.email ? "border-[#C0392B]" : "border-[#E6E6E4]",
+                "focus:border-[#C6A03B] focus:ring-2 focus:ring-[rgba(198,160,59,0.35)]",
+                "transition-all duration-200"
+              )}
+              {...registerReset("email")}
+            />
+            {resetErrors.email && (
+              <p className="text-[12px] text-[#C0392B] mt-1" role="alert" aria-live="polite">
+                {t(resetErrors.email.message as string)}
+              </p>
+            )}
+          </div>
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className={cn(
+              "w-full h-[46px] bg-[#0C5536] text-white rounded-md",
+              "font-semibold text-[15px]",
+              "hover:bg-[#09422A] hover:shadow-[0_0_6px_rgba(198,160,59,0.45)]",
+              "focus:ring-2 focus:ring-[#C6A03B] focus:ring-offset-2",
+              "disabled:bg-[#94B2A2] disabled:text-white/60 disabled:cursor-not-allowed",
+              "transition-all duration-200 transform hover:-translate-y-0.5"
+            )}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending…
+              </>
+            ) : (
+              t('sendResetLink')
+            )}
+          </Button>
+        </form>
+
+          <div className="text-center mt-5 relative">
+            {/* Gold divider line */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-[2px] bg-gradient-to-r from-transparent via-[#C6A03B] to-transparent mb-4" />
+
+            <p className="text-[12px] text-[#6B6B6B] leading-[1.4] max-w-sm mx-auto mt-6 flex items-start justify-center gap-2">
+              <LockIcon className="h-3 w-3 text-[#C6A03B] flex-shrink-0 mt-0.5" />
+              <span>{t('resetRequestSecurityNote')}</span>
+            </p>
+          </div>
+      </div>
+    </AuthLayout>
+  );
+}
