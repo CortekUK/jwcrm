@@ -1,0 +1,91 @@
+{
+  "hero": {
+    "title": "Secure Your Legacy",
+    "subtitle": "Create and manage your will with confidence. Professional, secure, and accessible from anywhere.",
+    "ctaPrimary": "Get Started",
+    "ctaSecondary": "Sign In",
+    "trustBadge1": "Bank-level security",
+    "trustBadge2": "Private by default"
+  },
+  "benefits": {
+    "title": "Why Choose WillPortal",
+    "secure": {
+      "title": "Secure & Private",
+      "description": "Bank-level encryption and private storage."
+    },
+    "easy": {
+      "title": "Easy to Use",
+      "description": "Guided step-by-step form—no legal jargon."
+    },
+    "access": {
+      "title": "24/7 Access",
+      "description": "Update your will anytime, anywhere."
+    },
+    "multilingual": {
+      "title": "Multi-language",
+      "description": "English & Arabic with full RTL support."
+    }
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "step1": {
+      "title": "Create your account",
+      "description": "Sign up securely and verify your email."
+    },
+    "step2": {
+      "title": "Complete the guided form",
+      "description": "Personal details, executors, beneficiaries, assets."
+    },
+    "step3": {
+      "title": "Get your draft",
+      "description": "We generate a draft PDF you can review."
+    }
+  },
+  "security": {
+    "title": "Security & Privacy",
+    "bullet1": "Private storage (Supabase)",
+    "bullet2": "Role-based access",
+    "bullet3": "Encrypted in transit",
+    "bullet4": "You control your data",
+    "privacyLink": "Privacy Policy",
+    "termsLink": "Terms of Service"
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "q1": {
+      "question": "Is my information secure?",
+      "answer": "Yes. We use bank-level encryption and store all data securely with Supabase. Only you and authorized admins can access your information."
+    },
+    "q2": {
+      "question": "Can I edit my will later?",
+      "answer": "Absolutely. You can log in anytime to update your details, beneficiaries, or assets. Changes will generate a new draft PDF."
+    },
+    "q3": {
+      "question": "How is the draft generated?",
+      "answer": "Our system uses your submitted information to create a professionally formatted PDF draft. You can review it before finalizing."
+    },
+    "q4": {
+      "question": "Do you support English and Arabic?",
+      "answer": "Yes. The entire interface supports both English and Arabic with full RTL (right-to-left) support for Arabic."
+    },
+    "q5": {
+      "question": "Is e-signing supported?",
+      "answer": "Currently, we generate draft PDFs for your review. E-signing features are planned for future releases."
+    }
+  },
+  "testimonials": {
+    "trustNote": "Trusted by clients in the UAE & UK"
+  },
+  "footer": {
+    "product": "Product",
+    "features": "Features",
+    "pricing": "Pricing",
+    "company": "Company",
+    "about": "About",
+    "contact": "Contact",
+    "legal": "Legal",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "copyright": "© 2025 WillPortal. All rights reserved."
+  }
+}
