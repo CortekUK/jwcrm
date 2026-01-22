@@ -1,0 +1,264 @@
+"use client";
+
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Search, Edit, Trash2, Briefcase, AlertTriangle, Loader2 } from "lucide-react";
+
+type JobRole = {
+  id: string;
+  name: string;
+  department_id: string | null;
+  created_at: string | null;
+  department?: {
+    name: string;
+  } | null;
+  employee_count: number;
+  kpi_count: number;
+};
+
+type JobRoleTableProps = {
+  jobRoles: JobRole[];
+  onAddNew: () => void;
+  onEdit: (id: string) => void;
+  onRefresh: () => void;
+};
+
+export function JobRoleTable({
+  jobRoles,
+  onAddNew,
+  onEdit,
+  onRefresh,
+}: JobRoleTableProps) {
+  const { t, i18n } = useTranslation(["hr", "common"]);
+  const isRtl = i18n.language === "ar";
+  const router = useRouter();
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<JobRole | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Filter job roles based on search
+  const filteredRoles = jobRoles.filter((role) =>
+    role.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleDeleteClick = (role: JobRole) => {
+    setSelectedRole(role);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedRole) return;
+
+    if (selectedRole.employee_count > 0) {
+      toast({
+        variant: "destructive",
+        description: t("hr:cannotDeleteJobRole"),
+      });
+      setDeleteModalOpen(false);
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("job_roles")
+        .delete()
+        .eq("id", selectedRole.id);
+
+      if (error) throw error;
+
+      toast({
+        title: t("hr:jobRoleDeleted"),
+        className: "bg-[hsl(var(--jw-primary-green))] text-white",
+      });
+      setDeleteModalOpen(false);
+      setSelectedRole(null);
+      onRefresh();
+    } catch (error) {
+      console.error("Error deleting job role:", error);
+      toast({
+        variant: "destructive",
+        description:
+          error instanceof Error ? error.message : "Error deleting job role",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header with Search and Add Button */}
+      <div className={`flex flex-col md:flex-row gap-4 justify-between ${isRtl ? "md:flex-row-reverse" : ""}`}>
+        <div className="relative flex-1 max-w-sm">
+          <Search className={`absolute top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B6B6B] ${isRtl ? "right-3" : "left-3"}`} />
+          <Input
+            placeholder={t("hr:searchEmployees")}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={`border-[#E6E6E4] ${isRtl ? "pr-10" : "pl-10"}`}
+          />
+        </div>
+        <Button
+          onClick={onAddNew}
+          className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          {t("hr:addJobRole")}
+        </Button>
+      </div>
+
+      {/* Table */}
+      <div className="border border-[#E6E6E4] rounded-lg overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-[#FAFAF8]">
+              <TableHead>{t("hr:jobRoleName")}</TableHead>
+              <TableHead>{t("hr:department")}</TableHead>
+              <TableHead className="text-center">{t("hr:employeesAssigned")}</TableHead>
+              <TableHead className="text-center">{t("hr:kpisAssigned")}</TableHead>
+              <TableHead className={isRtl ? "text-left" : "text-right"}>{t("hr:actions")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredRoles.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8">
+                  <Briefcase className="h-12 w-12 text-[#E6E6E4] mx-auto mb-2" />
+                  <p className="text-[#6B6B6B]">{t("hr:noJobRoles")}</p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredRoles.map((role) => (
+                <TableRow key={role.id} className="hover:bg-[#FAFAF8]">
+                  <TableCell>
+                    <p className="font-medium text-[#222222]">{role.name}</p>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-[#6B6B6B]">
+                      {role.department?.name || "-"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className={`inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-sm font-medium ${
+                      role.employee_count > 0
+                        ? "bg-[#E6F7F1] text-[#0C5536]"
+                        : "bg-gray-100 text-gray-600"
+                    }`}>
+                      {role.employee_count}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className={`inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-sm font-medium ${
+                      role.kpi_count > 0
+                        ? "bg-[#FFF9E6] text-[#C6A03B]"
+                        : "bg-gray-100 text-gray-600"
+                    }`}>
+                      {role.kpi_count}
+                    </span>
+                  </TableCell>
+                  <TableCell className={isRtl ? "text-left" : "text-right"}>
+                    <div className={`flex gap-1 ${isRtl ? "justify-start" : "justify-end"}`}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit(role.id)}
+                        className="text-[#6B6B6B] hover:text-[#222222]"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteClick(role)}
+                        className="text-[#6B6B6B] hover:text-red-600"
+                        disabled={role.employee_count > 0}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Results Count */}
+      <div className="text-sm text-[#6B6B6B]">
+        {t("hr:showingResults", {
+          count: filteredRoles.length,
+          total: jobRoles.length,
+        })}
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              {t("hr:deleteJobRole")}
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div>
+                {selectedRole?.employee_count ? (
+                  <div className="p-3 bg-[#FFF9E6] rounded-lg border border-[#C6A03B]/20 mt-2">
+                    <span className="text-sm text-[#C6A03B]">
+                      {t("hr:cannotDeleteJobRole")}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-[#6B6B6B] mt-2 block">
+                    {t("hr:jobRoleDeleteNote")}
+                  </span>
+                )}
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteModalOpen(false)}
+              className="border-[#E6E6E4]"
+            >
+              {t("hr:cancel")}
+            </Button>
+            <Button
+              onClick={handleDelete}
+              disabled={deleting || (selectedRole?.employee_count ?? 0) > 0}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("hr:deleteJobRole")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
