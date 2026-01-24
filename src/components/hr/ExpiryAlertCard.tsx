@@ -38,7 +38,14 @@ import {
   Search,
   X,
   Filter,
+  MoreHorizontal,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { differenceInDays, format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
@@ -517,8 +524,10 @@ HR Department`;
     return (
       <Card className="border-[#E6E6E4]">
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+          <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+            <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
+              <FileText className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
+            </div>
             {t("hr:documentAlerts")}
           </CardTitle>
         </CardHeader>
@@ -571,88 +580,62 @@ HR Department`;
               </div>
             )}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                router.push(`/admin/hr/employees/${doc.employee_id}?tab=documents`);
-              }}
-              title="View Documents"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </Button>
-            {!isInProgress && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openUploadDialog(doc);
-                  }}
-                  title="Upload Renewed Document"
-                >
-                  <Upload className="h-3.5 w-3.5" />
+          <div className="flex items-center shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openReminderDialog(doc);
-                  }}
-                  title="Send Reminder"
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => router.push(`/admin/hr/employees/${doc.employee_id}?tab=documents`)}
                 >
-                  <Mail className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-sky-600 hover:text-sky-700 hover:bg-sky-50"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openRenewalDialog(doc);
-                  }}
-                  title="Mark as Renewal in Progress"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </Button>
-
-              </>
-            )}
-            {isInProgress && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleMarkRenewalComplete(doc);
-                  }}
-                  title="Mark as Complete"
-                >
-                  Complete
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCancelRenewal(doc);
-                  }}
-                  title="Cancel Renewal"
-                >
-                  Cancel
-                </Button>
-              </>
-            )}
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  {t("hr:viewDocuments")}
+                </DropdownMenuItem>
+                {!isInProgress && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => openUploadDialog(doc)}
+                      className="text-green-600 focus:text-green-700"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {t("hr:uploadRenewed")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openReminderDialog(doc)}>
+                      <Mail className="h-4 w-4 mr-2" />
+                      {t("hr:sendReminder")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => openRenewalDialog(doc)}
+                      className="text-sky-600 focus:text-sky-700"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      {t("hr:markInProgress")}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {isInProgress && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => handleMarkRenewalComplete(doc)}
+                      className="text-green-600 focus:text-green-700"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {t("hr:markComplete")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleCancelRenewal(doc)}
+                      className="text-red-600 focus:text-red-700"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      {t("hr:cancelRenewal")}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </li>
@@ -663,9 +646,11 @@ HR Department`;
     <>
       <Card className="border-[#E6E6E4]">
         <CardHeader>
-          <CardTitle className="text-lg flex items-center justify-between">
+          <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
             <span className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+              <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
+                <FileText className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
+              </div>
               {t("hr:documentAlerts")}
             </span>
             <div className="flex items-center gap-2">
@@ -988,25 +973,39 @@ export function AlertSummaryCards({ documents }: AlertSummaryCardsProps) {
   const grouped = groupByAlertLevel(documents);
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {(["expired", "critical", "urgent", "warning", "advisory"] as AlertLevel[]).map((level) => {
         const config = alertConfig[level];
         const Icon = config.icon;
         const count = grouped[level].length;
+        const hasItems = count > 0;
 
         return (
-          <Card key={level} className={`border ${config.borderColor} ${count > 0 ? config.bgColor : "bg-white"}`}>
+          <Card 
+            key={level} 
+            className={`transition-shadow hover:shadow-md ${
+              hasItems 
+                ? `${config.bgColor} ${config.borderColor}` 
+                : "bg-white border-[#E6E6E4]"
+            }`}
+          >
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[#6B6B6B]">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-[#6B6B6B] uppercase tracking-wide">
                     {t(`hr:alert.${level}`)}
                   </p>
-                  <p className={`text-2xl font-bold ${count > 0 ? config.color : "text-[#222222]"}`}>{count}</p>
+                  <p className={`text-2xl font-bold ${hasItems ? config.color : "text-[#222222]"}`}>
+                    {count}
+                  </p>
+                  <p className="text-xs text-[#6B6B6B]">{config.label}</p>
                 </div>
-                <Icon className={`h-8 w-8 ${count > 0 ? config.color : "text-[#E6E6E4]"}`} />
+                <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${
+                  hasItems ? `${config.bgColor}` : "bg-gray-50"
+                }`}>
+                  <Icon className={`h-4.5 w-4.5 ${hasItems ? config.color : "text-[#E6E6E4]"}`} />
+                </div>
               </div>
-              <p className="text-xs text-[#6B6B6B] mt-1">{config.label}</p>
             </CardContent>
           </Card>
         );

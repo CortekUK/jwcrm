@@ -12,13 +12,13 @@ This document outlines the implementation requirements for extending the lead ma
 
 ## Hierarchy Structure
 
-```
+\`\`\`
 Sources (immutable/permanent)
     ↓
 Salespeople (assigned to sources)
     ↓
 Leads (automatically assigned based on source)
-```
+\`\`\`
 
 **Key Insight**: Sources are like Departments in HR module - they're created first and are relatively permanent. Salespeople are like Employees - they can be reassigned or replaced without losing lead history.
 
@@ -102,7 +102,7 @@ Lead Manager can manually reassign any lead:
 
 ### Assignment Flow Diagram
 
-```
+\`\`\`
 New Lead Created
        ↓
 Source Selected (required field)
@@ -121,7 +121,7 @@ Lookup Salespeople for Source
    └─────────────────────┘
          ↓
    Email Notification to Salesperson
-```
+\`\`\`
 
 ---
 
@@ -129,7 +129,7 @@ Lookup Salespeople for Source
 
 ### New Table: `lead_sources`
 
-```sql
+\`\`\`sql
 CREATE TABLE lead_sources (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -144,11 +144,11 @@ CREATE TRIGGER update_lead_sources_updated_at
   BEFORE UPDATE ON lead_sources
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-```
+\`\`\`
 
 ### New Table: `source_salesperson_assignments`
 
-```sql
+\`\`\`sql
 CREATE TABLE source_salesperson_assignments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   source_id UUID NOT NULL REFERENCES lead_sources(id) ON DELETE CASCADE,
@@ -161,11 +161,11 @@ CREATE TABLE source_salesperson_assignments (
 
 CREATE INDEX idx_source_assignments_source ON source_salesperson_assignments(source_id);
 CREATE INDEX idx_source_assignments_salesperson ON source_salesperson_assignments(salesperson_id);
-```
+\`\`\`
 
 ### Modify Table: `leads`
 
-```sql
+\`\`\`sql
 -- Add assignment fields to leads table
 ALTER TABLE leads
   ADD COLUMN source_id UUID REFERENCES lead_sources(id),
@@ -177,14 +177,14 @@ ALTER TABLE leads
 
 CREATE INDEX idx_leads_assigned_to ON leads(assigned_to);
 CREATE INDEX idx_leads_source_id ON leads(source_id);
-```
+\`\`\`
 
 ### Add Salesperson Role
 
-```sql
+\`\`\`sql
 -- Ensure salesperson role exists in user_roles for assigned users
 -- This is handled through the existing user management system
-```
+\`\`\`
 
 ---
 
@@ -224,11 +224,11 @@ CREATE INDEX idx_leads_source_id ON leads(source_id);
 **Route**: `/admin/salesperson` (for unified admin) or `/salesperson` (dedicated)
 
 **Sidebar**:
-```
+\`\`\`
 📊 Dashboard (performance stats)
 👥 My Leads (filtered leads table)
 ⚙️ Settings
-```
+\`\`\`
 
 **My Leads View**:
 - Same table as Lead Manager but filtered to `assigned_to = current_user`
@@ -260,7 +260,7 @@ CREATE INDEX idx_leads_source_id ON leads(source_id);
 
 ### Add to `dashboards.ts`
 
-```typescript
+\`\`\`typescript
 // Salesperson nav items (in unified admin)
 const salespersonNavItems: NavItem[] = [
   { path: "/admin/salesperson", labelKey: "salesperson:dashboard", icon: LayoutDashboard },
@@ -275,17 +275,17 @@ const leadManagementNavItems: NavItem[] = [
   { path: "/admin/lead-management/sources", labelKey: "leadManagement:sources", icon: Globe }, // NEW
   { path: "/admin/lead-management/settings", labelKey: "common:settings", icon: Settings },
 ];
-```
+\`\`\`
 
 ### Update Role Types
 
-```typescript
+\`\`\`typescript
 // In useAuth.tsx
 export type UserRole = "client" | "admin" | "superadmin" | "hr" | "finance" | "lead_management" | "salesperson";
 
 // In useSelectedRole.tsx
 export const INTERNAL_ROLES: UserRole[] = ["superadmin", "admin", "hr", "finance", "lead_management", "salesperson"];
-```
+\`\`\`
 
 ---
 
@@ -309,7 +309,7 @@ Send email to new salesperson:
 
 ### Leads Table Policies
 
-```sql
+\`\`\`sql
 -- Salesperson can only see their assigned leads
 CREATE POLICY "salesperson_view_assigned_leads" ON leads
   FOR SELECT
@@ -329,11 +329,11 @@ CREATE POLICY "salesperson_update_assigned_leads" ON leads
   TO authenticated
   USING (assigned_to = auth.uid())
   WITH CHECK (assigned_to = auth.uid());
-```
+\`\`\`
 
 ### Source Tables Policies
 
-```sql
+\`\`\`sql
 -- Only lead_management and admin can manage sources
 CREATE POLICY "manage_sources" ON lead_sources
   FOR ALL
@@ -345,7 +345,7 @@ CREATE POLICY "manage_sources" ON lead_sources
       AND role IN ('admin', 'superadmin', 'lead_management')
     )
   );
-```
+\`\`\`
 
 ---
 
@@ -396,7 +396,7 @@ CREATE POLICY "manage_sources" ON lead_sources
 ## 11. Translations Needed
 
 ### English (`leadManagement.json`)
-```json
+\`\`\`json
 {
   "sources": "Sources",
   "manageSources": "Manage Sources",
@@ -414,10 +414,10 @@ CREATE POLICY "manage_sources" ON lead_sources
   "autoAssigned": "Auto-assigned",
   "manuallyAssigned": "Manually assigned"
 }
-```
+\`\`\`
 
 ### Salesperson namespace (`salesperson.json`)
-```json
+\`\`\`json
 {
   "dashboard": "Dashboard",
   "myLeads": "My Leads",
@@ -428,7 +428,7 @@ CREATE POLICY "manage_sources" ON lead_sources
   "conversionRate": "Conversion Rate",
   "revenueGenerated": "Revenue Generated"
 }
-```
+\`\`\`
 
 ---
 

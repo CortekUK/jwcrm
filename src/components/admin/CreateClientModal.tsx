@@ -3,8 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Copy, Check, Mail, User, Globe, AlertCircle, Shield, Users, DollarSign, Target, UserCheck } from "lucide-react";
+import { Loader2, Copy, Check, Mail, User, AlertCircle, Shield, Users, Target, UserCheck, Banknote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -44,16 +43,16 @@ export function CreateClientModal({ open, onOpenChange, onUserCreated }: CreateC
 
   // Base roles available to all admins
   const baseRoles = [
-    { value: "client", label: "admin:client", icon: User, color: "text-[#0C5536]" },
-    { value: "admin", label: "admin:administrator", icon: Shield, color: "text-[#DC2626]" },
-    { value: "hr", label: "admin:hr", icon: Users, color: "text-[#16A34A]" },
-    { value: "finance", label: "admin:finance", icon: DollarSign, color: "text-[#CA8A04]" },
-    { value: "lead_management", label: "admin:leadManagement", icon: Target, color: "text-[#E11D48]" },
+    { value: "client", label: "admin:client", icon: User, bgColor: "bg-[rgba(12,85,54,0.08)]", textColor: "text-[#0C5536]", borderColor: "border-[#0C5536]/20" },
+    { value: "admin", label: "admin:administrator", icon: Shield, bgColor: "bg-[rgba(139,92,246,0.1)]", textColor: "text-[#7C3AED]", borderColor: "border-[#7C3AED]/20" },
+    { value: "hr", label: "admin:hr", icon: Users, bgColor: "bg-[rgba(20,184,166,0.1)]", textColor: "text-[#0D9488]", borderColor: "border-[#0D9488]/20" },
+    { value: "finance", label: "admin:finance", icon: Banknote, bgColor: "bg-[rgba(234,179,8,0.1)]", textColor: "text-[#CA8A04]", borderColor: "border-[#CA8A04]/20" },
+    { value: "lead_management", label: "admin:leadManagement", icon: Target, bgColor: "bg-[rgba(245,158,11,0.1)]", textColor: "text-[#D97706]", borderColor: "border-[#D97706]/20" },
   ];
 
   // Salesperson role only available when created by superadmin
   const availableRoles = isSuperadmin
-    ? [...baseRoles, { value: "salesperson", label: "admin:salesperson", icon: UserCheck, color: "text-[#7C3AED]" }]
+    ? [...baseRoles, { value: "salesperson", label: "admin:salesperson", icon: UserCheck, bgColor: "bg-[rgba(59,130,246,0.1)]", textColor: "text-[#2563EB]", borderColor: "border-[#2563EB]/20" }]
     : baseRoles;
 
   const [credentials, setCredentials] = useState<ClientCredentials | null>(null);
@@ -174,14 +173,16 @@ Just Wills Team`;
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="text-[hsl(var(--jw-primary-green))] flex items-center gap-2">
-            <User className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-[hsl(var(--jw-primary-green))] flex items-center gap-2 text-lg">
+            <div className="h-8 w-8 rounded-full bg-[rgba(12,85,54,0.08)] flex items-center justify-center">
+              <User className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+            </div>
             {credentials
               ? t('admin:createClientModal.userCreated')
               : t('admin:createClientModal.createNewUser')}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-[#777777] text-sm">
             {credentials
               ? t('admin:createClientModal.userAccountCreated')
               : t('admin:createClientModal.createUserDescription')}
@@ -189,24 +190,24 @@ Just Wills Team`;
         </DialogHeader>
 
         {!credentials ? (
-          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="fullName" className="text-[#555555]">
-                {t('admin:createClientModal.fullName')} <span className="text-red-500">*</span>
+          <form onSubmit={handleSubmit} className="space-y-5 mt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="fullName" className="text-[#555555] text-sm font-medium">
+                {t('admin:createClientModal.fullName')} <span className="text-[#DC2626] text-xs">*</span>
               </Label>
               <Input
                 id="fullName"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder={t('admin:createClientModal.enterFullName', { role: t('admin:user') })}
-                className="border-[#E6E6E4]"
+                className="border-[#E6E6E4] focus:border-[hsl(var(--jw-primary-green))] focus:ring-1 focus:ring-[hsl(var(--jw-primary-green))] h-10"
                 disabled={loading}
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-[#555555]">
-                {t('admin:createClientModal.emailAddress')} <span className="text-red-500">*</span>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-[#555555] text-sm font-medium">
+                {t('admin:createClientModal.emailAddress')} <span className="text-[#DC2626] text-xs">*</span>
               </Label>
               <Input
                 id="email"
@@ -214,73 +215,73 @@ Just Wills Team`;
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('admin:createClientModal.emailPlaceholder', { role: 'user' })}
-                className="border-[#E6E6E4]"
+                className="border-[#E6E6E4] focus:border-[hsl(var(--jw-primary-green))] focus:ring-1 focus:ring-[hsl(var(--jw-primary-green))] h-10"
                 disabled={loading}
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[#555555] flex items-center gap-2">
-                <User className="h-4 w-4" />
+              <Label className="text-[#555555] text-sm font-medium">
                 {t('admin:createClientModal.userRoles')}
               </Label>
-              <div className="grid grid-cols-2 gap-2 p-3 border border-[#E6E6E4] rounded-md bg-[#FAFAF8]">
+              <div className="grid grid-cols-2 gap-2">
                 {availableRoles.map((role) => {
                   const Icon = role.icon;
                   const isChecked = userRoles.includes(role.value);
                   return (
-                    <label
+                    <button
                       key={role.value}
-                      htmlFor={`role-${role.value}`}
-                      className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors ${
-                        isChecked ? 'bg-white border border-[#E6E6E4] shadow-sm' : 'hover:bg-white/50'
+                      type="button"
+                      onClick={() => {
+                        if (loading) return;
+                        if (isChecked) {
+                          if (userRoles.length > 1) {
+                            setUserRoles(prev => prev.filter(r => r !== role.value));
+                          }
+                        } else {
+                          setUserRoles(prev => [...prev, role.value]);
+                        }
+                      }}
+                      disabled={loading}
+                      className={`flex items-center gap-2.5 p-3 rounded-lg cursor-pointer transition-all text-left ${
+                        isChecked 
+                          ? `${role.bgColor} border-2 ${role.borderColor} shadow-sm` 
+                          : 'bg-[#FAFAF8] border border-[#E6E6E4] hover:border-[#CCCCC9]'
                       } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      <Checkbox
-                        id={`role-${role.value}`}
-                        checked={isChecked}
-                        onCheckedChange={(checked) => {
-                          if (loading) return;
-                          if (checked) {
-                            setUserRoles(prev => [...prev, role.value]);
-                          } else {
-                            if (userRoles.length > 1) {
-                              setUserRoles(prev => prev.filter(r => r !== role.value));
-                            }
-                          }
-                        }}
-                        disabled={loading}
-                        className="data-[state=checked]:bg-[hsl(var(--jw-primary-green))] data-[state=checked]:border-[hsl(var(--jw-primary-green))]"
-                      />
-                      <Icon className={`h-4 w-4 ${role.color}`} />
-                      <span className="text-sm flex-1">
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                        isChecked ? role.bgColor : 'bg-white'
+                      }`}>
+                        <Icon className={`h-4 w-4 ${isChecked ? role.textColor : 'text-[#777777]'}`} />
+                      </div>
+                      <span className={`text-sm font-medium ${isChecked ? role.textColor : 'text-[#555555]'}`}>
                         {t(role.label)}
                       </span>
-                    </label>
+                    </button>
                   );
                 })}
               </div>
-              <p className="text-xs text-[#777777]">
+              <p className="text-xs text-[#999999]">
                 {t('admin:createClientModal.selectMultipleRoles')}
               </p>
             </div>
 
 
 
-            <div className="flex justify-end gap-2 pt-4">
+            <div className="flex justify-end gap-3 pt-5 border-t border-[#E6E6E4] mt-6">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleClose}
                 disabled={loading}
-                className="border-[#E6E6E4]"
+                className="border-[#E6E6E4] text-[#555555] hover:bg-[#F5F5F3] hover:text-[#333333]"
               >
                 {t('admin:createClientModal.cancel')}
               </Button>
               <Button
                 type="submit"
                 disabled={loading}
-                className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+                className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white min-w-[120px]"
               >
                 {loading ? (
                   <>

@@ -764,4 +764,3 @@ export function PassportUploadSection({
     </div>
   );
 }
-

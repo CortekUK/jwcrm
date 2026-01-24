@@ -22,11 +22,11 @@ import {
   Loader2,
   Search,
   UserPlus,
-  Shield,
   UserX,
   UserCheck,
   Trash2,
   AlertCircle,
+  MoreHorizontal,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -38,6 +38,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
@@ -274,27 +280,8 @@ export default function ManageUsersPage() {
 
       {/* Users Table */}
       <Card className="rounded-lg border border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
-        <CardHeader>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <CardTitle className="text-xl font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
-                {t('admin:allUsers')}
-              </CardTitle>
-              <CardDescription className="text-sm text-[#777777]">
-                {t('admin:manageAllUsers')}
-              </CardDescription>
-            </div>
-            <Button
-              onClick={() => setCreateClientModalOpen(true)}
-              className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
-              size="sm"
-            >
-              <UserPlus className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
-              {t('admin:createUser')}
-            </Button>
-          </div>
-
-          {/* Search Bar */}
+        <CardHeader className="pb-4">
+          {/* Search and Create Button Row */}
           <div className="flex gap-3 items-center">
             <div className="flex-1 relative">
               <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C6A03B]" />
@@ -306,19 +293,27 @@ export default function ManageUsersPage() {
                 className="w-full ltr:pl-10 rtl:pr-10 ltr:pr-4 rtl:pl-4 py-2 text-sm border border-[#E6E6E4] rounded-md focus:outline-none focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B] transition-all"
               />
             </div>
+            <Button
+              onClick={() => setCreateClientModalOpen(true)}
+              className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+              size="sm"
+            >
+              <UserPlus className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+              {t('admin:createUser')}
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border border-[#E6E6E4] overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="bg-[#FAFAF8]" style={{ borderBottom: '1px solid #EAEAE8' }}>
-                  <TableHead className="font-semibold text-[#555555]" style={{ borderRight: '1px solid #EAEAE8' }}>{t('admin:user')}</TableHead>
-                  <TableHead className="font-semibold text-[#555555]" style={{ borderRight: '1px solid #EAEAE8' }}>{t('admin:email')}</TableHead>
-                  <TableHead className="font-semibold text-[#555555]" style={{ borderRight: '1px solid #EAEAE8' }}>{t('admin:role')}</TableHead>
-                  <TableHead className="font-semibold text-[#555555]" style={{ borderRight: '1px solid #EAEAE8' }}>{t('admin:created')}</TableHead>
-                  <TableHead className="font-semibold text-[#555555]" style={{ borderRight: '1px solid #EAEAE8' }}>{t('admin:status')}</TableHead>
-                  <TableHead className="ltr:text-right rtl:text-left font-semibold text-[#555555]">{t('admin:actions')}</TableHead>
+                <TableRow className="bg-[#FAFAF8] border-b border-[#EAEAE8]">
+                  <TableHead className="font-semibold text-[#555555]">{t('admin:user')}</TableHead>
+                  <TableHead className="font-semibold text-[#555555]">{t('admin:email')}</TableHead>
+                  <TableHead className="font-semibold text-[#555555]">{t('admin:role')}</TableHead>
+                  <TableHead className="font-semibold text-[#555555]">{t('admin:created')}</TableHead>
+                  <TableHead className="font-semibold text-[#555555]">{t('admin:status')}</TableHead>
+                  <TableHead className="ltr:text-right rtl:text-left font-semibold text-[#555555] w-[60px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -332,44 +327,43 @@ export default function ManageUsersPage() {
                   filteredUsers.map((user) => (
                     <TableRow
                       key={user.user_id}
-                      className="transition-colors hover:bg-[#FDFBF4]"
-                      style={{ borderBottom: '1px solid #EAEAE8' }}
+                      className="transition-colors hover:bg-[#FDFBF4] border-b border-[#EAEAE8]"
                     >
-                      <TableCell style={{ borderRight: '1px solid #EAEAE8' }}>
+                      <TableCell>
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9 border-2 border-[#C6A03B]/20">
-                            <AvatarFallback className="bg-[rgba(198,160,59,0.15)] text-[#0C5536] text-sm font-semibold">
+                          <Avatar className="h-8 w-8 border border-[#C6A03B]/20">
+                            <AvatarFallback className="bg-[rgba(198,160,59,0.12)] text-[#0C5536] text-xs font-semibold">
                               {getInitials(user.full_name)}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <p className="font-medium text-[#222222]">
-                              {user.full_name || t('admin:unknownUser')}
-                            </p>
-                          </div>
+                          <span className="font-medium text-[#222222]">
+                            {user.full_name || t('admin:unknownUser')}
+                          </span>
                         </div>
                       </TableCell>
-                      <TableCell style={{ borderRight: '1px solid #EAEAE8' }}>
-                        <div className="flex items-center gap-1 text-sm text-[#777777]">
-                          <Mail className="h-3 w-3 shrink-0" />
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-sm text-[#777777]">
+                          <Mail className="h-3.5 w-3.5 shrink-0 text-[#999999]" />
                           {user.email}
                         </div>
                       </TableCell>
-                      <TableCell style={{ borderRight: '1px solid #EAEAE8' }}>
+                      <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {(user.roles && user.roles.length > 0 ? user.roles : [user.role || 'client']).map((role) => {
                             const getRoleStyle = (r: string) => {
                               switch (r) {
                                 case 'admin':
-                                  return 'bg-[rgba(220,38,38,0.1)] text-[#DC2626] hover:bg-[rgba(220,38,38,0.15)]';
+                                  return 'bg-[rgba(139,92,246,0.1)] text-[#7C3AED]';
                                 case 'hr':
-                                  return 'bg-[rgba(34,197,94,0.1)] text-[#16A34A] hover:bg-[rgba(34,197,94,0.15)]';
+                                  return 'bg-[rgba(20,184,166,0.1)] text-[#0D9488]';
                                 case 'finance':
-                                  return 'bg-[rgba(234,179,8,0.1)] text-[#CA8A04] hover:bg-[rgba(234,179,8,0.15)]';
+                                  return 'bg-[rgba(234,179,8,0.1)] text-[#CA8A04]';
                                 case 'lead_management':
-                                  return 'bg-[rgba(244,63,94,0.1)] text-[#E11D48] hover:bg-[rgba(244,63,94,0.15)]';
+                                  return 'bg-[rgba(245,158,11,0.1)] text-[#D97706]';
+                                case 'salesperson':
+                                  return 'bg-[rgba(59,130,246,0.1)] text-[#2563EB]';
                                 default:
-                                  return 'bg-[rgba(12,85,54,0.08)] text-[#0C5536] hover:bg-[rgba(12,85,54,0.12)]';
+                                  return 'bg-[rgba(12,85,54,0.08)] text-[#0C5536]';
                               }
                             };
                             const getRoleLabel = (r: string) => {
@@ -378,6 +372,7 @@ export default function ManageUsersPage() {
                                 case 'hr': return t('admin:hr');
                                 case 'finance': return t('admin:finance');
                                 case 'lead_management': return t('admin:leadManagement');
+                                case 'salesperson': return t('admin:salesperson');
                                 case 'client': return t('admin:client');
                                 default: return r;
                               }
@@ -385,24 +380,23 @@ export default function ManageUsersPage() {
                             return (
                               <Badge
                                 key={role}
-                                className={`rounded-md border-0 hover:bg-opacity-100 ${getRoleStyle(role)}`}
+                                className={`rounded-md border-0 text-xs font-medium px-2 py-0.5 ${getRoleStyle(role)}`}
                               >
-                                {role === 'admin' && <Shield className="h-3 w-3 ltr:mr-1 rtl:ml-1" />}
                                 {getRoleLabel(role)}
                               </Badge>
                             );
                           })}
                         </div>
                       </TableCell>
-                      <TableCell style={{ borderRight: '1px solid #EAEAE8' }}>
-                        <div className="flex items-center gap-2 text-sm text-[#777777]">
-                          <Calendar className="h-4 w-4" />
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-sm text-[#777777]">
+                          <Calendar className="h-3.5 w-3.5 text-[#999999]" />
                           {format(new Date(user.created_at), 'PP')}
                         </div>
                       </TableCell>
-                      <TableCell style={{ borderRight: '1px solid #EAEAE8' }}>
+                      <TableCell>
                         <Badge
-                          className={`rounded-md border ${
+                          className={`rounded-md border text-xs font-medium ${
                             user.is_active
                               ? 'bg-[rgba(22,163,74,0.1)] text-[#16A34A] border-[#16A34A]/20'
                               : 'bg-[rgba(153,153,153,0.1)] text-[#999999] border-[#999999]/20'
@@ -412,46 +406,51 @@ export default function ManageUsersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="ltr:text-right rtl:text-left">
-                        <div className="flex items-center ltr:justify-end rtl:justify-start gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleToggleActive(user)}
-                            disabled={togglingUserId !== null || deletingUser}
-                            className={`text-xs transition-all duration-150 ${
-                              user.is_active
-                                ? 'border-[#DC2626] text-[#DC2626] hover:bg-[#DC2626] hover:text-white'
-                                : 'border-[#16A34A] text-[#16A34A] hover:bg-[#16A34A] hover:text-white'
-                            }`}
-                          >
-                            {togglingUserId === user.user_id ? (
-                              <>
-                                <Loader2 className="ltr:mr-1 rtl:ml-1 h-3 w-3 animate-spin" />
-                                {user.is_active ? t('admin:deactivating') : t('admin:activating')}
-                              </>
-                            ) : user.is_active ? (
-                              <>
-                                <UserX className="ltr:mr-1 rtl:ml-1 h-3 w-3" />
-                                {t('admin:deactivate')}
-                              </>
-                            ) : (
-                              <>
-                                <UserCheck className="ltr:mr-1 rtl:ml-1 h-3 w-3" />
-                                {t('admin:activate')}
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setUserToDelete(user)}
-                            disabled={togglingUserId !== null || deletingUser}
-                            className="text-xs border-[#DC2626] text-[#DC2626] hover:bg-[#DC2626] hover:text-white transition-all duration-150"
-                          >
-                            <Trash2 className="ltr:mr-1 rtl:ml-1 h-3 w-3" />
-                            {t('admin:delete')}
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 hover:bg-[#F5F5F3]"
+                              disabled={togglingUserId !== null || deletingUser}
+                            >
+                              {togglingUserId === user.user_id ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-[#777777]" />
+                              ) : (
+                                <MoreHorizontal className="h-4 w-4 text-[#777777]" />
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                              onClick={() => handleToggleActive(user)}
+                              className={`cursor-pointer ${
+                                user.is_active
+                                  ? 'text-[#DC2626] focus:text-[#DC2626] focus:bg-[rgba(220,38,38,0.08)]'
+                                  : 'text-[#16A34A] focus:text-[#16A34A] focus:bg-[rgba(22,163,74,0.08)]'
+                              }`}
+                            >
+                              {user.is_active ? (
+                                <>
+                                  <UserX className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                                  {t('admin:deactivate')}
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                                  {t('admin:activate')}
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setUserToDelete(user)}
+                              className="cursor-pointer text-[#DC2626] focus:text-[#DC2626] focus:bg-[rgba(220,38,38,0.08)]"
+                            >
+                              <Trash2 className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                              {t('admin:delete')}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))

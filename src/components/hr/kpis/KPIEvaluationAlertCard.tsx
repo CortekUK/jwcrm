@@ -363,8 +363,10 @@ export function KPIEvaluationAlertCard() {
     return (
       <Card className="border-[#E6E6E4]">
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-[#222222]">
-            <Target className="h-5 w-5 text-[hsl(var(--jw-primary-green))]" />
+          <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+            <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
+              <Target className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+            </div>
             {t("hr:kpiEvaluationAlert.cardTitle")}
           </CardTitle>
         </CardHeader>
@@ -399,8 +401,10 @@ export function KPIEvaluationAlertCard() {
   return (
     <Card className={`border-2 ${getAlertColor()}`}>
       <CardHeader className="pb-2">
-        <CardTitle className={`flex items-center gap-2 ${getTextColor()}`}>
-          <AlertTriangle className={`h-5 w-5 ${getIconColor()}`} />
+        <CardTitle className={`text-xl font-semibold flex items-center gap-2 ${getTextColor()}`} style={{ fontFamily: 'Playfair Display, serif' }}>
+          <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${alertType === "overdue" ? "bg-red-100" : "bg-amber-100"}`}>
+            <AlertTriangle className={`h-4 w-4 ${getIconColor()}`} />
+          </div>
           {alertType === "overdue"
             ? t("hr:kpiEvaluationAlert.overdueTitle")
             : t("hr:kpiEvaluationAlert.title")

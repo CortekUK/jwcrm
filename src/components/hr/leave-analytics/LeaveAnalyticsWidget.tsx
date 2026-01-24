@@ -214,9 +214,11 @@ export function LeaveAnalyticsWidget() {
     return (
       <Card className="border-[#E6E6E4]">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center justify-between">
+          <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
             <span className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-purple-600" />
+              <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
+                <Brain className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+              </div>
               {t("leaveAnalytics.title")}
             </span>
             <Button
@@ -232,12 +234,12 @@ export function LeaveAnalyticsWidget() {
         </CardHeader>
         <CardContent>
           <div className="text-center py-6">
-            <div className="mx-auto w-16 h-16 rounded-full bg-purple-50 flex items-center justify-center mb-3">
-              <Brain className="h-8 w-8 text-purple-500" />
+            <div className="mx-auto w-16 h-16 rounded-full bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center mb-3">
+              <Brain className="h-8 w-8 text-[hsl(var(--jw-primary-green))]" />
             </div>
             <p className="text-[#222222] font-medium mb-1">{t("leaveAnalytics.noAnalysis")}</p>
             <p className="text-sm text-[#6B6B6B] mb-4">{t("leaveAnalytics.clickToGenerate")}</p>
-            <Button onClick={handleRefresh} disabled={refreshing} className="bg-purple-600 hover:bg-purple-700">
+            <Button onClick={handleRefresh} disabled={refreshing} className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))]">
               {refreshing ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -263,9 +265,11 @@ export function LeaveAnalyticsWidget() {
   return (
     <Card className="border-[#E6E6E4]">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center justify-between">
+        <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
           <span className="flex items-center gap-2">
-            <Brain className="h-5 w-5 text-purple-600" />
+            <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
+              <Brain className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+            </div>
             {t("leaveAnalytics.title")}
           </span>
           <div className="flex items-center gap-2">
@@ -286,7 +290,7 @@ export function LeaveAnalyticsWidget() {
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Summary */}
-        <div className="p-3 rounded-lg bg-purple-50 border border-purple-100">
+        <div className="p-3 rounded-lg bg-[hsl(var(--jw-primary-green))]/5 border border-[hsl(var(--jw-primary-green))]/10">
           <p className="text-sm text-[#222222]">{result.summary}</p>
         </div>
 

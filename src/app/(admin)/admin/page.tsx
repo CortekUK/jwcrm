@@ -29,8 +29,17 @@ import {
   Clock,
   Search,
   LayoutDashboard,
-  AlertCircle
+  AlertCircle,
+  MoreHorizontal,
+  Eye,
+  FilePlus,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useSelectedRole } from "@/hooks/useSelectedRole";
 import { format } from "date-fns";
@@ -514,9 +523,11 @@ function AdminDashboard() {
                           </div>
                         </TableCell>
                         <TableCell style={{ borderRight: '1px solid #EAEAE8' }}>
-                          <Badge className="rounded-md bg-[rgba(12,85,54,0.08)] text-[#0C5536] border-0">
-                            {user.willsCount || 0}
-                          </Badge>
+                          <Link href={`/admin/wills?user=${user.user_id}`}>
+                            <Badge className="rounded-md bg-[rgba(12,85,54,0.08)] text-[#0C5536] border border-transparent hover:border-[#0C5536] hover:bg-[rgba(12,85,54,0.15)] cursor-pointer transition-all">
+                              {user.willsCount || 0}
+                            </Badge>
+                          </Link>
                         </TableCell>
                         <TableCell style={{ borderRight: '1px solid #EAEAE8' }}>
                           <div className="flex items-center gap-2 text-sm text-[#777777]">
@@ -550,32 +561,35 @@ function AdminDashboard() {
                               </div>
                             </Link>
                           ) : (
-                            <span className="text-xs text-[#A0A0A0]">-</span>
+                            <span className="text-xs text-[#A0A0A0]">{t('admin:noReviews')}</span>
                           )}
                         </TableCell>
                         <TableCell className="ltr:text-right rtl:text-left">
-                          <div className="flex gap-2 justify-end">
-                            <Link href={`/admin/wills?user=${user.user_id}`}>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs border-[#0C5536] text-[#0C5536] hover:bg-[#0C5536] hover:text-white transition-all duration-150 px-4 py-1.5 w-[100px]"
-                              >
-                                {t('admin:viewWills')}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
                               </Button>
-                            </Link>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedUser({ id: user.user_id, name: user.full_name || t('admin:unknownUser') });
-                                setDocumentModalOpen(true);
-                              }}
-                              className="text-xs border-[#C6A03B] text-[#C6A03B] hover:bg-[#C6A03B] hover:text-white transition-all duration-150 px-4 py-1.5 w-[100px]"
-                            >
-                              {(user.documentsCount || 0) > 0 ? t('admin:viewDocs') : t('admin:addDocs')}
-                            </Button>
-                          </div>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem asChild>
+                                <Link href={`/admin/wills?user=${user.user_id}`} className="flex items-center cursor-pointer">
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  {t('admin:viewWills')}
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedUser({ id: user.user_id, name: user.full_name || t('admin:unknownUser') });
+                                  setDocumentModalOpen(true);
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <FilePlus className="h-4 w-4 mr-2" />
+                                {(user.documentsCount || 0) > 0 ? t('admin:viewDocs') : t('admin:addDocs')}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))

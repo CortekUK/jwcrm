@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
-import { Users, Building, FileText, ClipboardList, CalendarCheck } from "lucide-react";
+import { Users, Building, FileText, ClipboardList, CalendarCheck, LayoutDashboard } from "lucide-react";
+import { CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { ExpiryAlertCard, AlertSummaryCards, AttendanceSummaryCard, LeaveSummaryWidget, DashboardSkeleton, KPIEvaluationAlertCard } from "@/components/hr";
 import { LeaveAnalyticsWidget } from "@/components/hr/leave-analytics";
@@ -263,105 +264,171 @@ export default function HRDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[#222222]">{t("hr:dashboard")}</h1>
-        <p className="text-[#6B6B6B]">{t("hr:dashboardDescription")}</p>
+    <div className="space-y-8 pb-12">
+      {/* Hero Header */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 mb-6 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8 animate-fade-in">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <LayoutDashboard className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("hr:dashboard")}
+              </h1>
+            </div>
+            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+              {t("hr:dashboardDescription")}
+            </p>
+          </div>
+
+          {stats.expiringDocuments > 0 && (
+            <Link href={`${basePath}/documents`}>
+              <div className="flex items-center gap-3 px-3 py-2 bg-white border border-[#E6E6E4] rounded-md hover:border-[#C6A03B] transition-all cursor-pointer">
+                <FileText className="h-4 w-4 text-[#777777]" />
+                <span className="text-[#DC2626] font-medium text-sm">
+                  {stats.expiringDocuments} {t("hr:Expiring")}
+                </span>
+              </div>
+            </Link>
+          )}
+        </div>
       </div>
 
-      {/* Stats Cards - Row 1 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-[#E6E6E4] transition-shadow hover:shadow-md">
-          <CardContent className="p-3 sm:p-4">
+      {/* Quick Stats */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">{t("hr:totalEmployees")}</p>
-                <p className="text-2xl font-bold text-[#222222]">{stats.totalEmployees}</p>
+              <CardTitle className="text-sm font-medium text-[#777777]">
+                {t("hr:totalEmployees")}
+              </CardTitle>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: 'rgba(198, 160, 59, 0.15)' }}>
+                <Users className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <Users className="h-8 w-8 text-[hsl(var(--jw-primary-green))]" />
             </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold tracking-tight text-[#222222]">
+              {stats.totalEmployees}
+            </div>
+            <p className="text-xs text-[#777777] mt-2">
+              {t("hr:registeredEmployees")}
+            </p>
+            <div className="h-0.5 w-0 group-hover:w-full bg-[#C6A03B] transition-all duration-300 mt-3"></div>
           </CardContent>
         </Card>
 
-        <Card className="border-[#E6E6E4] transition-shadow hover:shadow-md">
-          <CardContent className="p-3 sm:p-4">
+        <Card className="rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">{t("hr:activeEmployees")}</p>
-                <p className="text-2xl font-bold text-[hsl(var(--jw-primary-green))]">{stats.activeEmployees}</p>
+              <CardTitle className="text-sm font-medium text-[#777777]">
+                {t("hr:activeEmployees")}
+              </CardTitle>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: 'rgba(198, 160, 59, 0.15)' }}>
+                <Users className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <Users className="h-8 w-8 text-[hsl(var(--jw-gold-accent))]" />
             </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold tracking-tight text-[hsl(var(--jw-primary-green))]">
+              {stats.activeEmployees}
+            </div>
+            <p className="text-xs text-[#777777] mt-2">
+              {t("hr:currentlyActive")}
+            </p>
+            <div className="h-0.5 w-0 group-hover:w-full bg-[#C6A03B] transition-all duration-300 mt-3"></div>
           </CardContent>
         </Card>
 
-        <Card className="border-[#E6E6E4] transition-shadow hover:shadow-md">
-          <CardContent className="p-3 sm:p-4">
+        <Card className="rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">{t("hr:departments")}</p>
-                <p className="text-2xl font-bold text-[#222222]">{stats.departments}</p>
+              <CardTitle className="text-sm font-medium text-[#777777]">
+                {t("hr:departments")}
+              </CardTitle>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: 'rgba(198, 160, 59, 0.15)' }}>
+                <Building className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <Building className="h-8 w-8 text-[#6B6B6B]" />
             </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold tracking-tight text-[#222222]">
+              {stats.departments}
+            </div>
+            <p className="text-xs text-[#777777] mt-2">
+              {t("hr:activeDepartments")}
+            </p>
+            <div className="h-0.5 w-0 group-hover:w-full bg-[#C6A03B] transition-all duration-300 mt-3"></div>
           </CardContent>
         </Card>
 
-        <Card
-          className={`border-[#E6E6E4] transition-shadow hover:shadow-md ${
-            stats.expiringDocuments > 0 ? "bg-red-50 border-red-200" : ""
-          }`}
-        >
-          <CardContent className="p-3 sm:p-4">
+        <Card className={`rounded-lg hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group ${
+          stats.expiringDocuments > 0 
+            ? "bg-red-50 border-red-200" 
+            : "border border-[#E6E6E4]"
+        }`}>
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">{t("hr:expiringDocs")}</p>
-                <p className={`text-2xl font-bold ${stats.expiringDocuments > 0 ? "text-red-600" : "text-[#222222]"}`}>
-                  {stats.expiringDocuments}
-                </p>
+              <CardTitle className="text-sm font-medium text-[#777777]">
+                {t("hr:expiringDocs")}
+              </CardTitle>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
+                stats.expiringDocuments > 0 ? "bg-red-100" : ""
+              }`} style={stats.expiringDocuments === 0 ? { backgroundColor: 'rgba(198, 160, 59, 0.15)' } : {}}>
+                <FileText className={`h-5 w-5 ${stats.expiringDocuments > 0 ? "text-red-500" : "text-[#0C5536]"}`} />
               </div>
-              <FileText className={`h-8 w-8 ${stats.expiringDocuments > 0 ? "text-red-500" : "text-[#6B6B6B]"}`} />
             </div>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-3xl font-bold tracking-tight ${stats.expiringDocuments > 0 ? "text-red-600" : "text-[#222222]"}`}>
+              {stats.expiringDocuments}
+            </div>
+            <p className="text-xs text-[#777777] mt-2">
+              {t("hr:documentsExpiring")}
+            </p>
+            <div className={`h-0.5 w-0 group-hover:w-full transition-all duration-300 mt-3 ${
+              stats.expiringDocuments > 0 ? "bg-red-400" : "bg-[#C6A03B]"
+            }`}></div>
           </CardContent>
         </Card>
       </div>
 
       {/* KPI Review Stats Cards - Row 2 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card
-          className={`border-[#E6E6E4] transition-all hover:shadow-md ${
+          className={`rounded-lg transition-all duration-100 group ${
             monthlyGroups.length > 0
-              ? "bg-amber-50 border-amber-200"
-              : ""
+              ? "bg-amber-50 border-amber-200 hover:shadow-[0_2px_8px_rgba(245,158,11,0.12)]"
+              : "border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)]"
           }`}
         >
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="space-y-1">
-                <p className="text-sm text-[#6B6B6B]">{t("hr:pendingMonthlyReviews")}</p>
-                <p className={`text-3xl font-bold ${
-                  monthlyGroups.length > 0 ? "text-amber-600" : "text-[hsl(var(--jw-primary-green))]"
-                }`}>
-                  {stats.pendingMonthlyReviews}
-                </p>
-                {monthlyGroups.length > 0 && (
-                  <p className="text-xs text-amber-500">{monthlyGroups.length} {t("hr:monthsPending")}</p>
-                )}
-              </div>
-              <div className={`h-14 w-14 rounded-full flex items-center justify-center ${
-                monthlyGroups.length > 0
-                  ? "bg-amber-100"
-                  : "bg-[hsl(var(--jw-primary-green))]/10"
-              }`}>
-                <ClipboardList className={`h-7 w-7 ${
-                  monthlyGroups.length > 0 ? "text-amber-600" : "text-[hsl(var(--jw-primary-green))]"
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium text-[#777777]">
+                {t("hr:pendingMonthlyReviews")}
+              </CardTitle>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
+                monthlyGroups.length > 0 ? "bg-amber-100" : ""
+              }`} style={monthlyGroups.length === 0 ? { backgroundColor: 'rgba(198, 160, 59, 0.15)' } : {}}>
+                <ClipboardList className={`h-5 w-5 ${
+                  monthlyGroups.length > 0 ? "text-amber-600" : "text-[#0C5536]"
                 }`} />
               </div>
             </div>
-
+          </CardHeader>
+          <CardContent>
+            <div className={`text-3xl font-bold tracking-tight ${
+              monthlyGroups.length > 0 ? "text-amber-600" : "text-[hsl(var(--jw-primary-green))]"
+            }`}>
+              {stats.pendingMonthlyReviews}
+            </div>
             {monthlyGroups.length > 0 ? (
-              <div className="space-y-2">
+              <p className="text-xs text-amber-500 mt-2">{monthlyGroups.length} {t("hr:monthsPending")}</p>
+            ) : (
+              <p className="text-xs text-[#777777] mt-2">{t("hr:allReviewsComplete")}</p>
+            )}
+
+            {monthlyGroups.length > 0 && (
+              <div className="space-y-2 mt-4">
                 <div className="relative">
                   <div className="max-h-[200px] overflow-y-auto space-y-3 pr-1">
                     {monthlyGroups.map((group) => (
@@ -391,45 +458,42 @@ export default function HRDashboard() {
                   )}
                 </div>
               </div>
-            ) : (
-              <p className="text-xs text-[#6B6B6B]">{t("hr:allReviewsComplete")}</p>
             )}
+            <div className={`h-0.5 w-0 group-hover:w-full transition-all duration-300 mt-3 ${
+              monthlyGroups.length > 0 ? "bg-amber-400" : "bg-[#C6A03B]"
+            }`}></div>
           </CardContent>
         </Card>
 
         <Card
-          className={`border-[#E6E6E4] transition-all hover:shadow-md ${
+          className={`rounded-lg transition-all duration-100 group ${
             quarterlyGroups.length > 0
-              ? "bg-orange-50 border-orange-200"
-              : ""
+              ? "bg-orange-50 border-orange-200 hover:shadow-[0_2px_8px_rgba(249,115,22,0.12)]"
+              : "border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)]"
           }`}
         >
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="space-y-1">
-                <p className="text-sm text-[#6B6B6B]">{t("hr:pendingQuarterlyReviews")}</p>
-                <p className={`text-3xl font-bold ${
-                  quarterlyGroups.length > 0 ? "text-orange-600" : "text-[hsl(var(--jw-primary-green))]"
-                }`}>
-                  {stats.pendingQuarterlyReviews}
-                </p>
-                {quarterlyGroups.length > 0 && (
-                  <p className="text-xs text-orange-500">{quarterlyGroups.length} {t("hr:quartersPending")}</p>
-                )}
-              </div>
-              <div className={`h-14 w-14 rounded-full flex items-center justify-center ${
-                quarterlyGroups.length > 0
-                  ? "bg-orange-100"
-                  : "bg-[hsl(var(--jw-primary-green))]/10"
-              }`}>
-                <CalendarCheck className={`h-7 w-7 ${
-                  quarterlyGroups.length > 0 ? "text-orange-600" : "text-[hsl(var(--jw-primary-green))]"
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium text-[#777777]">
+                {t("hr:pendingQuarterlyReviews")}
+              </CardTitle>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
+                quarterlyGroups.length > 0 ? "bg-orange-100" : ""
+              }`} style={quarterlyGroups.length === 0 ? { backgroundColor: 'rgba(198, 160, 59, 0.15)' } : {}}>
+                <CalendarCheck className={`h-5 w-5 ${
+                  quarterlyGroups.length > 0 ? "text-orange-600" : "text-[#0C5536]"
                 }`} />
               </div>
             </div>
-
-            {quarterlyGroups.length > 0 ? (
-              <div className="space-y-2">
+          </CardHeader>
+          <CardContent>
+            <div className={`text-3xl font-bold tracking-tight ${
+              quarterlyGroups.length > 0 ? "text-orange-600" : "text-[hsl(var(--jw-primary-green))]"
+            }`}>
+              {stats.pendingQuarterlyReviews}
+            </div>
+            {quarterlyGroups.length > 0 && (
+              <div className="space-y-2 mt-4">
                 <div className="relative">
                   <div className="max-h-[200px] overflow-y-auto space-y-3 pr-1">
                     {quarterlyGroups.map((group) => (
@@ -459,9 +523,10 @@ export default function HRDashboard() {
                   )}
                 </div>
               </div>
-            ) : (
-              <p className="text-xs text-[#6B6B6B]">{t("hr:allReviewsComplete")}</p>
             )}
+            <div className={`h-0.5 w-0 group-hover:w-full transition-all duration-300 mt-3 ${
+              quarterlyGroups.length > 0 ? "bg-orange-400" : "bg-[#C6A03B]"
+            }`}></div>
           </CardContent>
         </Card>
       </div>
@@ -486,17 +551,14 @@ export default function HRDashboard() {
 
       {/* Document Expiry Alerts - Full Width */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[#222222]">{t("hr:documentAlerts")}</h2>
-          <div className="flex items-center gap-2">
-            <Link href={`${basePath}/documents`}>
-              <Button variant="outline" size="sm" className="border-[#E6E6E4]">
-                <FileText className="h-4 w-4 mr-2" />
-                {t("hr:documents")}
-              </Button>
-            </Link>
-            <BatchDocumentExportButton />
-          </div>
+        <div className="flex items-center justify-end gap-2">
+          <Link href={`${basePath}/documents`}>
+            <Button variant="outline" size="sm" className="border-[#E6E6E4]">
+              <FileText className="h-4 w-4 mr-2" />
+              {t("hr:documents")}
+            </Button>
+          </Link>
+          <BatchDocumentExportButton />
         </div>
         <ExpiryAlertCard documents={expiringDocs} onRefresh={fetchDashboardData} />
       </div>

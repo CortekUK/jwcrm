@@ -104,4 +104,3 @@ export function SignaturePad({ value, onChange, label = "Signature", disabled = 
     </div>
   );
 }
-

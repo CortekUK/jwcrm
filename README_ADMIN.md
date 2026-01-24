@@ -6,11 +6,11 @@ By default, all new users are assigned the `client` role. To grant a user admin 
 2. Navigate to the SQL Editor
 3. Run the following SQL query, replacing `USER_ID_HERE` with the actual user ID:
 
-```sql
+\`\`\`sql
 UPDATE profiles
 SET role = 'admin'
 WHERE user_id = 'USER_ID_HERE';
-```
+\`\`\`
 
 To find a user's ID:
 1. Go to Authentication > Users in your Supabase dashboard

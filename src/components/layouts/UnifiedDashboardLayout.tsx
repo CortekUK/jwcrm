@@ -95,29 +95,29 @@ export function UnifiedDashboardLayout({ children }: UnifiedDashboardLayoutProps
 
   const UserProfile = () => (
     <div className="flex items-center gap-3 rounded-lg bg-sidebar-accent/30 p-3">
-      <Avatar className="h-10 w-10 border-2 border-sidebar-primary/20">
-        <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-sm font-semibold">
+      <Avatar className="h-9 w-9 shrink-0 border-2 border-sidebar-primary/20">
+        <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
           {profile?.full_name ? getInitials(profile.full_name) : "U"}
         </AvatarFallback>
       </Avatar>
-      <div className="flex-1 overflow-hidden">
-        <p className="truncate text-sm font-semibold text-sidebar-foreground">
-          {profile?.full_name || "User"}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-sidebar-foreground leading-tight">
+          {profile?.full_name?.split(" ")[0] || "User"}
         </p>
-        <p className="truncate text-[12px] text-[#E8E8E8] opacity-85">
-          {selectedRole && t(`common:role.${selectedRole}`)}
+        <p className="text-[11px] text-sidebar-foreground/70 leading-tight mt-0.5">
+          {selectedRole ? t(`common:role.${selectedRole}`) : ""}
         </p>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center shrink-0">
         {selectedRole === "salesperson" && <ReminderNotificationBadge />}
         <Button
           variant="ghost"
           size="icon"
           onClick={signOut}
-          className="h-8 w-8 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-destructive"
+          className="h-7 w-7 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-destructive"
           title={t("common:signOut")}
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-3.5 w-3.5" />
         </Button>
       </div>
     </div>

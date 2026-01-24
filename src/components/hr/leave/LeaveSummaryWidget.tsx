@@ -161,13 +161,15 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
   return (
     <Card className="border-[#E6E6E4]">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center justify-between">
+        <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
           <span className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+            <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
+              <CalendarDays className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
+            </div>
             {t("leaveWidget.leaveRequests")}
           </span>
           {requests.length > 0 && (
-            <Badge variant="outline" className="bg-yellow-50 text-yellow-600 border-yellow-200">
+            <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
               {requests.length} {t("leaveWidget.pending")}
             </Badge>
           )}

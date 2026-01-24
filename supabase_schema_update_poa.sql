@@ -191,4 +191,3 @@ SET answers = jsonb_set(
 )
 WHERE answers ? 'beneficiaries';
 */
-

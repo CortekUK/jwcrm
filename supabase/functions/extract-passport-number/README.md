@@ -21,15 +21,15 @@ Uses **Tesseract.js v5** - a pure JavaScript port of the Tesseract OCR engine th
 
 ### 1. Deploy the Function
 
-```bash
+\`\`\`bash
 supabase functions deploy extract-passport-number
-```
+\`\`\`
 
 That's it! No API keys or environment variables needed.
 
 ### 2. Test the Function
 
-```bash
+\`\`\`bash
 curl -X POST 'https://YOUR_PROJECT.supabase.co/functions/v1/extract-passport-number' \
   -H 'Authorization: Bearer YOUR_ANON_KEY' \
   -H 'Content-Type: application/json' \
@@ -37,7 +37,7 @@ curl -X POST 'https://YOUR_PROJECT.supabase.co/functions/v1/extract-passport-num
     "file_path": "user_id/will_id/passport_filename.jpg",
     "will_id": "your-will-id"
   }'
-```
+\`\`\`
 
 ## How It Works
 
@@ -65,12 +65,12 @@ The function recognizes multiple passport formats:
 
 ### Pattern Examples
 
-```
+\`\`\`
 PASSPORT NUMBER: A12345678  → Extracted: A12345678
 P<GBRA12345678<<<           → Extracted: A12345678
 NO. 123456789               → Extracted: 123456789
 Document: C1234567          → Extracted: C1234567
-```
+\`\`\`
 
 ## Error Handling
 
@@ -84,13 +84,13 @@ If extraction fails:
 
 Test locally using Supabase CLI:
 
-```bash
+\`\`\`bash
 supabase functions serve extract-passport-number
-```
+\`\`\`
 
 Test with curl:
 
-```bash
+\`\`\`bash
 curl -X POST 'http://localhost:54321/functions/v1/extract-passport-number' \
   -H 'Authorization: Bearer YOUR_LOCAL_ANON_KEY' \
   -H 'Content-Type: application/json' \
@@ -98,7 +98,7 @@ curl -X POST 'http://localhost:54321/functions/v1/extract-passport-number' \
     "file_path": "test/passport.jpg",
     "will_id": "test-will-id"
   }'
-```
+\`\`\`
 
 ## Security
 
@@ -164,7 +164,7 @@ If you need higher accuracy or faster processing:
 
 Replace the `extractTextFromImage` function with:
 
-```typescript
+\`\`\`typescript
 async function extractTextFromImage(imageUrl: string): Promise<string> {
   const { ImageAnnotatorClient } = await import('npm:@google-cloud/vision@4.3.2');
   const client = new ImageAnnotatorClient({
@@ -173,11 +173,11 @@ async function extractTextFromImage(imageUrl: string): Promise<string> {
   const [result] = await client.textDetection(imageUrl);
   return result.fullTextAnnotation?.text || '';
 }
-```
+\`\`\`
 
 ### AWS Textract
 
-```typescript
+\`\`\`typescript
 async function extractTextFromImage(imageUrl: string): Promise<string> {
   const { TextractClient, DetectDocumentTextCommand } = await import('npm:@aws-sdk/client-textract');
   const client = new TextractClient({
@@ -199,7 +199,7 @@ async function extractTextFromImage(imageUrl: string): Promise<string> {
   return response.Blocks?.filter(b => b.BlockType === 'LINE')
     .map(b => b.Text).join('\n') || '';
 }
-```
+\`\`\`
 
 ## Future Improvements
 

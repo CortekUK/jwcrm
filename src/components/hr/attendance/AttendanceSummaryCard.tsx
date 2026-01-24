@@ -247,9 +247,11 @@ export function AttendanceSummaryCard() {
   return (
     <Card className="border-[#E6E6E4]">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center justify-between">
+        <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
           <span className="flex items-center gap-2">
-            <CalendarCheck className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+            <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
+              <CalendarCheck className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
+            </div>
             {t("attendanceWidget.todaysAttendance")}
           </span>
           <span className="text-sm font-normal text-[#6B6B6B]">
@@ -260,8 +262,8 @@ export function AttendanceSummaryCard() {
       <CardContent className="space-y-4">
         {summary.notMarked ? (
           <div className="text-center py-6">
-            <div className="mx-auto w-16 h-16 rounded-full bg-yellow-50 flex items-center justify-center mb-3">
-              <Clock className="h-8 w-8 text-yellow-500" />
+            <div className="mx-auto w-16 h-16 rounded-full bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center mb-3">
+              <Clock className="h-8 w-8 text-[hsl(var(--jw-gold-accent))]" />
             </div>
             <p className="text-[#222222] font-medium mb-1">{t("attendanceWidget.attendanceNotMarkedYet")}</p>
             <p className="text-sm text-[#6B6B6B] mb-4">{t("attendanceWidget.markAttendanceHint")}</p>

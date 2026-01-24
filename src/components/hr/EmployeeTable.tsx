@@ -7,9 +7,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTranslation } from "react-i18next";
-import { Search, Eye, Edit, UserX, Plus, Users } from "lucide-react";
+import { Search, Eye, Edit, UserX, Plus, Users, MoreHorizontal } from "lucide-react";
 import { format } from "date-fns";
+
+// Helper function to get initials
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 interface Employee {
   id: string;
@@ -143,7 +160,7 @@ export function EmployeeTable({
               <TableHead className="text-[#555555] font-semibold">{t("hr:jobRole")}</TableHead>
               <TableHead className="text-[#555555] font-semibold">{t("hr:department")}</TableHead>
               <TableHead className="text-[#555555] font-semibold">{t("hr:startDate")}</TableHead>
-              <TableHead className="text-[#555555] font-semibold">{t("hr:status")}</TableHead>
+              <TableHead className="text-[#555555] font-semibold">{t("hr:statusColumn")}</TableHead>
               <TableHead className="text-[#555555] font-semibold text-right">{t("hr:actions")}</TableHead>
             </TableRow>
           </TableHeader>
@@ -165,11 +182,18 @@ export function EmployeeTable({
                   onClick={() => router.push(`/admin/hr/employees/${employee.id}`)}
                 >
                   <TableCell>
-                    <div>
-                      <p className="font-medium text-[#222222]">{employee.full_name}</p>
-                      {employee.email && (
-                        <p className="text-sm text-[#6B6B6B]">{employee.email}</p>
-                      )}
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-9 w-9 border border-[#E6E6E4]">
+                        <AvatarFallback className="bg-[hsl(var(--jw-gold-accent))] text-white text-xs font-medium">
+                          {getInitials(employee.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-[#222222]">{employee.full_name}</p>
+                        {employee.email && (
+                          <p className="text-sm text-[#6B6B6B]">{employee.email}</p>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-[#555555]">
@@ -183,33 +207,39 @@ export function EmployeeTable({
                   </TableCell>
                   <TableCell>{getStatusBadge(employee.employment_status)}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.push(`/admin/hr/employees/${employee.id}`)}
-                        className="text-[#6B6B6B] hover:text-[#0C5536] hover:bg-transparent"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEdit(employee.id)}
-                        className="text-[#6B6B6B] hover:text-[#C6A03B] hover:bg-transparent"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      {employee.employment_status === "active" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDeactivate(employee)}
-                          className="text-[#6B6B6B] hover:text-red-600 hover:bg-transparent"
-                        >
-                          <UserX className="h-4 w-4" />
-                        </Button>
-                      )}
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem
+                            onClick={() => router.push(`/admin/hr/employees/${employee.id}`)}
+                            className="cursor-pointer"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            {t("hr:viewDetails")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => onEdit(employee.id)}
+                            className="cursor-pointer"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            {t("hr:edit")}
+                          </DropdownMenuItem>
+                          {employee.employment_status === "active" && (
+                            <DropdownMenuItem
+                              onClick={() => onDeactivate(employee)}
+                              className="cursor-pointer text-red-600 focus:text-red-700"
+                            >
+                              <UserX className="h-4 w-4 mr-2" />
+                              {t("hr:deactivate")}
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>

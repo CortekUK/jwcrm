@@ -21,12 +21,12 @@ Since you're using PDFMonkey, add the watermark directly in the template:
 ### Step 3: Add Watermark Text
 In the template editor, add HTML/CSS:
 
-```html
+\`\`\`html
 <!-- Add this to your template -->
 <div class="watermark">DRAFT</div>
-```
+\`\`\`
 
-```css
+\`\`\`css
 /* Add this to your stylesheet */
 .watermark {
   position: fixed;
@@ -47,30 +47,30 @@ In the template editor, add HTML/CSS:
     display: block !important;
   }
 }
-```
+\`\`\`
 
 ### Step 4: Add to Every Page
 For repeating watermark on every page:
 
-```css
+\`\`\`css
 .watermark {
   position: fixed;
   /* Fixed position ensures it appears on every page */
 }
-```
+\`\`\`
 
 ### Step 5: Conditional Watermark (Optional)
 Show watermark only for drafts:
 
-```html
+\`\`\`html
 {{#if is_draft}}
   <div class="watermark">DRAFT</div>
 {{/if}}
-```
+\`\`\`
 
 Then pass `is_draft: true` from your Edge Function:
 
-```typescript
+\`\`\`typescript
 // In pdf-request/index.ts
 const payload = {
   will_id: will.id,
@@ -81,7 +81,7 @@ const payload = {
   template_id: 'pdfmonkey_template_placeholder',
   is_draft: will.status !== 'finalized', // ← Add this
 };
-```
+\`\`\`
 
 ---
 
@@ -93,7 +93,7 @@ If you're generating PDFs from the browser print view:
 
 Add this CSS to your component or global styles:
 
-```css
+\`\`\`css
 /* Add to your print styles */
 @media print {
   .print-content::before {
@@ -109,11 +109,11 @@ Add this CSS to your component or global styles:
     pointer-events: none;
   }
 }
-```
+\`\`\`
 
 Or add a watermark div:
 
-```tsx
+\`\`\`tsx
 // In AdminWillPrint.tsx
 <div className="print-content">
   {/* Existing content */}
@@ -121,11 +121,11 @@ Or add a watermark div:
   {/* Add watermark */}
   <div className="watermark-print">DRAFT</div>
 </div>
-```
+\`\`\`
 
 With CSS:
 
-```css
+\`\`\`css
 .watermark-print {
   display: none;
 }
@@ -145,7 +145,7 @@ With CSS:
     user-select: none;
   }
 }
-```
+\`\`\`
 
 ---
 
@@ -157,7 +157,7 @@ Use a PDF library in your Edge Function or Make.com scenario:
 
 Create a new function `pdf-watermark/index.ts`:
 
-```typescript
+\`\`\`typescript
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 import { PDFDocument, rgb, degrees } from 'https://esm.sh/pdf-lib@1.17.1';
 
@@ -217,7 +217,7 @@ Deno.serve(async (req) => {
     );
   }
 });
-```
+\`\`\`
 
 ---
 
@@ -260,16 +260,16 @@ In your Make.com scenario:
 ## Watermark Styles
 
 ### 1. Diagonal "DRAFT"
-```css
+\`\`\`css
 .watermark {
   transform: rotate(-45deg);
   font-size: 120px;
   color: rgba(200, 200, 200, 0.3);
 }
-```
+\`\`\`
 
 ### 2. "CONFIDENTIAL" Top-Right
-```css
+\`\`\`css
 .watermark {
   position: fixed;
   top: 20px;
@@ -278,10 +278,10 @@ In your Make.com scenario:
   color: rgba(255, 0, 0, 0.5);
   font-weight: bold;
 }
-```
+\`\`\`
 
 ### 3. Date Stamp
-```css
+\`\`\`css
 .watermark {
   position: fixed;
   bottom: 20px;
@@ -289,22 +289,22 @@ In your Make.com scenario:
   font-size: 10px;
   color: rgba(0, 0, 0, 0.5);
 }
-```
+\`\`\`
 
-```html
+\`\`\`html
 <div class="watermark">
   Draft Generated: {{current_date}}
 </div>
-```
+\`\`\`
 
 ### 4. Image Watermark
-```html
+\`\`\`html
 <img src="https://your-domain.com/draft-watermark.png"
      class="watermark-image"
      alt="Draft" />
-```
+\`\`\`
 
-```css
+\`\`\`css
 .watermark-image {
   position: fixed;
   top: 50%;
@@ -314,7 +314,7 @@ In your Make.com scenario:
   width: 400px;
   height: 400px;
 }
-```
+\`\`\`
 
 ---
 
@@ -334,16 +334,16 @@ After adding watermark:
 Show watermark only for non-finalized wills:
 
 ### In PDFMonkey Template:
-```html
+\`\`\`html
 {{#if status}}
   {{#unless (eq status 'finalized')}}
     <div class="watermark">DRAFT</div>
   {{/unless}}
 {{/if}}
-```
+\`\`\`
 
 ### Update pdf-request/index.ts:
-```typescript
+\`\`\`typescript
 const payload = {
   will_id: will.id,
   user_id: will.user_id,
@@ -354,7 +354,7 @@ const payload = {
   status: will.status, // ← Add this
   is_draft: will.status !== 'finalized', // ← Or this
 };
-```
+\`\`\`
 
 ---
 
@@ -362,11 +362,11 @@ const payload = {
 
 1. **Go to PDFMonkey template editor**
 2. **Add this HTML at the top:**
-   ```html
+   \`\`\`html
    <div class="watermark">DRAFT</div>
-   ```
+   \`\`\`
 3. **Add this CSS:**
-   ```css
+   \`\`\`css
    .watermark {
      position: fixed;
      top: 50%;
@@ -377,7 +377,7 @@ const payload = {
      color: rgba(200, 200, 200, 0.3);
      z-index: 1000;
    }
-   ```
+   \`\`\`
 4. **Save template**
 5. **Test PDF generation**
 

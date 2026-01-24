@@ -30,24 +30,24 @@ This guide explains how to set up and use the AI-powered Emirates ID extraction 
 1. Open your `.env` file in the project root
 2. Find the line: `VITE_OPENAI_API_KEY="your-openai-api-key-here"`
 3. Replace `your-openai-api-key-here` with your actual API key:
-   ```
+   \`\`\`
    VITE_OPENAI_API_KEY="sk-proj-YOUR_ACTUAL_KEY_HERE"
-   ```
+   \`\`\`
 4. Save the file
 
 ### Step 3: Deploy Database Migration
 
 Run the following command to add the new database columns:
 
-```bash
+\`\`\`bash
 # If using Supabase CLI locally
 supabase db push
 
 # OR apply the migration manually in Supabase Dashboard:
 # Go to SQL Editor and run:
-```
+\`\`\`
 
-```sql
+\`\`\`sql
 -- Add arabic_name and english_name columns
 ALTER TABLE public.user_identity_documents
 ADD COLUMN IF NOT EXISTS arabic_name TEXT,
@@ -55,14 +55,14 @@ ADD COLUMN IF NOT EXISTS english_name TEXT;
 
 COMMENT ON COLUMN public.user_identity_documents.arabic_name IS 'Arabic name extracted from Emirates ID via AI (الاسم العربي)';
 COMMENT ON COLUMN public.user_identity_documents.english_name IS 'English name extracted from Emirates ID via AI';
-```
+\`\`\`
 
 ### Step 4: Restart Your Development Server
 
-```bash
+\`\`\`bash
 # Stop the server (Ctrl+C) if running, then:
 npm run dev
-```
+\`\`\`
 
 ### Step 5: (Optional) Add to Vercel Environment Variables
 
@@ -189,7 +189,7 @@ OpenAI provides:
 
 ### Database Queries
 
-```sql
+\`\`\`sql
 -- Check extracted names
 SELECT
   user_id,
@@ -209,7 +209,7 @@ SELECT
   COUNT(english_name) as with_english
 FROM user_identity_documents
 WHERE emirates_id_number IS NOT NULL;
-```
+\`\`\`
 
 ---
 

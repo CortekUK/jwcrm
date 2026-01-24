@@ -34,10 +34,12 @@
   "fullName": "الاسم الكامل",
   "email": "البريد الإلكتروني",
   "role": {
+    "superadmin": "المسؤول الأعلى",
     "admin": "المسؤول",
     "hr": "الموارد البشرية",
     "finance": "المالية",
     "lead_management": "إدارة العملاء المحتملين",
+    "salesperson": "مندوب المبيعات",
     "client": "العميل"
   },
   "languagePreference": "تفضيل اللغة",
