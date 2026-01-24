@@ -25,6 +25,7 @@
   "quickActions": "Quick Actions",
   "addEmployee": "Add Employee",
   "addNewEmployee": "Add New Employee",
+  "addNewEmployeeDescription": "Fill in the employee details and upload required documents",
   "viewAllEmployees": "View All Employees",
   "manageDepartments": "Manage Departments",
   "documentAlerts": "Document Expiry Alerts",

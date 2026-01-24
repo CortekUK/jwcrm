@@ -422,13 +422,15 @@ export function AddEmployeeForm({ onSuccess, onCancel, editData }: AddEmployeeFo
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       {/* Personal Information Section */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#222222] flex items-center gap-2">
+        <div className="flex items-center gap-2 pb-2 border-b border-[#E6E6E4]">
           <User className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-          {t("hr:personalInfo")}
-        </h3>
+          <h3 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))]">
+            {t("hr:personalInfo")}
+          </h3>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Full Name */}
@@ -514,10 +516,12 @@ export function AddEmployeeForm({ onSuccess, onCancel, editData }: AddEmployeeFo
 
       {/* Job Information Section */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#222222] flex items-center gap-2">
+        <div className="flex items-center gap-2 pb-2 border-b border-[#E6E6E4]">
           <Briefcase className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-          {t("hr:jobInfo")}
-        </h3>
+          <h3 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))]">
+            {t("hr:jobInfo")}
+          </h3>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Department - Select first */}
@@ -639,10 +643,12 @@ export function AddEmployeeForm({ onSuccess, onCancel, editData }: AddEmployeeFo
       {/* Documents Section - Only for new employees */}
       {!editData && (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-[#222222] flex items-center gap-2">
+          <div className="flex items-center gap-2 pb-2 border-b border-[#E6E6E4]">
             <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-            {t("hr:requiredDocuments")}
-          </h3>
+            <h3 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))]">
+              {t("hr:requiredDocuments")}
+            </h3>
+          </div>
 
           {/* Info Note */}
           <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">

@@ -25,6 +25,7 @@
   "quickActions": "إجراءات سريعة",
   "addEmployee": "إضافة موظف",
   "addNewEmployee": "إضافة موظف جديد",
+  "addNewEmployeeDescription": "أدخل بيانات الموظف وارفع المستندات المطلوبة",
   "viewAllEmployees": "عرض جميع الموظفين",
   "manageDepartments": "إدارة الأقسام",
   "documentAlerts": "تنبيهات انتهاء صلاحية المستندات",
