@@ -88,9 +88,16 @@ export function EmployeeTable({
       terminated: "bg-red-50 text-red-600 border-red-200",
     };
 
+    const statusLabels: Record<string, string> = {
+      active: "Active",
+      inactive: "Inactive",
+      on_leave: "On Leave",
+      terminated: "Terminated",
+    };
+
     return (
       <Badge variant="outline" className={styles[status] || styles.inactive}>
-        {t(`hr:status.${status}`)}
+        {t(`hr:status.${status}`, { defaultValue: statusLabels[status] || status })}
       </Badge>
     );
   };
@@ -184,7 +191,7 @@ export function EmployeeTable({
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9 border border-[#E6E6E4]">
-                        <AvatarFallback className="bg-[hsl(var(--jw-gold-accent))] text-white text-xs font-medium">
+                        <AvatarFallback className="bg-[hsl(var(--jw-primary-green))] text-white text-xs font-medium">
                           {getInitials(employee.full_name)}
                         </AvatarFallback>
                       </Avatar>

@@ -290,7 +290,7 @@
   "date": "التاريخ",
   "recipient": "المستلم",
   "subject": "الموضوع",
-  "status": "الحالة",
+  "notificationStatus": "الحالة",
   "sent": "تم الإرسال",
   "failed": "فشل",
   "skipped": "تم تخطيه",

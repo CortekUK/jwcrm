@@ -291,7 +291,7 @@
   "date": "Date",
   "recipient": "Recipient",
   "subject": "Subject",
-  "status": "Status",
+  "notificationStatus": "Status",
   "sent": "Sent",
   "failed": "Failed",
   "skipped": "Skipped",

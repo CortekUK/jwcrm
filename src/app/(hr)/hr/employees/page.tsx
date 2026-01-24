@@ -74,14 +74,16 @@ export default function EmployeesPage() {
   return (
     <div className="space-y-6">
       {/* Hero Banner */}
-      <div className="bg-gradient-to-r from-[#FFFDF5] to-[#FFF9E5] border-b border-[#E6E6E4] -mx-6 -mt-6 px-6 py-6">
-        <div className="flex items-center gap-3">
-          <Users className="h-7 w-7 text-[hsl(var(--jw-primary-green))]" />
-          <div>
-            <h1 className="text-2xl font-bold text-[#222222]">{t("hr:employees")}</h1>
-            <p className="text-[#6B6B6B]">{t("hr:employeesDescription")}</p>
-          </div>
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex items-center gap-3 mb-2">
+          <Users className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+          <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+            {t("hr:employees")}
+          </h1>
         </div>
+        <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+          {t("hr:employeesDescription")}
+        </p>
       </div>
 
       <EmployeeTable

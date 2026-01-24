@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
+import { Loader2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { EmployeeTable, DeactivateModal } from "@/components/hr";
 
@@ -72,10 +72,18 @@ export default function AdminEmployeesPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#222222]">{t("hr:employees")}</h1>
-        <p className="text-[#6B6B6B]">{t("hr:employeesDescription")}</p>
+    <div className="space-y-6">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex items-center gap-3 mb-2">
+          <Users className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+          <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+            {t("hr:employees")}
+          </h1>
+        </div>
+        <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+          {t("hr:employeesDescription")}
+        </p>
       </div>
 
       <EmployeeTable
