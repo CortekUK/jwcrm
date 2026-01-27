@@ -570,10 +570,10 @@ export default function SalespersonSettings() {
                 <div className="flex items-center justify-between">
                   <Label className="text-[#222222] font-medium">{t("revenueTarget", "Revenue Target")}</Label>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-[#0C5536] font-medium">£{currentStats.monthlyRevenue.toLocaleString()}</span>
+                    <span className="text-sm text-[#0C5536] font-medium">AED {currentStats.monthlyRevenue.toLocaleString()}</span>
                     <span className="text-sm text-[#6B6B6B]">/</span>
                     <div className="flex items-center">
-                      <span className="text-sm text-[#6B6B6B] mr-1">£</span>
+                      <span className="text-sm text-[#6B6B6B] mr-1">AED</span>
                       <Input
                         type="number"
                         value={performanceGoals.monthlyRevenueTarget}
@@ -649,10 +649,10 @@ export default function SalespersonSettings() {
                 <div className="flex items-center justify-between">
                   <Label className="text-[#222222] font-medium">{t("revenueTarget", "Revenue Target")}</Label>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-[#0C5536] font-medium">£{currentStats.quarterlyRevenue.toLocaleString()}</span>
+                    <span className="text-sm text-[#0C5536] font-medium">AED {currentStats.quarterlyRevenue.toLocaleString()}</span>
                     <span className="text-sm text-[#6B6B6B]">/</span>
                     <div className="flex items-center">
-                      <span className="text-sm text-[#6B6B6B] mr-1">£</span>
+                      <span className="text-sm text-[#6B6B6B] mr-1">AED</span>
                       <Input
                         type="number"
                         value={performanceGoals.quarterlyRevenueTarget}

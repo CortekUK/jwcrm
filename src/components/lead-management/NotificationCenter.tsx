@@ -393,7 +393,7 @@ function generateMockNotifications(): Notification[] {
       id: "4",
       type: "proposal_paid",
       title: "Payment received!",
-      message: "Proposal has been paid - £599",
+      message: "Proposal has been paid - AED 599",
       lead_id: "lead-4",
       lead_name: "Lisa Taylor",
       is_read: true,

@@ -36,7 +36,7 @@ import {
   ArrowDown,
   Loader2,
   Users,
-  DollarSign,
+  Coins,
   Percent,
   Calendar,
   Filter,
@@ -445,11 +445,11 @@ export default function LeadAnalyticsPage() {
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="h-8 w-8 rounded-full bg-[#E6F7F1] flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-[#0C5536]" />
+                <Coins className="h-4 w-4 text-[#0C5536]" />
               </div>
               <span className="text-sm text-[#6B6B6B]">{t("totalRevenue", "Revenue")}</span>
             </div>
-            <p className="text-2xl font-bold text-[#0C5536]">£{metrics.totalRevenue.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-[#0C5536]">AED {metrics.totalRevenue.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card className="border-[#E6E6E4]">
@@ -651,7 +651,7 @@ export default function LeadAnalyticsPage() {
                       <TableCell className="font-medium text-[#222222]">{source.name}</TableCell>
                       <TableCell className="text-[#555555]">{source.leads}</TableCell>
                       <TableCell className="text-[#555555]">{source.won}</TableCell>
-                      <TableCell className="text-[#555555]">£{source.revenue.toLocaleString()}</TableCell>
+                      <TableCell className="text-[#555555]">AED {source.revenue.toLocaleString()}</TableCell>
                       <TableCell className="text-[#555555]">{source.conversion}%</TableCell>
                       <TableCell>
                         {isTopPerformer && (
@@ -752,7 +752,7 @@ export default function LeadAnalyticsPage() {
                       <TableCell className="font-medium text-[#222222]">{person.name}</TableCell>
                       <TableCell className="text-[#555555]">{person.leads}</TableCell>
                       <TableCell className="text-[#555555]">{person.won}</TableCell>
-                      <TableCell className="text-[#555555]">£{person.revenue.toLocaleString()}</TableCell>
+                      <TableCell className="text-[#555555]">AED {person.revenue.toLocaleString()}</TableCell>
                       <TableCell>
                         <Badge className={cn(
                           "border-0",

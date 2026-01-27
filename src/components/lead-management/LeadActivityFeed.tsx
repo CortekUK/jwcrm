@@ -259,7 +259,7 @@ export function LeadActivityFeed({
       case "proposal_paid":
         return (
           <span>
-            {t("proposalPaid", "Proposal paid")} - <strong>£{activity.metadata?.amount?.toLocaleString()}</strong>
+            {t("proposalPaid", "Proposal paid")} - <strong>AED {activity.metadata?.amount?.toLocaleString()}</strong>
           </span>
         );
       default:
@@ -447,7 +447,7 @@ function generateMockActivities(userId?: string, leadId?: string): ActivityItem[
       id: "4",
       type: "proposal_sent",
       title: "Proposal sent",
-      description: "Single Will package - £299",
+      description: "Single Will package - AED 299",
       lead_id: "lead-3",
       lead_name: "David Brown",
       user_name: "Sarah Johnson",

@@ -276,7 +276,7 @@ export function WillDocumentPreview({ answers, clientName, willId, locale = "en"
 
                   {asset.estimated_value && (
                     <p style={{ margin: '0.5rem 0' }}>
-                      <span style={{ fontWeight: '600' }}>{t('estimatedValue')}</span> £{asset.estimated_value.toLocaleString()}
+                      <span style={{ fontWeight: '600' }}>{t('estimatedValue')}</span> AED {asset.estimated_value.toLocaleString()}
                     </p>
                   )}
 

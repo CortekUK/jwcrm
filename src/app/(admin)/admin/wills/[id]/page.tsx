@@ -2708,7 +2708,7 @@ export default function AdminWillDetail() {
                                 <p className={`text-xs text-[#777777] mt-2 font-medium ${textAlign(isRtl)}`}>
                                   {t('admin:estimatedValue')}:{" "}
                                   <span className="text-[hsl(var(--jw-primary-green))]">
-                                    £{asset.estimated_value.toLocaleString()}
+                                    AED {asset.estimated_value.toLocaleString()}
                                   </span>
                                 </p>
                               )}
@@ -2743,7 +2743,7 @@ export default function AdminWillDetail() {
                                 <Textarea value={asset.description || ""} onChange={(e) => { const updated = [...editedAssets]; updated[index].description = e.target.value; setEditedAssets(updated); }} rows={2} className="w-full mt-1" />
                               </div>
                               <div>
-                                <Label className="text-[12px]">Estimated Value (£)</Label>
+                                <Label className="text-[12px]">Estimated Value (AED)</Label>
                                 <input type="number" value={asset.estimated_value || ""} onChange={(e) => { const updated = [...editedAssets]; updated[index].estimated_value = parseInt(e.target.value); setEditedAssets(updated); }} className="w-full mt-1 px-3 py-2 border rounded-md text-[14px]" />
                               </div>
                             </div>

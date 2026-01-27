@@ -26,7 +26,7 @@ import {
   Bell,
   History,
   ClipboardCheck,
-  DollarSign,
+  Coins,
   ListChecks,
   CheckCircle2,
   Save,
@@ -507,7 +507,7 @@ export default function LeadHistoryPage({
               {/* Quoted Price */}
               <div className="space-y-2">
                 <Label htmlFor="quoted_price" className="flex items-center gap-2 text-[#555555]">
-                  <DollarSign className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+                  <Coins className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
                   {t("quotedPrice", "Quoted Price")}
                 </Label>
                 <div className="flex gap-2">

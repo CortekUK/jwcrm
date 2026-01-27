@@ -234,7 +234,7 @@ export function StepReview({ data, confirmations, onConfirmationsChange, pdfLang
                       {asset.estimated_value && (
                         <ReviewField
                           label={t('form:estimatedValue')}
-                          value={`£${asset.estimated_value.toLocaleString()}`}
+                          value={`AED ${asset.estimated_value.toLocaleString()}`}
                           small
                         />
                       )}

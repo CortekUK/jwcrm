@@ -8,7 +8,7 @@ import {
   FileBarChart,
   Users,
   Trophy,
-  DollarSign,
+  Coins,
   TrendingUp,
   Target,
   FileSpreadsheet,
@@ -304,7 +304,7 @@ export default function SalespersonReportsPage() {
               ) : (
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-lg bg-emerald-50 flex items-center justify-center">
-                    <DollarSign className="h-6 w-6 text-emerald-600" />
+                    <Coins className="h-6 w-6 text-emerald-600" />
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-[#222222]">{formatCurrency(analytics.myRevenue)}</p>

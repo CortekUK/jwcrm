@@ -300,7 +300,7 @@ export function LeadPipelineBoard({
           </div>
           {lead.paid_amount && lead.paid_amount > 0 && (
             <Badge className="bg-[#E6F7F1] text-[#0C5536] border-0 text-xs">
-              £{lead.paid_amount.toLocaleString()}
+              AED {lead.paid_amount.toLocaleString()}
             </Badge>
           )}
           {lead.source_data && (
@@ -336,7 +336,7 @@ export function LeadPipelineBoard({
         <span>•</span>
         <span className="flex items-center gap-1">
           <TrendingUp className="h-4 w-4 text-[#0C5536]" />
-          £{leads.filter(l => l.status !== "won" && l.status !== "lost").reduce((sum, l) => sum + (l.paid_amount || 0), 0).toLocaleString()} {t("inPipeline", "in pipeline")}
+          AED {leads.filter(l => l.status !== "won" && l.status !== "lost").reduce((sum, l) => sum + (l.paid_amount || 0), 0).toLocaleString()} {t("inPipeline", "in pipeline")}
         </span>
       </div>
 
@@ -394,7 +394,7 @@ export function LeadPipelineBoard({
                 </div>
                 {totals.value > 0 && (
                   <div className="text-xs" style={{ color: `${column.color}99` }}>
-                    £{totals.value.toLocaleString()} {t("totalValue", "total")}
+                    AED {totals.value.toLocaleString()} {t("totalValue", "total")}
                   </div>
                 )}
               </div>
