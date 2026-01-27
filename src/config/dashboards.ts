@@ -94,6 +94,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     authPath: "/lead-management/auth",
     layoutType: "header",
     navItems: [
+      { path: "/lead-management", labelKey: "leadManagement:dashboard", icon: LayoutDashboard },
       { path: "/lead-management/leads", labelKey: "leadManagement:leads", icon: Users },
       { path: "/lead-management/analytics", labelKey: "leadManagement:reports.title", icon: FileBarChart },
       { path: "/lead-management/settings", labelKey: "common:settings", icon: Settings },
@@ -122,6 +123,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     authPath: "/admin/auth",
     layoutType: "header",
     navItems: [
+      { path: "/admin/salesperson", labelKey: "salesperson:dashboard", icon: LayoutDashboard },
       { path: "/admin/salesperson/leads", labelKey: "salesperson:myLeads", icon: Users },
       { path: "/admin/salesperson/calendar", labelKey: "salesperson:calendar", icon: Calendar },
       { path: "/admin/salesperson/reports", labelKey: "salesperson:reports.title", icon: FileBarChart },
@@ -224,8 +226,9 @@ const financeNavItems: NavItem[] = [
   { path: "/admin/finance/settings", labelKey: "common:settings", icon: Settings },
 ];
 
-// Lead Management role nav items - all under /admin/lead-management (no dashboard, just Leads and Settings)
+// Lead Management role nav items - all under /admin/lead-management
 const leadManagementNavItems: NavItem[] = [
+  { path: "/admin/lead-management", labelKey: "leadManagement:dashboard", icon: LayoutDashboard },
   { path: "/admin/lead-management/leads", labelKey: "leadManagement:leads", icon: Users },
   { path: "/admin/lead-management/sources", labelKey: "leadManagement:sources", icon: FolderOpen },
   { path: "/admin/lead-management/reports", labelKey: "leadManagement:reports.title", icon: FileBarChart },
@@ -234,6 +237,7 @@ const leadManagementNavItems: NavItem[] = [
 
 // Salesperson role nav items - dedicated salesperson dashboard
 const salespersonNavItems: NavItem[] = [
+  { path: "/admin/salesperson", labelKey: "salesperson:dashboard", icon: LayoutDashboard },
   { path: "/admin/salesperson/leads", labelKey: "salesperson:myLeads", icon: Users },
   { path: "/admin/salesperson/calendar", labelKey: "salesperson:calendar", icon: Calendar },
   { path: "/admin/salesperson/reports", labelKey: "salesperson:reports.title", icon: FileBarChart },
@@ -289,9 +293,9 @@ export function getDefaultRouteForRole(role: UserRole): string {
     case "finance":
       return "/admin/finance";
     case "lead_management":
-      return "/admin/lead-management/leads";
+      return "/admin/lead-management";
     case "salesperson":
-      return "/admin/salesperson/leads";
+      return "/admin/salesperson";
     case "client":
       return "/client";
     default:

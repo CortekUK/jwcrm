@@ -24,6 +24,8 @@ export { KPIEvaluationAlertCard } from "./KPIEvaluationAlertCard";
 // Summary Components
 export { DepartmentKPISummary } from "./DepartmentKPISummary";
 export type { DepartmentSummary, JobRoleSummary, EmployeeSummary } from "./DepartmentKPISummary";
+export { ExportDepartmentSummaryDialog } from "./ExportDepartmentSummaryDialog";
+export { DepartmentSummaryPDFTemplate } from "./DepartmentSummaryPDFTemplate";
 
 // Overview & Analytics Components
 export { KPIOverviewCard } from "./KPIOverviewCard";

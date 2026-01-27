@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentMonth, getCurrentYear } from "@/lib/kpi-validation";
-import { KPITable, KPIEvaluationTable, DepartmentKPISummary, DepartmentSummary, JobRoleSummary, EmployeeSummary } from "@/components/hr/kpis";
+import { KPITable, KPIEvaluationTable, DepartmentKPISummary, DepartmentSummary, JobRoleSummary, EmployeeSummary, ExportDepartmentSummaryDialog } from "@/components/hr/kpis";
 import { KPIAnalyticsCharts } from "@/components/hr/kpis/KPIAnalyticsCharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -519,14 +519,24 @@ export default function KPIsPage() {
                   <Skeleton className="h-64 w-full" />
                 </div>
               ) : (
-                <DepartmentKPISummary
-                  departmentSummaries={departmentSummaries}
-                  selectedYear={summaryYear}
-                  selectedMonth={summaryMonth}
-                  onYearChange={setSummaryYear}
-                  onMonthChange={setSummaryMonth}
-                  onEmployeeClick={handleSummaryEmployeeClick}
-                />
+                <div className="space-y-4">
+                  {/* Export Button */}
+                  <div className="flex justify-end">
+                    <ExportDepartmentSummaryDialog
+                      departmentSummaries={departmentSummaries}
+                      selectedYear={summaryYear}
+                      selectedMonth={summaryMonth}
+                    />
+                  </div>
+                  <DepartmentKPISummary
+                    departmentSummaries={departmentSummaries}
+                    selectedYear={summaryYear}
+                    selectedMonth={summaryMonth}
+                    onYearChange={setSummaryYear}
+                    onMonthChange={setSummaryMonth}
+                    onEmployeeClick={handleSummaryEmployeeClick}
+                  />
+                </div>
               )}
             </CardContent>
           </Card>

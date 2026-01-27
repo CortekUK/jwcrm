@@ -18,12 +18,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
   Target, 
-  BarChart3, 
-  Users, 
   Bell, 
   Clock, 
   TrendingUp,
-  ArrowRight,
   Calendar,
   Phone,
   Mail,
@@ -32,7 +29,7 @@ import {
   ChevronRight,
   AlertCircle,
 } from "lucide-react";
-import { format, parseISO, subMonths, startOfMonth, endOfMonth, isToday, isPast, isFuture, differenceInDays } from "date-fns";
+import { format, parseISO, subMonths, startOfMonth, endOfMonth, isToday, isPast, isFuture, differenceInDays, startOfDay, endOfDay, addDays, isTomorrow } from "date-fns";
 import { LeadStatus } from "@/components/lead-management/LeadStatusBadge";
 
 interface Lead {
@@ -76,6 +73,25 @@ interface RecentActivity {
   };
 }
 
+interface Appointment {
+  id: string;
+  lead_id: string;
+  scheduled_at: string;
+  notes: string | null;
+  communication_method: {
+    id: string;
+    name: string;
+    icon: string;
+  } | null;
+  lead: {
+    id: string;
+    full_name: string;
+    email: string;
+    phone: string | null;
+    company_name: string | null;
+  };
+}
+
 const METHOD_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   phone: Phone,
   mail: Mail,
@@ -90,6 +106,7 @@ export default function SalespersonDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -176,15 +193,40 @@ export default function SalespersonDashboard() {
     }
   }, []);
 
+  // Fetch upcoming appointments (today and next 7 days)
+  const fetchAppointments = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const today = new Date();
+      const startDate = startOfDay(today);
+      const endDate = endOfDay(addDays(today, 7));
+
+      const response = await fetch(
+        `/api/lead-management/calendar?userId=${user.id}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch appointments");
+      }
+
+      const { data } = await response.json();
+      setAppointments(data || []);
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+    }
+  }, []);
+
   // Initial load
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await Promise.all([fetchLeads(), fetchReminders(), fetchRecentActivity()]);
+      await Promise.all([fetchLeads(), fetchReminders(), fetchRecentActivity(), fetchAppointments()]);
       setIsLoading(false);
     };
     loadData();
-  }, [fetchLeads, fetchReminders, fetchRecentActivity]);
+  }, [fetchLeads, fetchReminders, fetchRecentActivity, fetchAppointments]);
 
   // Calculate stats
   const stats = useMemo(() => calculateSalespersonStats(leads), [leads]);
@@ -216,6 +258,22 @@ export default function SalespersonDashboard() {
     });
   }, [reminders]);
 
+  // Upcoming appointments (today and this week)
+  const upcomingAppointments = useMemo(() => {
+    return appointments
+      .filter(a => {
+        const scheduledAt = parseISO(a.scheduled_at);
+        // Show today's appointments (even if time passed) and future appointments
+        return isToday(scheduledAt) || isFuture(scheduledAt);
+      })
+      .slice(0, 5);
+  }, [appointments]);
+
+  // Today's appointments
+  const todayAppointments = useMemo(() => {
+    return appointments.filter(a => isToday(parseISO(a.scheduled_at)));
+  }, [appointments]);
+
   // Handle KPI card click
   const handleKPICardClick = useCallback((action: KPICardAction) => {
     if (action.type === "analytics") {
@@ -243,26 +301,10 @@ export default function SalespersonDashboard() {
     }
   }, [router]);
 
-  // Quick actions
-  const quickActions = [
-    {
-      label: t("viewAllLeads", "View All Leads"),
-      icon: Users,
-      href: "/admin/salesperson/leads",
-      color: "bg-[#0C5536]",
-    },
-    {
-      label: t("calendar", "Calendar"),
-      icon: Calendar,
-      href: "/admin/salesperson/calendar",
-      color: "bg-[#2563EB]",
-    },
-  ];
-
   return (
     <div className="space-y-6 pb-12">
       {/* Hero Banner */}
-      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 mb-6 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8 animate-fade-in">
         <div className="flex items-center gap-3 mb-2">
           <Target className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
           <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
@@ -282,20 +324,6 @@ export default function SalespersonDashboard() {
         onCardClick={handleKPICardClick}
       />
 
-      {/* Quick Actions */}
-      <div className="flex gap-3">
-        {quickActions.map((action) => (
-          <Button
-            key={action.href}
-            onClick={() => router.push(action.href)}
-            className={`${action.color} hover:opacity-90 text-white`}
-          >
-            <action.icon className="h-4 w-4 mr-2" />
-            {action.label}
-          </Button>
-        ))}
-      </div>
-
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-white border border-[#E6E6E4] p-1.5 rounded-xl">
@@ -303,14 +331,12 @@ export default function SalespersonDashboard() {
             value="overview"
             className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-[#555555] font-medium transition-all"
           >
-            <Users className="h-4 w-4 mr-2" />
             {t("overview", "Overview")}
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
             className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-[#555555] font-medium transition-all"
           >
-            <BarChart3 className="h-4 w-4 mr-2" />
             {t("analytics", "Analytics")}
           </TabsTrigger>
         </TabsList>
@@ -362,6 +388,102 @@ export default function SalespersonDashboard() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Upcoming Appointments */}
+            <Card className="border-[#E6E6E4]">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+                    <CardTitle className="text-lg font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                      {t("upcomingAppointments", "Upcoming Appointments")}
+                      {todayAppointments.length > 0 && (
+                        <Badge className="ml-2 bg-[#FFF9E6] text-[#C6A03B] border-0 text-xs">
+                          {todayAppointments.length} {t("today", "Today")}
+                        </Badge>
+                      )}
+                    </CardTitle>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => router.push("/admin/salesperson/calendar")}
+                    className="text-[#0C5536]"
+                  >
+                    {t("viewCalendar", "View Calendar")}
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {upcomingAppointments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Calendar className="h-8 w-8 mx-auto mb-2 text-[#C6A03B]" />
+                    <p className="text-[#6B6B6B]">{t("noUpcomingAppointments", "No upcoming appointments")}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {upcomingAppointments.map((appointment) => {
+                      const scheduledAt = parseISO(appointment.scheduled_at);
+                      const isScheduledToday = isToday(scheduledAt);
+                      const isScheduledTomorrow = isTomorrow(scheduledAt);
+                      const MethodIcon = appointment.communication_method?.icon 
+                        ? METHOD_ICONS[appointment.communication_method.icon] || Calendar
+                        : Calendar;
+                      
+                      return (
+                        <div 
+                          key={appointment.id} 
+                          className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:shadow-sm transition-shadow ${
+                            isScheduledToday 
+                              ? "bg-[#FFF9E6] border-[#C6A03B]/20" 
+                              : "bg-[#FAFAF8] border-[#E6E6E4]"
+                          }`}
+                          onClick={() => router.push(`/admin/salesperson/leads/${appointment.lead_id}`)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              isScheduledToday 
+                                ? "bg-[#C6A03B]/15" 
+                                : "bg-[rgba(198,160,59,0.1)]"
+                            }`}>
+                              <MethodIcon className={`h-4 w-4 ${
+                                isScheduledToday ? "text-[#C6A03B]" : "text-[#0C5536]"
+                              }`} />
+                            </div>
+                            <div>
+                              <p className="font-medium text-[#222222]">{appointment.lead.full_name}</p>
+                              <p className="text-sm text-[#6B6B6B]">
+                                {appointment.communication_method?.name || t("appointment", "Appointment")}
+                                {appointment.notes && ` • ${appointment.notes.substring(0, 30)}${appointment.notes.length > 30 ? '...' : ''}`}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <Badge className={
+                              isScheduledToday 
+                                ? "bg-[#FFF9E6] text-[#C6A03B] border-0" 
+                                : isScheduledTomorrow
+                                  ? "bg-[#E6F0FF] text-[#2563EB] border-0"
+                                  : "bg-[#E6F7F1] text-[#0C5536] border-0"
+                            }>
+                              {isScheduledToday 
+                                ? t("today", "Today") 
+                                : isScheduledTomorrow 
+                                  ? t("tomorrow", "Tomorrow")
+                                  : format(scheduledAt, "MMM d")}
+                            </Badge>
+                            <p className="text-xs text-[#6B6B6B] mt-1">
+                              {format(scheduledAt, "h:mm a")}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Upcoming Reminders */}
             <Card className="border-[#E6E6E4]">

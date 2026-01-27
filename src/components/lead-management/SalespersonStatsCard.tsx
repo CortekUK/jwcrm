@@ -70,11 +70,13 @@ export function SalespersonStatsCard({
     return { change: Math.abs(change), isPositive: change >= 0 };
   };
 
+  // 4 key stats for cleaner dashboard layout matching HR pattern
   const statItems = [
     {
       id: "total",
       title: t("totalLeads"),
       value: stats.total,
+      subtitle: t("allAssignedLeads", "All assigned leads"),
       icon: Users,
       comparison: calculateChange(stats.total, previousStats?.total),
       action: { type: "all" as const },
@@ -83,6 +85,7 @@ export function SalespersonStatsCard({
       id: "won",
       title: t("won"),
       value: stats.won,
+      subtitle: t("dealsWon", "Deals won"),
       icon: Trophy,
       comparison: calculateChange(stats.won, previousStats?.won),
       action: { type: "filter" as const, status: "won" },
@@ -90,59 +93,37 @@ export function SalespersonStatsCard({
       bgColor: "bg-[#E6F7F1]",
     },
     {
-      id: "lost",
-      title: t("lost"),
-      value: stats.lost,
-      icon: XCircle,
-      comparison: calculateChange(stats.lost, previousStats?.lost),
-      invertComparison: true, // Less lost = better
-      action: { type: "filter" as const, status: "lost" },
-      iconColor: "text-[#C0392B]",
-      bgColor: "bg-[#FEECEC]",
-    },
-    {
       id: "inProgress",
       title: t("inProgressLeads"),
       value: stats.inProgress,
-      icon: Clock,
+      subtitle: t("activeOpportunities", "Active opportunities"),
+      icon: Target,
       comparison: calculateChange(stats.inProgress, previousStats?.inProgress),
       action: { type: "filter" as const, status: "in_progress" },
-      iconColor: "text-[#C6A03B]",
-      bgColor: "bg-[#FFF9E6]",
     },
     {
       id: "conversionRate",
       title: t("conversionRate"),
       value: `${stats.conversionRate.toFixed(1)}%`,
+      subtitle: t("wonVsTotal", "Won vs. total"),
       icon: TrendingUp,
       comparison: calculateChange(stats.conversionRate, previousStats?.conversionRate),
       action: { type: "analytics" as const },
-      iconColor: "text-[#2563EB]",
-      bgColor: "bg-[#E6F0FF]",
-    },
-    {
-      id: "totalRevenue",
-      title: t("totalRevenue"),
-      value: formatCurrency(stats.totalRevenue, stats.currency || "AED"),
-      icon: Banknote,
-      comparison: calculateChange(stats.totalRevenue, previousStats?.totalRevenue),
-      action: { type: "filter" as const, paid: true },
-      iconColor: "text-[#0C5536]",
-      bgColor: "bg-[#E6F7F1]",
     },
   ];
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {[...Array(6)].map((_, i) => (
-          <Card key={i} className="border-[#E6E6E4]">
-            <CardContent className="p-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className="rounded-lg border border-[#E6E6E4]">
+            <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-4 bg-[#E6E6E4] rounded animate-pulse w-1/2" />
                 <div className="h-12 w-12 rounded-full bg-[#E6E6E4] animate-pulse" />
               </div>
-              <div className="h-8 bg-[#E6E6E4] rounded animate-pulse w-1/3" />
+              <div className="h-8 bg-[#E6E6E4] rounded animate-pulse w-1/3 mb-2" />
+              <div className="h-3 bg-[#E6E6E4] rounded animate-pulse w-2/3" />
               <div className="h-0.5 w-0 bg-[#E6E6E4] mt-3" />
             </CardContent>
           </Card>
@@ -152,33 +133,34 @@ export function SalespersonStatsCard({
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {statItems.map((item) => {
         const isPositiveChange = item.comparison 
-          ? (item.invertComparison ? !item.comparison.isPositive : item.comparison.isPositive)
+          ? item.comparison.isPositive
           : null;
         
         return (
           <Card 
             key={item.id} 
             className={cn(
-              "border-[#E6E6E4] transition-all duration-200 group",
-              onCardClick && "cursor-pointer hover:shadow-lg hover:scale-[1.02] hover:border-[hsl(var(--jw-gold-accent))]"
+              "rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group",
+              onCardClick && "cursor-pointer"
             )}
             onClick={() => onCardClick?.(item.action)}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-[#6B6B6B]">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between pb-3">
+                <p className="text-sm font-medium text-[#777777]">
                   {item.title}
                 </p>
                 <div 
                   className={cn(
-                    "flex h-12 w-12 items-center justify-center rounded-full transition-transform group-hover:scale-110",
+                    "flex h-12 w-12 items-center justify-center rounded-full",
                     item.bgColor || "bg-[rgba(198,160,59,0.15)]"
                   )}
+                  style={!item.bgColor ? { backgroundColor: 'rgba(198, 160, 59, 0.15)' } : undefined}
                 >
-                  <item.icon className={cn("h-5 w-5", item.iconColor || "text-[hsl(var(--jw-primary-green))]")} />
+                  <item.icon className={cn("h-5 w-5", item.iconColor || "text-[#0C5536]")} />
                 </div>
               </div>
               <div className="flex items-end justify-between">
@@ -197,6 +179,9 @@ export function SalespersonStatsCard({
                   </div>
                 )}
               </div>
+              <p className="text-xs text-[#777777] mt-2">
+                {item.subtitle}
+              </p>
               {/* Animated underline on hover */}
               <div className="h-0.5 w-0 group-hover:w-full bg-[#C6A03B] transition-all duration-300 mt-3" />
             </CardContent>

@@ -41,8 +41,8 @@ const ROLE_DASHBOARD_ROUTES: Record<UserRole, string> = {
   admin: "/admin",
   hr: "/admin/hr",
   finance: "/admin/finance",
-  lead_management: "/admin/lead-management/leads",
-  salesperson: "/admin/salesperson/leads",
+  lead_management: "/admin/lead-management",
+  salesperson: "/admin/salesperson",
   client: "/client",
 };
 

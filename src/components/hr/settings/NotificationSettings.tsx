@@ -40,7 +40,9 @@ import {
   Calendar,
   CalendarDays,
   Users,
+  ExternalLink,
 } from "lucide-react";
+import Link from "next/link";
 import { format } from "date-fns";
 
 // Document expiry notification settings
@@ -809,14 +811,26 @@ export function NotificationSettings() {
                     {t("hr:recentNotificationsDesc")}
                   </CardDescription>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={fetchAllLogs}
-                  className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Link href="/hr/settings/email-logs">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                    >
+                      {t("hr:viewAllLogs", "View All Logs")}
+                      <ExternalLink className="h-3.5 w-3.5 ltr:ml-1.5 rtl:mr-1.5" />
+                    </Button>
+                  </Link>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={fetchAllLogs}
+                    className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
