@@ -33,6 +33,7 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  Tooltip,
 } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
@@ -420,7 +421,14 @@ export default function SalespersonReportsPage() {
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: "white", 
+                            border: "1px solid #E6E6E4",
+                            borderRadius: "8px",
+                            padding: "8px 12px",
+                          }}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
