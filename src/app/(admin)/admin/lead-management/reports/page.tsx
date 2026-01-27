@@ -375,25 +375,27 @@ export default function LeadManagementReportsPage() {
               {loading ? (
                 <Skeleton className="h-[200px] w-full" />
               ) : analytics.leadsByStatus.length > 0 ? (
-                <div className="h-[200px]">
-                  <ChartContainer config={pieChartConfig}>
-                    <PieChart>
-                      <Pie
-                        data={analytics.leadsByStatus}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {analytics.leadsByStatus.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ChartContainer>
+                <div className="h-[200px] flex flex-col">
+                  <div className="flex-1 flex items-center justify-center">
+                    <ResponsiveContainer width="100%" height={160}>
+                      <PieChart>
+                        <Pie
+                          data={analytics.leadsByStatus}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={70}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {analytics.leadsByStatus.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                   <div className="flex flex-wrap justify-center gap-2 mt-2">
                     {analytics.leadsByStatus.slice(0, 5).map((item) => (
                       <div key={item.name} className="flex items-center gap-1.5 text-xs">
