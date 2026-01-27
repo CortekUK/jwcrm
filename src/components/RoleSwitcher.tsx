@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LayoutDashboard, Users, DollarSign, Target, ShieldCheck, UserCheck } from "lucide-react";
+import { LayoutDashboard, Users, Wallet, Target, ShieldCheck, UserCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 
@@ -18,7 +18,7 @@ const ROLE_ICONS: Record<UserRole, React.ElementType> = {
   superadmin: ShieldCheck,
   admin: LayoutDashboard,
   hr: Users,
-  finance: DollarSign,
+  finance: Wallet,
   lead_management: Target,
   salesperson: UserCheck,
   client: LayoutDashboard,
@@ -50,9 +50,11 @@ interface RoleSwitcherProps {
   className?: string;
   /** Use "light" for light backgrounds (mobile header), "dark" for dark sidebar */
   variant?: "light" | "dark";
+  /** Compact mode - show only icon */
+  compact?: boolean;
 }
 
-export function RoleSwitcher({ className, variant = "dark" }: RoleSwitcherProps) {
+export function RoleSwitcher({ className, variant = "dark", compact = false }: RoleSwitcherProps) {
   const { selectedRole, setSelectedRole, availableRoles } = useSelectedRole();
   const { i18n } = useTranslation();
   const router = useRouter();
@@ -82,6 +84,13 @@ export function RoleSwitcher({ className, variant = "dark" }: RoleSwitcherProps)
     // Show static display for single role
     if (selectedRole) {
       const Icon = ROLE_ICONS[selectedRole];
+      if (compact) {
+        return (
+          <div className={`flex items-center justify-center p-2 rounded-lg ${bgColor} ${className}`}>
+            <Icon className="h-5 w-5 text-[#C6A03B]" />
+          </div>
+        );
+      }
       return (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${bgColor} overflow-hidden ${className}`}>
           <Icon className="h-4 w-4 shrink-0 text-[#C6A03B]" />
@@ -97,18 +106,20 @@ export function RoleSwitcher({ className, variant = "dark" }: RoleSwitcherProps)
   return (
     <Select value={selectedRole || undefined} onValueChange={(value) => handleRoleChange(value as UserRole)}>
       <SelectTrigger
-        className={`w-full ${triggerBg} ${textColor} ${triggerHover} transition-colors overflow-hidden ${className}`}
+        className={`${compact ? "w-auto p-2" : "w-full"} ${triggerBg} ${textColor} ${triggerHover} transition-colors overflow-hidden ${className}`}
       >
-        <div className={`flex items-center gap-2 min-w-0 ${isRtl ? "flex-row-reverse" : ""}`}>
+        <div className={`flex items-center ${compact ? "justify-center" : "gap-2"} min-w-0 ${isRtl ? "flex-row-reverse" : ""}`}>
           {selectedRole && (
             <>
               {(() => {
                 const Icon = ROLE_ICONS[selectedRole];
-                return <Icon className="h-4 w-4 shrink-0 text-[#C6A03B]" />;
+                return <Icon className={`shrink-0 text-[#C6A03B] ${compact ? "h-5 w-5" : "h-4 w-4"}`} />;
               })()}
-              <span className="truncate text-sm">
-                {ROLE_SHORT_NAMES[selectedRole][lang]}
-              </span>
+              {!compact && (
+                <span className="truncate text-sm">
+                  {ROLE_SHORT_NAMES[selectedRole][lang]}
+                </span>
+              )}
             </>
           )}
         </div>

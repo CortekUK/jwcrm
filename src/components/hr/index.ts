@@ -5,6 +5,7 @@ export { EmployeeDocumentUpload } from "./EmployeeDocumentUpload";
 export { ExpiryAlertCard, AlertSummaryCards } from "./ExpiryAlertCard";
 export type { ExpiringDocument } from "./ExpiryAlertCard";
 export { DeactivateModal } from "./DeactivateModal";
+export { ExportEmployeesButton } from "./ExportEmployeesButton";
 
 // Skeleton components
 export {
@@ -19,7 +20,17 @@ export {
 export { AttendanceSummaryCard } from "./attendance";
 
 // Leave components
-export { LeaveSummaryWidget } from "./leave";
+export { LeaveSummaryWidget, PendingApprovalsWidget, ExportLeaveModal } from "./leave";
 
 // KPI components
-export { KPIEvaluationAlertCard } from "./kpis";
+export { KPIEvaluationAlertCard, KPIOverviewCard, KPIAnalyticsCharts } from "./kpis";
+
+// Review components
+export {
+  QuarterlyReviewForm,
+  QuarterlyReviewList,
+  QuarterlyReviewPDFTemplate,
+  ComplianceDashboard,
+  ReviewAlertCard,
+  ReviewTemplateManager,
+} from "./reviews";

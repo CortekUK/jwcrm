@@ -219,19 +219,19 @@ export function SendMeetingInviteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Send className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+          <DialogTitle className="flex items-center gap-2 text-[hsl(var(--jw-primary-green))]">
+            <Send className="h-5 w-5 text-[#C6A03B]" />
             {t("sendMeetingInvite")}
           </DialogTitle>
-          <DialogDescription>{t("sendMeetingInviteDescription")}</DialogDescription>
+          <DialogDescription className="ltr:ml-7 rtl:mr-7 text-[#777777]">{t("sendMeetingInviteDescription")}</DialogDescription>
         </DialogHeader>
 
         {/* Recipient Display */}
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
-          <Mail className="h-4 w-4 text-gray-500" />
-          <span className="text-sm text-gray-600">{t("recipient")}:</span>
-          <span className="text-sm font-medium text-gray-900">{leadEmail}</span>
-          <Badge variant="secondary" className="ml-auto">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-[#FAFAF8] border border-[#E6E6E4]">
+          <Mail className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+          <span className="text-sm text-[#555555]">{t("recipient")}:</span>
+          <span className="text-sm font-medium text-[#222222]">{leadEmail}</span>
+          <Badge variant="secondary" className="ml-auto bg-[#FFF9E6] text-[#C6A03B] border-0">
             {leadName}
           </Badge>
         </div>
@@ -244,11 +244,15 @@ export function SendMeetingInviteDialog({
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("meetingTitle")} *</FormLabel>
+                  <FormLabel className="text-[#555555]">{t("meetingTitle")} <span className="text-[#C0392B]">*</span></FormLabel>
                   <FormControl>
-                    <Input placeholder={t("meetingTitlePlaceholder")} {...field} />
+                    <Input 
+                      placeholder={t("meetingTitlePlaceholder")} 
+                      className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                      {...field} 
+                    />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-[#C0392B]" />
                 </FormItem>
               )}
             />
@@ -261,15 +265,15 @@ export function SendMeetingInviteDialog({
                 name="date"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>{t("date")} *</FormLabel>
+                    <FormLabel className="text-[#555555]">{t("date")} <span className="text-[#C0392B]">*</span></FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
                             variant="outline"
                             className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
+                              "w-full pl-3 text-left font-normal border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FDFBF4]",
+                              !field.value && "text-[#777777]"
                             )}
                           >
                             {field.value ? (
@@ -277,7 +281,7 @@ export function SendMeetingInviteDialog({
                             ) : (
                               <span>{t("pickDate")}</span>
                             )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            <CalendarIcon className="ml-auto h-4 w-4 text-[#C6A03B]" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
@@ -293,14 +297,14 @@ export function SendMeetingInviteDialog({
                         />
                       </PopoverContent>
                     </Popover>
-                    <FormMessage />
+                    <FormMessage className="text-[#C0392B]" />
                   </FormItem>
                 )}
               />
 
               {/* Time Picker */}
               <div className="flex flex-col space-y-2">
-                <FormLabel>{t("time")} *</FormLabel>
+                <FormLabel className="text-[#555555]">{t("time")} <span className="text-[#C0392B]">*</span></FormLabel>
                 <div className="flex gap-2">
                   <FormField
                     control={form.control}
@@ -309,7 +313,7 @@ export function SendMeetingInviteDialog({
                       <FormItem className="flex-1">
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
                               <SelectValue placeholder="HH" />
                             </SelectTrigger>
                           </FormControl>
@@ -321,11 +325,11 @@ export function SendMeetingInviteDialog({
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormMessage />
+                        <FormMessage className="text-[#C0392B]" />
                       </FormItem>
                     )}
                   />
-                  <span className="flex items-center text-lg font-bold">:</span>
+                  <span className="flex items-center text-lg font-bold text-[#555555]">:</span>
                   <FormField
                     control={form.control}
                     name="minute"
@@ -333,7 +337,7 @@ export function SendMeetingInviteDialog({
                       <FormItem className="flex-1">
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
                               <SelectValue placeholder="MM" />
                             </SelectTrigger>
                           </FormControl>
@@ -345,7 +349,7 @@ export function SendMeetingInviteDialog({
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormMessage />
+                        <FormMessage className="text-[#C0392B]" />
                       </FormItem>
                     )}
                   />
@@ -359,10 +363,10 @@ export function SendMeetingInviteDialog({
               name="duration"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("meetingDuration")} *</FormLabel>
+                  <FormLabel className="text-[#555555]">{t("meetingDuration")} <span className="text-[#C0392B]">*</span></FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
                         <SelectValue placeholder={t("selectDuration")} />
                       </SelectTrigger>
                     </FormControl>
@@ -374,7 +378,7 @@ export function SendMeetingInviteDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
+                  <FormMessage className="text-[#C0392B]" />
                 </FormItem>
               )}
             />
@@ -385,18 +389,18 @@ export function SendMeetingInviteDialog({
                 className={cn(
                   "rounded-lg border p-3 space-y-2",
                   isPastTime
-                    ? "border-red-200 bg-red-50"
-                    : "border-green-200 bg-green-50"
+                    ? "border-[#C0392B]/30 bg-[#FEECEC]"
+                    : "border-[#0C5536]/30 bg-[#E6F7F1]"
                 )}
               >
                 {isPastTime ? (
-                  <div className="flex items-center gap-2 text-sm font-medium text-red-600">
+                  <div className="flex items-center gap-2 text-sm font-medium text-[#C0392B]">
                     <Clock className="h-4 w-4" />
                     <span>{t("meetingInPast")}</span>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-green-700">
+                    <div className="flex items-center gap-2 text-sm text-[#0C5536]">
                       <Clock className="h-4 w-4" />
                       <span>
                         {format(meetingTimes.startTime, "EEE, MMM d 'at' h:mm a")} -{" "}
@@ -414,17 +418,18 @@ export function SendMeetingInviteDialog({
               name="location"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
+                  <FormLabel className="flex items-center gap-1 text-[#555555]">
+                    <MapPin className="h-4 w-4 text-[#C6A03B]" />
                     {t("meetingLocation")}
                   </FormLabel>
                   <FormControl>
                     <Input
                       placeholder={t("meetingLocationPlaceholder")}
+                      className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                       {...field}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-[#C0392B]" />
                 </FormItem>
               )}
             />
@@ -435,33 +440,38 @@ export function SendMeetingInviteDialog({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center gap-1">
-                    <FileText className="h-4 w-4" />
+                  <FormLabel className="flex items-center gap-1 text-[#555555]">
+                    <FileText className="h-4 w-4 text-[#C6A03B]" />
                     {t("meetingDescription")}
                   </FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder={t("meetingDescriptionPlaceholder")}
-                      className="resize-none"
+                      className="resize-none border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                       rows={3}
                       {...field}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-[#C0392B]" />
                 </FormItem>
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className="border-t border-[#E6E6E4] pt-4 mt-6">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
+                className="border-[#E6E6E4] hover:bg-[#F5F5F3]"
               >
                 {t("cancel")}
               </Button>
-              <Button type="submit" disabled={isSubmitting || isPastTime}>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting || isPastTime}
+                className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+              >
                 {isSubmitting && (
                   <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />
                 )}

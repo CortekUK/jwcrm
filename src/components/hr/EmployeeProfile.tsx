@@ -13,7 +13,7 @@ import {
   Mail,
   Phone,
   Calendar,
-  DollarSign,
+  Banknote,
   Building,
   Edit,
   UserX,
@@ -202,7 +202,7 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
             {/* Personal Info */}
             <Card className="border-[#E6E6E4]">
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+                <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
                   <User className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                   {t("hr:personalInfo")}
                 </CardTitle>
@@ -221,7 +221,7 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
             {/* Job Info */}
             <Card className="border-[#E6E6E4]">
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+                <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
                   <Briefcase className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                   {t("hr:jobInfo")}
                 </CardTitle>
@@ -235,7 +235,7 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
                   value={format(new Date(employee.start_date), "MMM d, yyyy")}
                 />
                 <InfoRow
-                  icon={DollarSign}
+                  icon={Banknote}
                   label={t("hr:salary")}
                   value={employee.salary ? `AED ${employee.salary.toLocaleString()}` : null}
                 />
@@ -245,14 +245,14 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
             {/* Document Expiry Status */}
             <Card className="border-[#E6E6E4] md:col-span-2">
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+                <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
                   <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                   {t("hr:documentExpiryStatus")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {(["passport", "employment_visa", "emirates_id", "employment_contract"] as const).map((docType) => {
+                  {(["passport", "employment_visa", "emirates_id", "employment_contract", "certification"] as const).map((docType) => {
                     const doc = documents.find((d) => d.document_type === docType);
                     const hasExpiry = doc?.expiry_date;
                     const daysUntil = hasExpiry ? differenceInDays(new Date(doc.expiry_date!), new Date()) : null;
@@ -316,7 +316,7 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
             {employee.employment_status === "terminated" && (
               <Card className="border-red-200 bg-red-50 md:col-span-2">
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2 text-red-600">
+                  <CardTitle className="text-xl font-semibold text-red-600 flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
                     <UserX className="h-5 w-5" />
                     {t("hr:terminationInfo")}
                   </CardTitle>
@@ -344,7 +344,7 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
             {/* Document List */}
             <Card className="border-[#E6E6E4]">
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
+                <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
                   <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                   {t("hr:uploadedDocuments")}
                 </CardTitle>
@@ -415,7 +415,7 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
             {showUpload && (
               <Card className="border-[#E6E6E4]">
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
+                  <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
                     <Upload className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                     {t("hr:uploadNewDocument")}
                   </CardTitle>

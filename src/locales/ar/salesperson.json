@@ -53,5 +53,23 @@
     "thu": "خميس",
     "fri": "جمعة",
     "sat": "سبت"
+  },
+
+  "reports": {
+    "title": "تقاريري وتحليلاتي",
+    "subtitle": "رؤى أدائك في المبيعات وتصدير البيانات",
+    "myPerformance": "أدائي",
+    "insights": "الرؤى",
+    "dataExports": "تصدير البيانات",
+    "myLeadsThisMonth": "عملائي المحتملين هذا الشهر",
+    "myDealsWon": "صفقاتي المكتسبة",
+    "myRevenue": "إيراداتي",
+    "myConversionRate": "معدل تحويلي",
+    "myMonthlyPerformance": "أدائي الشهري",
+    "myRevenueTrend": "اتجاه إيراداتي",
+    "myPipeline": "خط الأنابيب الخاص بي",
+    "mySourcePerformance": "أداء مصادري",
+    "myLeads": "عملائي المحتملين",
+    "noData": "لا توجد بيانات متاحة"
   }
 }

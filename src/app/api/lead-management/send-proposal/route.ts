@@ -4,6 +4,7 @@ import { stripe } from "@/integrations/stripe/server";
 import { Resend } from "resend";
 import { generateProposalPDF } from "@/lib/pdf/generateProposalPDF";
 import { generateInvoicePDFArabic } from "@/lib/pdf/generateInvoicePDFArabic";
+import { generateProposalContent, generateProposalSummary } from "@/lib/proposal-template";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,11 +16,19 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { leadId, amount, currency = "USD", proposalContent, leadEmail, leadName } = body;
+    const { leadId, amount, currency = "AED", proposalContent, leadEmail, leadName, useTemplate } = body;
 
-    if (!leadId || !amount || !proposalContent) {
+    // When using template mode, proposalContent is not required (will be generated)
+    if (!leadId || !amount) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    if (!useTemplate && !proposalContent) {
+      return NextResponse.json(
+        { error: "Proposal content is required when not using template" },
         { status: 400 }
       );
     }
@@ -42,6 +51,23 @@ export async function POST(request: NextRequest) {
     const effectiveEmail = leadEmail || lead.email;
     const effectiveName = leadName || lead.full_name;
 
+    // Calculate dates for proposal
+    const now = new Date();
+    const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+    const validUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
+
+    // Generate proposal content from template if useTemplate is true
+    const finalProposalContent = useTemplate
+      ? generateProposalContent({
+          clientName: effectiveName,
+          price: amount,
+          currency: currency,
+          invoiceNumber: "PENDING", // Will be updated after insert
+          dueDate: dueDate,
+          validUntil: validUntil,
+        })
+      : proposalContent;
+
     // 2. Create proposal record (invoice_number is auto-generated)
     const { data: proposal, error: proposalError } = await supabaseAdmin
       .from("proposals")
@@ -49,7 +75,7 @@ export async function POST(request: NextRequest) {
         lead_id: leadId,
         amount,
         currency,
-        proposal_content: proposalContent,
+        proposal_content: finalProposalContent,
         status: "draft",
       })
       .select()
@@ -115,10 +141,6 @@ export async function POST(request: NextRequest) {
       .eq("id", leadId);
 
     // 6. Generate PDFs
-    const now = new Date();
-    const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
-    const validUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
-
     // Generate Proposal PDF
     const proposalPDFBase64 = generateProposalPDF({
       invoiceNumber: proposal.invoice_number,
@@ -130,7 +152,7 @@ export async function POST(request: NextRequest) {
       clientCompany: lead.company_name,
       amount: amount,
       currency: currency,
-      proposalContent: proposalContent,
+      proposalContent: finalProposalContent,
     });
 
     // Generate Invoice PDF in Arabic
@@ -240,6 +262,33 @@ export async function POST(request: NextRequest) {
       });
     } catch (emailError) {
       console.error("Error sending email:", emailError);
+      // Don't fail the request, just log the error
+    }
+
+    // 8. Log proposal_sent activity
+    const activityDescription = generateProposalSummary({
+      clientName: effectiveName,
+      price: amount,
+      currency: currency,
+      invoiceNumber: proposal.invoice_number,
+    });
+
+    try {
+      await supabaseAdmin.from("lead_activities").insert({
+        type: "proposal_sent",
+        title: "Proposal Sent",
+        description: activityDescription,
+        lead_id: leadId,
+        metadata: {
+          proposal_id: proposal.id,
+          invoice_number: proposal.invoice_number,
+          amount: amount,
+          currency: currency,
+          recipient_email: effectiveEmail,
+        },
+      });
+    } catch (activityError) {
+      console.error("Error logging activity:", activityError);
       // Don't fail the request, just log the error
     }
 

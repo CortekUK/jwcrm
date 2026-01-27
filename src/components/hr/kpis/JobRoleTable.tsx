@@ -23,7 +23,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Edit, Trash2, Briefcase, AlertTriangle, Loader2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Briefcase, AlertTriangle, Loader2, Target, Eye } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 type JobRole = {
   id: string;
@@ -114,19 +115,19 @@ export function JobRoleTable({
       {/* Header with Search and Add Button */}
       <div className={`flex flex-col md:flex-row gap-4 justify-between ${isRtl ? "md:flex-row-reverse" : ""}`}>
         <div className="relative flex-1 max-w-sm">
-          <Search className={`absolute top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B6B6B] ${isRtl ? "right-3" : "left-3"}`} />
+          <Search className={`absolute top-1/2 -translate-y-1/2 h-4 w-4 text-[#C6A03B] ${isRtl ? "right-3" : "left-3"}`} />
           <Input
-            placeholder={t("hr:searchEmployees")}
+            placeholder={t("hr:searchJobRoles")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`border-[#E6E6E4] ${isRtl ? "pr-10" : "pl-10"}`}
+            className={`border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B] ${isRtl ? "pr-10" : "pl-10"}`}
           />
         </div>
         <Button
           onClick={onAddNew}
           className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
           {t("hr:addJobRole")}
         </Button>
       </div>
@@ -135,19 +136,19 @@ export function JobRoleTable({
       <div className="border border-[#E6E6E4] rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-[#FAFAF8]">
-              <TableHead>{t("hr:jobRoleName")}</TableHead>
-              <TableHead>{t("hr:department")}</TableHead>
-              <TableHead className="text-center">{t("hr:employeesAssigned")}</TableHead>
-              <TableHead className="text-center">{t("hr:kpisAssigned")}</TableHead>
-              <TableHead className={isRtl ? "text-left" : "text-right"}>{t("hr:actions")}</TableHead>
+            <TableRow className="bg-[#FAFAF8] hover:bg-[#FAFAF8]">
+              <TableHead className="font-semibold text-[#222222]">{t("hr:jobRoleName")}</TableHead>
+              <TableHead className="font-semibold text-[#222222]">{t("hr:department")}</TableHead>
+              <TableHead className="font-semibold text-[#222222] text-center">{t("hr:employeesAssigned")}</TableHead>
+              <TableHead className="font-semibold text-[#222222] text-center">{t("hr:kpisAssigned")}</TableHead>
+              <TableHead className={`font-semibold text-[#222222] ${isRtl ? "text-left" : "text-right"}`}>{t("hr:actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredRoles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">
-                  <Briefcase className="h-12 w-12 text-[#E6E6E4] mx-auto mb-2" />
+                <TableCell colSpan={5} className="text-center py-12">
+                  <Briefcase className="h-10 w-10 text-[#C6A03B] mx-auto mb-3" />
                   <p className="text-[#6B6B6B]">{t("hr:noJobRoles")}</p>
                 </TableCell>
               </TableRow>
@@ -172,21 +173,44 @@ export function JobRoleTable({
                     </span>
                   </TableCell>
                   <TableCell className="text-center">
-                    <span className={`inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-sm font-medium ${
-                      role.kpi_count > 0
-                        ? "bg-[#FFF9E6] text-[#C6A03B]"
-                        : "bg-gray-100 text-gray-600"
-                    }`}>
+                    <button
+                      onClick={() => router.push(`/hr/kpis?role=${role.id}`)}
+                      className={`inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-sm font-medium transition-colors hover:opacity-80 ${
+                        role.kpi_count > 0
+                          ? "bg-[#FFF9E6] text-[#C6A03B] cursor-pointer"
+                          : "bg-gray-100 text-gray-600 cursor-pointer"
+                      }`}
+                      title={t("hr:viewKPIs", "View KPIs")}
+                    >
                       {role.kpi_count}
-                    </span>
+                    </button>
                   </TableCell>
                   <TableCell className={isRtl ? "text-left" : "text-right"}>
                     <div className={`flex gap-1 ${isRtl ? "justify-start" : "justify-end"}`}>
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => router.push(`/hr/kpis?role=${role.id}`)}
+                        className="text-[#C6A03B] hover:text-[#8B6914] hover:bg-[#FFF9E6]"
+                        title={t("hr:viewKPIs", "View KPIs")}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.push(`/hr/kpis/new?job_role_id=${role.id}`)}
+                        className="text-[hsl(var(--jw-primary-green))] hover:text-[hsl(var(--jw-hover-green))] hover:bg-[#E6F7F1]"
+                        title={t("hr:addKPI", "Add KPI")}
+                      >
+                        <Target className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => onEdit(role.id)}
                         className="text-[#6B6B6B] hover:text-[#222222]"
+                        title={t("hr:edit", "Edit")}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -196,6 +220,7 @@ export function JobRoleTable({
                         onClick={() => handleDeleteClick(role)}
                         className="text-[#6B6B6B] hover:text-red-600"
                         disabled={role.employee_count > 0}
+                        title={t("hr:delete", "Delete")}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

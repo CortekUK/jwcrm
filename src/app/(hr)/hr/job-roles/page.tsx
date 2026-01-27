@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { JobRoleTable } from "@/components/hr/kpis";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Briefcase } from "lucide-react";
 
@@ -96,19 +96,35 @@ export default function JobRolesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className={isRtl ? "text-right" : ""}>
-        <h1 className="text-2xl font-bold text-[#222222] flex items-center gap-2">
-          <Briefcase className="h-7 w-7 text-[hsl(var(--jw-gold-accent))]" />
-          {t("hr:jobRoles")}
-        </h1>
-        <p className="text-[#6B6B6B] mt-1">{t("hr:jobRolesDescription")}</p>
+    <div className="space-y-6 pb-12">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Briefcase className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("hr:jobRoles")}
+              </h1>
+            </div>
+            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+              {t("hr:jobRolesDescription")}
+            </p>
+          </div>
+          {!loading && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[hsl(var(--jw-primary-green))]/30 bg-white">
+              <Briefcase className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+              <span className="text-sm font-medium text-[hsl(var(--jw-primary-green))]">
+                {jobRoles.length} {jobRoles.length === 1 ? t("hr:jobRole") : t("hr:jobRolesCount")}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main Content */}
       <Card className="border-[#E6E6E4]">
-        <CardContent className="pt-6">
+        <CardContent className="p-6">
           {loading ? (
             <div className="space-y-4">
               <div className="flex justify-between">
@@ -127,6 +143,13 @@ export default function JobRolesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Footer */}
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("hr:legalNotice")}
+        </p>
+      </div>
     </div>
   );
 }

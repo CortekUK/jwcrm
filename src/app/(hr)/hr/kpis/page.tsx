@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentMonth, getCurrentYear } from "@/lib/kpi-validation";
 import { KPITable, KPIEvaluationTable, DepartmentKPISummary, DepartmentSummary, JobRoleSummary, EmployeeSummary } from "@/components/hr/kpis";
+import { KPIAnalyticsCharts } from "@/components/hr/kpis/KPIAnalyticsCharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Target, ClipboardCheck, Building2 } from "lucide-react";
+import { Target, ClipboardCheck, BarChart3, LineChart } from "lucide-react";
 
 type KPI = {
   id: string;
@@ -55,6 +56,10 @@ export default function KPIsPage() {
   const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Get initial role filter from URL
+  const initialRoleFilter = searchParams.get("role") || undefined;
 
   const [activeTab, setActiveTab] = useState("kpis");
   const [loading, setLoading] = useState(true);
@@ -380,37 +385,69 @@ export default function KPIsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className={isRtl ? "text-right" : ""}>
-        <h1 className="text-2xl font-bold text-[#222222] flex items-center gap-2">
-          <Target className="h-7 w-7 text-[hsl(var(--jw-gold-accent))]" />
-          {t("hr:kpis")}
-        </h1>
-        <p className="text-[#6B6B6B] mt-1">{t("hr:kpisDescription")}</p>
+    <div className="space-y-6 pb-12">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Target className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("hr:kpis")}
+              </h1>
+            </div>
+            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+              {t("hr:kpisDescription")}
+            </p>
+          </div>
+          {!loading && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[hsl(var(--jw-primary-green))]/30 bg-white">
+              <Target className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+              <span className="text-sm font-medium text-[hsl(var(--jw-primary-green))]">
+                {kpis.filter(k => !k.is_archived).length} {t("hr:kpisCount")}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-[#FAFAF8] border border-[#E6E6E4]">
-          <TabsTrigger value="kpis" className="data-[state=active]:bg-white">
-            <Target className="h-4 w-4 mr-2" />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="bg-white border border-[#E6E6E4] p-1.5 rounded-xl w-full grid grid-cols-4 h-auto">
+          <TabsTrigger 
+            value="kpis" 
+            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+          >
+            <Target className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
             {t("hr:kpis")}
           </TabsTrigger>
-          <TabsTrigger value="evaluations" className="data-[state=active]:bg-white">
-            <ClipboardCheck className="h-4 w-4 mr-2" />
+          <TabsTrigger 
+            value="evaluations" 
+            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+          >
+            <ClipboardCheck className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
             {t("hr:evaluations")}
           </TabsTrigger>
-          <TabsTrigger value="summaries" className="data-[state=active]:bg-white">
-            <Building2 className="h-4 w-4 mr-2" />
+          <TabsTrigger 
+            value="summaries" 
+            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+          >
+            <BarChart3 className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
             {t("hr:departmentSummary.title")}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="analytics" 
+            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+          >
+            <LineChart className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+            {t("hr:kpiAnalytics.tabTitle")}
           </TabsTrigger>
         </TabsList>
 
         {/* KPIs Tab */}
         <TabsContent value="kpis">
           <Card className="border-[#E6E6E4]">
-            <CardContent className="pt-6">
+            <CardContent className="p-6">
               {loading ? (
                 <div className="space-y-4">
                   <div className="flex justify-between">
@@ -428,6 +465,7 @@ export default function KPIsPage() {
                   onRefresh={fetchKPIsData}
                   showArchived={showArchived}
                   onShowArchivedChange={setShowArchived}
+                  initialRoleFilter={initialRoleFilter}
                 />
               )}
             </CardContent>
@@ -437,7 +475,7 @@ export default function KPIsPage() {
         {/* Evaluations Tab */}
         <TabsContent value="evaluations">
           <Card className="border-[#E6E6E4]">
-            <CardContent className="pt-6">
+            <CardContent className="p-6">
               {loading ? (
                 <div className="space-y-4">
                   <div className="flex gap-4">
@@ -465,7 +503,7 @@ export default function KPIsPage() {
         {/* Department Summaries Tab */}
         <TabsContent value="summaries">
           <Card className="border-[#E6E6E4]">
-            <CardContent className="pt-6">
+            <CardContent className="p-6">
               {loading ? (
                 <div className="space-y-4">
                   <div className="flex gap-4">
@@ -493,7 +531,23 @@ export default function KPIsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics">
+          <Card className="border-[#E6E6E4]">
+            <CardContent className="p-6">
+              <KPIAnalyticsCharts />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Footer */}
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("hr:legalNotice")}
+        </p>
+      </div>
     </div>
   );
 }

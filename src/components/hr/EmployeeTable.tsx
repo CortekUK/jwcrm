@@ -15,8 +15,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "react-i18next";
-import { Search, Eye, Edit, UserX, Plus, Users, MoreHorizontal } from "lucide-react";
+import { Search, Eye, Edit, UserX, Plus, Users, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
+import { ExportEmployeesButton } from "./ExportEmployeesButton";
 
 // Helper function to get initials
 function getInitials(name: string): string {
@@ -50,6 +51,7 @@ interface EmployeeTableProps {
   onAddNew: () => void;
   onEdit: (id: string) => void;
   onDeactivate: (employee: Employee) => void;
+  defaultStatusFilter?: string;
 }
 
 export function EmployeeTable({
@@ -58,12 +60,36 @@ export function EmployeeTable({
   onAddNew,
   onEdit,
   onDeactivate,
+  defaultStatusFilter = "all",
 }: EmployeeTableProps) {
   const { t } = useTranslation(["hr"]);
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(defaultStatusFilter);
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  
+  // Sorting state
+  type SortColumn = "name" | "job_role" | "department" | "start_date" | "status";
+  const [sortColumn, setSortColumn] = useState<SortColumn>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (column: SortColumn) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-4 w-4 text-[#999999]" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-4 w-4 text-[#C6A03B]" /> 
+      : <ArrowDown className="h-4 w-4 text-[#C6A03B]" />;
+  };
 
   // Filter employees
   const filteredEmployees = employees.filter((emp) => {
@@ -78,6 +104,31 @@ export function EmployeeTable({
       departmentFilter === "all" || emp.department?.name === departmentFilter;
 
     return matchesSearch && matchesStatus && matchesDepartment;
+  });
+
+  // Sort employees
+  const sortedEmployees = [...filteredEmployees].sort((a, b) => {
+    let comparison = 0;
+    
+    switch (sortColumn) {
+      case "name":
+        comparison = a.full_name.localeCompare(b.full_name);
+        break;
+      case "job_role":
+        comparison = (a.job_role?.name || "").localeCompare(b.job_role?.name || "");
+        break;
+      case "department":
+        comparison = (a.department?.name || "").localeCompare(b.department?.name || "");
+        break;
+      case "start_date":
+        comparison = new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+        break;
+      case "status":
+        comparison = a.employment_status.localeCompare(b.employment_status);
+        break;
+    }
+    
+    return sortDirection === "asc" ? comparison : -comparison;
   });
 
   const getStatusBadge = (status: string) => {
@@ -109,12 +160,12 @@ export function EmployeeTable({
         <div className="flex flex-col sm:flex-row gap-2 flex-1">
           {/* Search */}
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#6B6B6B]" />
+            <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#C6A03B]" />
             <Input
               placeholder={t("hr:searchEmployees")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 border-[#E6E6E4]"
+              className="ltr:pl-10 rtl:pr-10 border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
             />
           </div>
 
@@ -148,14 +199,17 @@ export function EmployeeTable({
           </Select>
         </div>
 
-        {/* Add Employee Button */}
-        <Button
-          onClick={onAddNew}
-          className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {t("hr:addEmployee")}
-        </Button>
+        {/* Export and Add Employee Buttons */}
+        <div className="flex items-center gap-2">
+          <ExportEmployeesButton />
+          <Button
+            onClick={onAddNew}
+            className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t("hr:addEmployee")}
+          </Button>
+        </div>
       </div>
 
       {/* Table */}
@@ -163,16 +217,56 @@ export function EmployeeTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-[#FAFAF8]">
-              <TableHead className="text-[#555555] font-semibold">{t("hr:name")}</TableHead>
-              <TableHead className="text-[#555555] font-semibold">{t("hr:jobRole")}</TableHead>
-              <TableHead className="text-[#555555] font-semibold">{t("hr:department")}</TableHead>
-              <TableHead className="text-[#555555] font-semibold">{t("hr:startDate")}</TableHead>
-              <TableHead className="text-[#555555] font-semibold">{t("hr:statusColumn")}</TableHead>
+              <TableHead 
+                className="text-[#555555] font-semibold cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+                onClick={() => handleSort("name")}
+              >
+                <div className="flex items-center gap-1">
+                  {t("hr:name")}
+                  {getSortIcon("name")}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="text-[#555555] font-semibold cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+                onClick={() => handleSort("job_role")}
+              >
+                <div className="flex items-center gap-1">
+                  {t("hr:jobRole")}
+                  {getSortIcon("job_role")}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="text-[#555555] font-semibold cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+                onClick={() => handleSort("department")}
+              >
+                <div className="flex items-center gap-1">
+                  {t("hr:department")}
+                  {getSortIcon("department")}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="text-[#555555] font-semibold cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+                onClick={() => handleSort("start_date")}
+              >
+                <div className="flex items-center gap-1">
+                  {t("hr:startDate")}
+                  {getSortIcon("start_date")}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="text-[#555555] font-semibold cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+                onClick={() => handleSort("status")}
+              >
+                <div className="flex items-center gap-1">
+                  {t("hr:statusColumn")}
+                  {getSortIcon("status")}
+                </div>
+              </TableHead>
               <TableHead className="text-[#555555] font-semibold text-right">{t("hr:actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredEmployees.length === 0 ? (
+            {sortedEmployees.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8">
                   <div className="flex flex-col items-center gap-2 text-[#6B6B6B]">
@@ -182,7 +276,7 @@ export function EmployeeTable({
                 </TableCell>
               </TableRow>
             ) : (
-              filteredEmployees.map((employee) => (
+              sortedEmployees.map((employee) => (
                 <TableRow
                   key={employee.id}
                   className="hover:bg-[#FAFAF8] cursor-pointer"
@@ -190,8 +284,8 @@ export function EmployeeTable({
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9 border border-[#E6E6E4]">
-                        <AvatarFallback className="bg-[hsl(var(--jw-primary-green))] text-white text-xs font-medium">
+                      <Avatar className="h-9 w-9 border-2 border-[#C6A03B]/20">
+                        <AvatarFallback className="bg-[rgba(198,160,59,0.15)] text-[#0C5536] text-sm font-semibold">
                           {getInitials(employee.full_name)}
                         </AvatarFallback>
                       </Avatar>
@@ -258,7 +352,7 @@ export function EmployeeTable({
 
       {/* Results Count */}
       <div className="text-sm text-[#6B6B6B]">
-        {t("hr:showingResults", { count: filteredEmployees.length, total: employees.length })}
+        {t("hr:showingResults", { count: sortedEmployees.length, total: employees.length })}
       </div>
     </div>
   );

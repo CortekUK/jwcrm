@@ -53,5 +53,36 @@
     "thu": "Thu",
     "fri": "Fri",
     "sat": "Sat"
+  },
+
+  "monthView": "Month",
+  "weekView": "Week",
+  "thisWeekMeetings": "This Week",
+  "next7Days": "Next 7 Days",
+  "overdueFollowUps": "Overdue",
+  "phoneCalls": "Phone Calls",
+  "emails": "Emails",
+  "messages": "Messages",
+  "videoMeetings": "Video",
+  "inPerson": "In-Person",
+  "meeting": "Meeting",
+  "meetings": "Meetings",
+
+  "reports": {
+    "title": "My Reports & Analytics",
+    "subtitle": "Your sales performance insights and data exports",
+    "myPerformance": "My Performance",
+    "insights": "Insights",
+    "dataExports": "Data Exports",
+    "myLeadsThisMonth": "My Leads This Month",
+    "myDealsWon": "My Deals Won",
+    "myRevenue": "My Revenue",
+    "myConversionRate": "My Conversion Rate",
+    "myMonthlyPerformance": "My Monthly Performance",
+    "myRevenueTrend": "My Revenue Trend",
+    "myPipeline": "My Pipeline",
+    "mySourcePerformance": "My Source Performance",
+    "myLeads": "My Leads",
+    "noData": "No data available"
   }
 }

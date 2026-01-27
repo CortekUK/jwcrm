@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useTranslation } from "react-i18next";
 import {
   Loader2,
@@ -31,10 +33,13 @@ import {
   Calendar,
   ClipboardList,
   FileSpreadsheet,
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format, subDays, isAfter, startOfDay, startOfMonth, endOfMonth } from "date-fns";
+import { format, subDays, isAfter, startOfDay, startOfMonth, endOfMonth, subWeeks, startOfWeek, endOfWeek, subMonths } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
 import { AttendanceCalendar, ExportAttendanceModal } from "@/components/hr/attendance";
 
@@ -121,15 +126,36 @@ export default function AttendancePage() {
   const [employeesOnLeave, setEmployeesOnLeave] = useState<Map<string, string>>(new Map());
   const [activeTab, setActiveTab] = useState("mark");
   const [showExportModal, setShowExportModal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<AttendanceStatus | "all">("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
 
   // Calendar-specific state
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [calendarData, setCalendarData] = useState<CalendarAttendanceRecord[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
 
-  // Get the minimum date (7 days ago)
-  const minDate = format(subDays(new Date(), 7), "yyyy-MM-dd");
+  // Get the minimum date for editing (7 days ago)
+  const minEditableDate = format(subDays(new Date(), 7), "yyyy-MM-dd");
   const maxDate = format(new Date(), "yyyy-MM-dd");
+  
+  // Date presets for quick selection
+  const datePresets = [
+    { label: t("attendancePage.today", "Today"), date: format(new Date(), "yyyy-MM-dd") },
+    { label: t("attendancePage.yesterday", "Yesterday"), date: format(subDays(new Date(), 1), "yyyy-MM-dd") },
+  ];
+
+  // Navigate to previous/next day
+  const navigateDay = (direction: "prev" | "next") => {
+    const currentDate = new Date(selectedDate);
+    const newDate = direction === "prev" 
+      ? subDays(currentDate, 1) 
+      : new Date(currentDate.setDate(currentDate.getDate() + 1));
+    
+    // Don't go into the future
+    if (direction === "next" && isAfter(newDate, new Date())) return;
+    
+    setSelectedDate(format(newDate, "yyyy-MM-dd"));
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -483,7 +509,17 @@ export default function AttendancePage() {
     ? Math.round(((counts.present + counts.late + counts.wfh) / startedCount) * 100)
     : 0;
 
-  const canEdit = !isAfter(startOfDay(new Date(minDate)), startOfDay(new Date(selectedDate)));
+  // Get unique departments for filter
+  const departments = Array.from(
+    new Map(
+      employees
+        .filter(emp => emp.department_id && emp.department_name)
+        .map(emp => [emp.department_id, emp.department_name])
+    )
+  ).map(([id, name]) => ({ id: id as string, name: name as string }));
+
+  const canEdit = !isAfter(startOfDay(new Date(minEditableDate)), startOfDay(new Date(selectedDate)));
+  const isHistorical = !canEdit;
 
   // Calendar event handlers
   const handleCalendarDayClick = (date: Date) => {
@@ -510,34 +546,46 @@ export default function AttendancePage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#222222]">
-            {t("attendance", "Attendance")}
-          </h1>
-          <p className="text-[#6B6B6B]">
-            {t("calendar.pageDescription", "Mark and view attendance for all employees")}
-          </p>
+    <div className="space-y-6 pb-12">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <ClipboardList className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("attendance", "Attendance")}
+              </h1>
+            </div>
+            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+              {t("calendar.pageDescription", "Mark and view attendance for all employees")}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setShowExportModal(true)}
+            className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+          >
+            <FileSpreadsheet className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+            {t("calendar.exportReport", "Export Report")}
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => setShowExportModal(true)}
-        >
-          <FileSpreadsheet className="h-4 w-4 mr-2" />
-          {t("calendar.exportReport", "Export Report")}
-        </Button>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="mark" className="flex items-center gap-2">
+        <TabsList className="bg-white border border-[#E6E6E4] p-1.5 rounded-xl w-full grid grid-cols-2 h-auto">
+          <TabsTrigger 
+            value="mark" 
+            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all flex items-center justify-center gap-2"
+          >
             <ClipboardList className="h-4 w-4" />
             {t("calendar.markAttendance", "Mark Attendance")}
           </TabsTrigger>
-          <TabsTrigger value="calendar" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="calendar" 
+            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all flex items-center justify-center gap-2"
+          >
             <Calendar className="h-4 w-4" />
             {t("calendar.calendarView", "Calendar View")}
           </TabsTrigger>
@@ -545,135 +593,331 @@ export default function AttendancePage() {
 
         {/* Mark Attendance Tab */}
         <TabsContent value="mark" className="space-y-6 mt-6">
+          {/* Date Selection Card */}
+          <Card className="border-[#E6E6E4]">
+            <CardContent className="p-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Date Navigation */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => navigateDay("prev")}
+                    className="h-9 w-9 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-[200px] justify-start text-left font-normal border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                      >
+                        <CalendarDays className="ltr:mr-2 rtl:ml-2 h-4 w-4 text-[#C6A03B]" />
+                        <span className="font-medium text-[#222222]">
+                          {format(new Date(selectedDate), "EEE, MMM d, yyyy")}
+                        </span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={new Date(selectedDate)}
+                        onSelect={(date) => date && setSelectedDate(format(date, "yyyy-MM-dd"))}
+                        disabled={(date) => isAfter(date, new Date())}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => navigateDay("next")}
+                    disabled={selectedDate === maxDate}
+                    className="h-9 w-9 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Quick Date Presets */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {datePresets.map((preset) => (
+                    <Button
+                      key={preset.label}
+                      variant={selectedDate === preset.date ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedDate(preset.date)}
+                      className={selectedDate === preset.date 
+                        ? "bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white" 
+                        : "border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                      }
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
+                  <Button
+                    variant={selectedDate >= format(startOfWeek(new Date(), { weekStartsOn: 0 }), "yyyy-MM-dd") && selectedDate <= maxDate && selectedDate !== datePresets[0].date && selectedDate !== datePresets[1].date ? "outline" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedDate(format(startOfWeek(new Date(), { weekStartsOn: 0 }), "yyyy-MM-dd"))}
+                    className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                  >
+                    {t("attendancePage.thisWeek", "This Week")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedDate(format(startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 0 }), "yyyy-MM-dd"))}
+                    className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                  >
+                    {t("attendancePage.lastWeek", "Last Week")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedDate(format(startOfMonth(new Date()), "yyyy-MM-dd"))}
+                    className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                  >
+                    {t("attendancePage.thisMonth", "This Month")}
+                  </Button>
+                </div>
+
+                {/* Historical Mode Indicator */}
+                {isHistorical && (
+                  <Badge className="bg-[#FFF9E6] text-[#C6A03B] border-[#C6A03B]/30">
+                    <Clock className="h-3 w-3 ltr:mr-1 rtl:ml-1" />
+                    {t("attendancePage.viewOnlyMode", "View Only")}
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Mark Attendance Controls */}
-          <div className="flex flex-wrap items-center gap-3">
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              min={minDate}
-              max={maxDate}
-              className="w-40"
-            />
-            <Button variant="outline" onClick={markAllPresent} disabled={!canEdit}>
-              <CheckCheck className="h-4 w-4 mr-2" />
-              {t("attendancePage.markAllPresent")}
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving || sendingEmail || !canEdit}
-              className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {t("saving")}
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  {t("attendancePage.saveAttendance")}
-                </>
-              )}
-            </Button>
-            <Button
-              onClick={handleSaveAndEmail}
-              disabled={saving || sendingEmail || !canEdit}
-              variant="outline"
-              className="border-[hsl(var(--jw-primary-green))] text-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-primary-green))]/10"
-            >
-              {sendingEmail ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {t("sending")}
-                </>
-              ) : (
-                <>
-                  <Mail className="h-4 w-4 mr-2" />
-                  {t("attendancePage.saveAndEmail")}
-                </>
-              )}
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger className="w-[180px] border-[#E6E6E4]">
+                  <SelectValue placeholder={t("attendancePage.allDepartments", "All Departments")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("attendancePage.allDepartments", "All Departments")}</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="outline" onClick={markAllPresent} disabled={!canEdit} className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]">
+                <CheckCheck className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+                {t("attendancePage.markAllPresent")}
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={saving || sendingEmail || !canEdit}
+                className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 ltr:mr-2 rtl:ml-2 animate-spin" />
+                    {t("saving")}
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+                    {t("attendancePage.saveAttendance")}
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={handleSaveAndEmail}
+                disabled={saving || sendingEmail || !canEdit}
+                variant="outline"
+                className="border-[hsl(var(--jw-primary-green))] text-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-primary-green))]/10"
+              >
+                {sendingEmail ? (
+                  <>
+                    <Loader2 className="h-4 w-4 ltr:mr-2 rtl:ml-2 animate-spin" />
+                    {t("sending")}
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+                    {t("attendancePage.saveAndEmail")}
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
-        <Card className="border-[#E6E6E4]">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">{t("attendancePage.total")}</p>
-                <p className="text-2xl font-bold text-[#222222]">{startedCount}</p>
-                {employees.length !== startedCount && (
-                  <p className="text-xs text-gray-400">({employees.length - startedCount} {t("attendancePage.notYetStarted")})</p>
-                )}
-              </div>
-              <Users className="h-8 w-8 text-[#6B6B6B]" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {(Object.keys(statusConfig) as AttendanceStatus[]).map((status) => {
-          const config = statusConfig[status];
-          const Icon = config.icon;
-          const count = counts[status];
-
-          return (
-            <Card
-              key={status}
-              className={`border-[#E6E6E4] ${count > 0 ? config.bgColor : ""}`}
-            >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="border-[#E6E6E4]">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-[#6B6B6B]">{config.label}</p>
-                    <p className={`text-2xl font-bold ${count > 0 ? config.color : "text-[#222222]"}`}>
-                      {count}
-                    </p>
+                  <p className="text-sm text-[#6B6B6B]">{t("attendancePage.total")}</p>
+                  <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                    <Users className="h-5 w-5 text-[#0C5536]" />
                   </div>
-                  <Icon className={`h-6 w-6 ${count > 0 ? config.color : "text-[#E6E6E4]"}`} />
+                </div>
+                <p className="text-2xl font-bold text-[#222222] mt-2">{startedCount}</p>
+                {employees.length !== startedCount && (
+                  <p className="text-xs text-[#999999]">({employees.length - startedCount} {t("attendancePage.notYetStarted")})</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-[#E6E6E4]">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-[#6B6B6B]">{statusConfig.present.label}</p>
+                  <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                    <CheckCircle2 className="h-5 w-5 text-[#0C5536]" />
+                  </div>
+                </div>
+                <p className="text-2xl font-bold text-[#0C5536] mt-2">{counts.present}</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-[#E6E6E4]">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-[#6B6B6B]">{statusConfig.absent.label}</p>
+                  <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                    <XCircle className="h-5 w-5 text-[#0C5536]" />
+                  </div>
+                </div>
+                <p className={`text-2xl font-bold mt-2 ${counts.absent > 0 ? "text-[#C0392B]" : "text-[#222222]"}`}>{counts.absent}</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-[#E6E6E4]">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-[#6B6B6B]">{t("attendancePage.attendanceRate")}</p>
+                  <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                    <CheckCheck className="h-5 w-5 text-[#0C5536]" />
+                  </div>
+                </div>
+                <p className={`text-2xl font-bold mt-2 ${attendanceRate >= 85 ? "text-[#0C5536]" : attendanceRate >= 70 ? "text-[#C6A03B]" : "text-[#C0392B]"}`}>
+                  {attendanceRate}%
+                </p>
+                <div className="h-1.5 bg-[#E6E6E4] rounded-full overflow-hidden mt-2">
+                  <div
+                    className={`h-full rounded-full transition-all ${attendanceRate >= 85 ? "bg-[#0C5536]" : attendanceRate >= 70 ? "bg-[#C6A03B]" : "bg-[#C0392B]"}`}
+                    style={{ width: `${attendanceRate}%` }}
+                  />
                 </div>
               </CardContent>
             </Card>
-          );
-        })}
-      </div>
-
-      {/* Attendance Rate */}
-      <Card className="border-[#E6E6E4]">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-[#6B6B6B]">{t("attendancePage.attendanceRate")}</p>
-              <p className={`text-2xl font-bold ${attendanceRate >= 85 ? "text-green-600" : attendanceRate >= 70 ? "text-yellow-600" : "text-red-600"}`}>
-                {attendanceRate}%
-              </p>
-            </div>
-            <div className="w-48 h-3 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className={`h-full ${attendanceRate >= 85 ? "bg-green-500" : attendanceRate >= 70 ? "bg-yellow-500" : "bg-red-500"}`}
-                style={{ width: `${attendanceRate}%` }}
-              />
-            </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Status Filters */}
+          <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={`px-3 py-2.5 rounded-lg border transition-all text-center ${
+                statusFilter === "all"
+                  ? "border-[hsl(var(--jw-primary-green))] bg-[hsl(var(--jw-primary-green))]/10 text-[hsl(var(--jw-primary-green))] font-medium"
+                  : "border-[#E6E6E4] bg-white text-[#555555] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+              }`}
+            >
+              <span className="text-sm">{t("attendancePage.allStatuses", "All")}</span>
+              <span className="block text-lg font-semibold">{startedCount}</span>
+            </button>
+            {(Object.keys(statusConfig) as AttendanceStatus[]).map((status) => {
+              const config = statusConfig[status];
+              const count = counts[status];
+              const isSelected = statusFilter === status;
+
+              return (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(isSelected ? "all" : status)}
+                  className={`px-3 py-2.5 rounded-lg border transition-all text-center ${
+                    isSelected
+                      ? `${config.bgColor} ${config.color.replace("text", "border")} font-medium`
+                      : count > 0
+                      ? "border-[#E6E6E4] bg-white hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                      : "border-[#E6E6E4] bg-white"
+                  }`}
+                >
+                  <span className={`text-sm ${isSelected ? config.color : count > 0 ? "text-[#555555]" : "text-[#999999]"}`}>
+                    {config.label}
+                  </span>
+                  <span className={`block text-lg font-semibold ${isSelected ? config.color : count > 0 ? "text-[#222222]" : "text-[#999999]"}`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
       {/* Employee List */}
       <Card className="border-[#E6E6E4]">
-        <CardHeader>
-          <CardTitle className="text-lg">
-            {t("employees")} ({employees.length})
-            {!canEdit && (
-              <Badge variant="outline" className="ml-2 text-yellow-600 border-yellow-300">
-                {t("attendancePage.readOnlyDateTooOld")}
-              </Badge>
-            )}
-          </CardTitle>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Users className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+              <CardTitle className="text-xl font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("employees")}
+              </CardTitle>
+              {departmentFilter !== "all" && (
+                <Badge variant="outline" className="text-[#555555] border-[#E6E6E4] bg-[#FAFAF8]">
+                  {departments.find(d => d.id === departmentFilter)?.name}
+                </Badge>
+              )}
+              {statusFilter !== "all" && (
+                <Badge className={`${statusConfig[statusFilter].bgColor} ${statusConfig[statusFilter].color} border-0`}>
+                  {statusConfig[statusFilter].label}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {(statusFilter !== "all" || departmentFilter !== "all") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setDepartmentFilter("all");
+                  }}
+                  className="text-[#6B6B6B] hover:text-[#222222] text-xs"
+                >
+                  {t("attendancePage.clearFilters", "Clear filters")}
+                </Button>
+              )}
+              {!canEdit && (
+                <Badge variant="outline" className="text-[#C6A03B] border-[#C6A03B]/30 bg-[#FFF9E6]">
+                  {t("attendancePage.readOnlyDateTooOld")}
+                </Badge>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {employees.map((employee) => {
+            {employees
+              .filter((employee) => {
+                const record = attendance[employee.id];
+                const hasStarted = employee.start_date <= selectedDate;
+                
+                // Department filter
+                if (departmentFilter !== "all" && employee.department_id !== departmentFilter) {
+                  return false;
+                }
+                
+                // Status filter
+                if (statusFilter === "all") return true;
+                if (!hasStarted) return false;
+                return record?.status === statusFilter;
+              })
+              .map((employee) => {
               const record = attendance[employee.id];
               const hasStarted = employee.start_date <= selectedDate;
               const config = record ? statusConfig[record.status] : statusConfig.present;
@@ -796,8 +1040,8 @@ export default function AttendancePage() {
             })}
 
             {employees.length === 0 && (
-              <div className="text-center py-8 text-[#6B6B6B]">
-                <Users className="h-12 w-12 mx-auto mb-2 text-[#E6E6E4]" />
+              <div className="text-center py-12 text-[#6B6B6B]">
+                <Users className="h-10 w-10 mx-auto mb-3 text-[#C6A03B]" />
                 <p>{t("attendancePage.noActiveEmployees")}</p>
               </div>
             )}
@@ -832,6 +1076,13 @@ export default function AttendancePage() {
         onOpenChange={setShowExportModal}
         mode="main"
       />
+
+      {/* Footer */}
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("legalNotice")}
+        </p>
+      </div>
     </div>
   );
 }

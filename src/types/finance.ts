@@ -127,6 +127,13 @@ export interface FinanceStats {
   currency: string;
 }
 
+// Extended stats for comparison periods
+export interface ExtendedFinanceStats extends FinanceStats {
+  // Comparison period stats (previous month)
+  periodStart?: string;
+  periodEnd?: string;
+}
+
 // Chart data types
 export interface MonthlyData {
   month: string;

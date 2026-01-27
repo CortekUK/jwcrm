@@ -4,14 +4,16 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
-import { Users, Building, FileText, ClipboardList, CalendarCheck, LayoutDashboard } from "lucide-react";
+import { Users, Building, FileText, ClipboardList, CalendarCheck, LayoutDashboard, UserPlus, CalendarPlus, Clock, Target, Plus } from "lucide-react";
 import { CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { ExpiryAlertCard, AlertSummaryCards, AttendanceSummaryCard, LeaveSummaryWidget, DashboardSkeleton, KPIEvaluationAlertCard } from "@/components/hr";
+import { ExpiryAlertCard, AlertSummaryCards, AttendanceSummaryCard, LeaveSummaryWidget, PendingApprovalsWidget, DashboardSkeleton, KPIEvaluationAlertCard, ReviewAlertCard } from "@/components/hr";
 import { LeaveAnalyticsWidget } from "@/components/hr/leave-analytics";
 import { BatchDocumentExportButton } from "@/components/hr/documents/BatchDocumentExportButton";
+import { AttendanceAlertsCard } from "@/components/hr/attendance/AttendanceAlertsCard";
+import { KPIOverviewCard } from "@/components/hr/kpis/KPIOverviewCard";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 interface DashboardStats {
   totalEmployees: number;
@@ -57,6 +59,7 @@ interface ExpiringDocument {
 export default function HRDashboard() {
   const { t } = useTranslation(["hr"]);
   const pathname = usePathname();
+  const router = useRouter();
   const basePath = pathname?.startsWith("/admin") ? "/admin/hr" : "/hr";
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
@@ -77,73 +80,150 @@ export default function HRDashboard() {
 
   const fetchPendingReviewsCounts = async () => {
     try {
-      // Get pending evaluations with employee names
-      const { data: pendingEvaluations, error } = await supabase
-        .from("kpi_evaluations")
-        .select(`
-          employee_id,
-          month,
-          year,
-          employees(full_name)
-        `)
-        .or("achieved_value.is.null,status.eq.pending");
+      const today = new Date();
+      const currentMonth = today.getMonth() + 1; // 1-12
+      const currentYear = today.getFullYear();
 
-      if (error || !pendingEvaluations || pendingEvaluations.length === 0) {
+      // Calculate months to check (current month + past 3 months)
+      const monthsToCheck: { month: number; year: number }[] = [];
+      for (let i = 0; i <= 3; i++) {
+        let checkMonth = currentMonth - i;
+        let checkYear = currentYear;
+        if (checkMonth <= 0) {
+          checkMonth += 12;
+          checkYear -= 1;
+        }
+        monthsToCheck.push({ month: checkMonth, year: checkYear });
+      }
+
+      // Step 1: Get active employees with job roles
+      const { data: employees, error: empError } = await supabase
+        .from("employees")
+        .select(`
+          id,
+          full_name,
+          job_role_id,
+          start_date
+        `)
+        .eq("employment_status", "active")
+        .not("job_role_id", "is", null);
+
+      if (empError || !employees || employees.length === 0) {
         setMonthlyGroups([]);
         setQuarterlyGroups([]);
         return { pendingMonthly: 0, pendingQuarterly: 0 };
       }
 
-      // Group by month-year for monthly view
-      const monthMap = new Map<string, { month: number; year: number; employees: Map<string, PendingReviewDetail> }>();
+      // Step 2: Get KPIs for all job roles (excluding archived)
+      const jobRoleIds = [...new Set(employees.map(e => e.job_role_id))];
+      const { data: kpis, error: kpiError } = await supabase
+        .from("kpis")
+        .select("id, job_role_id")
+        .in("job_role_id", jobRoleIds)
+        .eq("is_archived", false);
 
-      // Group by quarter-year for quarterly view
+      if (kpiError || !kpis || kpis.length === 0) {
+        setMonthlyGroups([]);
+        setQuarterlyGroups([]);
+        return { pendingMonthly: 0, pendingQuarterly: 0 };
+      }
+
+      // Build KPI count per role
+      const kpisByRole: Record<string, string[]> = {};
+      kpis.forEach((kpi) => {
+        if (!kpisByRole[kpi.job_role_id]) {
+          kpisByRole[kpi.job_role_id] = [];
+        }
+        kpisByRole[kpi.job_role_id].push(kpi.id);
+      });
+
+      // Step 3: Get existing evaluations for the months we're checking
+      const yearsToCheck = [...new Set(monthsToCheck.map(m => m.year))];
+      const { data: evaluations, error: evalError } = await supabase
+        .from("kpi_evaluations")
+        .select("employee_id, kpi_id, month, year, achieved_value, status")
+        .in("month", monthsToCheck.map(m => m.month))
+        .in("year", yearsToCheck);
+
+      if (evalError) {
+        console.error("Error fetching evaluations:", evalError);
+      }
+
+      // Build evaluation map: employee_id -> month/year -> Set of completed kpi_ids
+      const completedEvalMap: Record<string, Record<string, Set<string>>> = {};
+      (evaluations || []).forEach((eval_: any) => {
+        // Only count as completed if achieved_value is set and status is not pending
+        const isCompleted = eval_.achieved_value !== null && eval_.status !== 'pending';
+        if (!isCompleted) return;
+        
+        const key = `${eval_.month}-${eval_.year}`;
+        if (!completedEvalMap[eval_.employee_id]) {
+          completedEvalMap[eval_.employee_id] = {};
+        }
+        if (!completedEvalMap[eval_.employee_id][key]) {
+          completedEvalMap[eval_.employee_id][key] = new Set();
+        }
+        completedEvalMap[eval_.employee_id][key].add(eval_.kpi_id);
+      });
+
+      // Step 4: Find employees with pending/missing evaluations
+      const monthMap = new Map<string, { month: number; year: number; employees: Map<string, PendingReviewDetail> }>();
       const quarterMap = new Map<string, { quarter: number; year: number; employees: Map<string, PendingReviewDetail> }>();
 
-      pendingEvaluations.forEach((eval_: any) => {
-        const employeeName = eval_.employees?.full_name || "Unknown";
-        const monthKey = `${eval_.year}-${eval_.month}`;
-        const quarter = Math.ceil(eval_.month / 3);
-        const quarterKey = `${eval_.year}-Q${quarter}`;
+      for (const { month, year } of monthsToCheck) {
+        const monthKey = `${year}-${month}`;
+        const monthDate = new Date(year, month - 1, 1);
+        const quarter = Math.ceil(month / 3);
+        const quarterKey = `${year}-Q${quarter}`;
 
-        // Add to monthly groups
-        if (!monthMap.has(monthKey)) {
-          monthMap.set(monthKey, {
-            month: eval_.month,
-            year: eval_.year,
-            employees: new Map()
-          });
-        }
-        const monthGroup = monthMap.get(monthKey)!;
-        if (!monthGroup.employees.has(eval_.employee_id)) {
-          monthGroup.employees.set(eval_.employee_id, {
-            employee_id: eval_.employee_id,
-            employee_name: employeeName,
-            pending_count: 1
-          });
-        } else {
-          monthGroup.employees.get(eval_.employee_id)!.pending_count++;
-        }
+        for (const emp of employees) {
+          const roleKpis = kpisByRole[emp.job_role_id!] || [];
+          if (roleKpis.length === 0) continue;
 
-        // Add to quarterly groups
-        if (!quarterMap.has(quarterKey)) {
-          quarterMap.set(quarterKey, {
-            quarter,
-            year: eval_.year,
-            employees: new Map()
-          });
+          // Skip if employee hadn't started yet in that month
+          const empStartDate = new Date(emp.start_date);
+          if (empStartDate > monthDate) continue;
+
+          // Count completed evaluations for this employee/month
+          const completedKpis = completedEvalMap[emp.id]?.[`${month}-${year}`] || new Set();
+          const pendingCount = roleKpis.length - completedKpis.size;
+
+          if (pendingCount > 0) {
+            // Add to monthly groups
+            if (!monthMap.has(monthKey)) {
+              monthMap.set(monthKey, {
+                month,
+                year,
+                employees: new Map()
+              });
+            }
+            monthMap.get(monthKey)!.employees.set(emp.id, {
+              employee_id: emp.id,
+              employee_name: emp.full_name,
+              pending_count: pendingCount
+            });
+
+            // Add to quarterly groups
+            if (!quarterMap.has(quarterKey)) {
+              quarterMap.set(quarterKey, {
+                quarter,
+                year,
+                employees: new Map()
+              });
+            }
+            const existingQuarterEmp = quarterMap.get(quarterKey)!.employees.get(emp.id);
+            if (existingQuarterEmp) {
+              existingQuarterEmp.pending_count += pendingCount;
+            } else {
+              quarterMap.get(quarterKey)!.employees.set(emp.id, {
+                employee_id: emp.id,
+                employee_name: emp.full_name,
+                pending_count: pendingCount
+              });
+            }
+          }
         }
-        const quarterGroup = quarterMap.get(quarterKey)!;
-        if (!quarterGroup.employees.has(eval_.employee_id)) {
-          quarterGroup.employees.set(eval_.employee_id, {
-            employee_id: eval_.employee_id,
-            employee_name: employeeName,
-            pending_count: 1
-          });
-        } else {
-          quarterGroup.employees.get(eval_.employee_id)!.pending_count++;
-        }
-      });
+      }
 
       // Convert to arrays and sort by date (newest first)
       const monthlyGroupsArray: MonthlyGroup[] = Array.from(monthMap.values())
@@ -272,7 +352,7 @@ export default function HRDashboard() {
             <div className="flex items-center gap-3 mb-2">
               <LayoutDashboard className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
               <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
-                {t("hr:dashboard")}
+                {t("hr:hrDashboard")}
               </h1>
             </div>
             <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
@@ -281,11 +361,11 @@ export default function HRDashboard() {
           </div>
 
           {stats.expiringDocuments > 0 && (
-            <Link href={`${basePath}/documents`}>
+            <Link href={`${basePath}/documents?status=expiring`}>
               <div className="flex items-center gap-3 px-3 py-2 bg-white border border-[#E6E6E4] rounded-md hover:border-[#C6A03B] transition-all cursor-pointer">
                 <FileText className="h-4 w-4 text-[#777777]" />
                 <span className="text-[#DC2626] font-medium text-sm">
-                  {stats.expiringDocuments} {t("hr:Expiring")}
+                  {stats.expiringDocuments} Expiring
                 </span>
               </div>
             </Link>
@@ -293,9 +373,71 @@ export default function HRDashboard() {
         </div>
       </div>
 
+      {/* Quick Actions */}
+      <Card className="border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Plus className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+            <CardTitle className="text-xl font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+              {t("hr:quickActions", "Quick Actions")}
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Button
+              variant="outline"
+              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
+              onClick={() => router.push(`${basePath}/employees/new`)}
+            >
+              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
+                <UserPlus className="h-5 w-5 text-[#0C5536]" />
+              </div>
+              <span className="text-sm font-medium text-[#222222]">{t("hr:addEmployee")}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
+              onClick={() => router.push(`${basePath}/leave?action=new`)}
+            >
+              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
+                <CalendarPlus className="h-5 w-5 text-[#0C5536]" />
+              </div>
+              <span className="text-sm font-medium text-[#222222]">{t("hr:submitLeave", "Submit Leave")}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
+              onClick={() => router.push(`${basePath}/attendance`)}
+            >
+              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
+                <Clock className="h-5 w-5 text-[#0C5536]" />
+              </div>
+              <span className="text-sm font-medium text-[#222222]">{t("hr:recordAttendance", "Record Attendance")}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
+              onClick={() => router.push(`${basePath}/kpis/new`)}
+            >
+              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
+                <Target className="h-5 w-5 text-[#0C5536]" />
+              </div>
+              <span className="text-sm font-medium text-[#222222]">{t("hr:addKPI", "Add KPI")}</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Quick Stats */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group">
+        <Card 
+          className="rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group cursor-pointer"
+          onClick={() => router.push(`${basePath}/employees`)}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-[#777777]">
@@ -317,7 +459,10 @@ export default function HRDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group">
+        <Card 
+          className="rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group cursor-pointer"
+          onClick={() => router.push(`${basePath}/employees?status=active`)}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-[#777777]">
@@ -329,7 +474,7 @@ export default function HRDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tight text-[hsl(var(--jw-primary-green))]">
+            <div className="text-3xl font-bold tracking-tight text-[#222222]">
               {stats.activeEmployees}
             </div>
             <p className="text-xs text-[#777777] mt-2">
@@ -339,7 +484,10 @@ export default function HRDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group">
+        <Card 
+          className="rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group cursor-pointer"
+          onClick={() => router.push(`${basePath}/departments`)}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-[#777777]">
@@ -361,11 +509,14 @@ export default function HRDashboard() {
           </CardContent>
         </Card>
 
-        <Card className={`rounded-lg hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group ${
-          stats.expiringDocuments > 0 
-            ? "bg-red-50 border-red-200" 
-            : "border border-[#E6E6E4]"
-        }`}>
+        <Card 
+          className={`rounded-lg hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group cursor-pointer ${
+            stats.expiringDocuments > 0 
+              ? "bg-red-50 border-red-200" 
+              : "border border-[#E6E6E4]"
+          }`}
+          onClick={() => router.push(`${basePath}/documents?status=expiring`)}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-[#777777]">
@@ -417,7 +568,7 @@ export default function HRDashboard() {
           </CardHeader>
           <CardContent>
             <div className={`text-3xl font-bold tracking-tight ${
-              monthlyGroups.length > 0 ? "text-amber-600" : "text-[hsl(var(--jw-primary-green))]"
+              monthlyGroups.length > 0 ? "text-amber-600" : "text-[#222222]"
             }`}>
               {stats.pendingMonthlyReviews}
             </div>
@@ -488,10 +639,15 @@ export default function HRDashboard() {
           </CardHeader>
           <CardContent>
             <div className={`text-3xl font-bold tracking-tight ${
-              quarterlyGroups.length > 0 ? "text-orange-600" : "text-[hsl(var(--jw-primary-green))]"
+              quarterlyGroups.length > 0 ? "text-orange-600" : "text-[#222222]"
             }`}>
               {stats.pendingQuarterlyReviews}
             </div>
+            {quarterlyGroups.length > 0 ? (
+              <p className="text-xs text-orange-500 mt-2">{quarterlyGroups.length} {t("hr:quartersPending")}</p>
+            ) : (
+              <p className="text-xs text-[#777777] mt-2">{t("hr:allReviewsComplete")}</p>
+            )}
             {quarterlyGroups.length > 0 && (
               <div className="space-y-2 mt-4">
                 <div className="relative">
@@ -504,7 +660,7 @@ export default function HRDashboard() {
                         {group.employees.map((emp) => (
                           <Link
                             key={`${emp.employee_id}-Q${group.quarter}-${group.year}`}
-                            href={`/admin/hr/kpis/evaluations/${emp.employee_id}`}
+                            href={`/admin/hr/kpis/evaluations/${emp.employee_id}?month=${(group.quarter - 1) * 3 + 1}&year=${group.year}`}
                             className="flex items-center justify-between p-2 rounded-md bg-white/70 hover:bg-white border border-orange-100 hover:border-orange-300 transition-colors text-sm ml-2"
                           >
                             <span className="font-medium text-[#222222] truncate">
@@ -537,6 +693,18 @@ export default function HRDashboard() {
       {/* KPI Evaluation Alert */}
       <KPIEvaluationAlertCard />
 
+      {/* Quarterly Review Alerts */}
+      <ReviewAlertCard />
+
+      {/* Pending Leave Approvals */}
+      <PendingApprovalsWidget />
+
+      {/* KPI Performance Overview */}
+      <KPIOverviewCard />
+
+      {/* Attendance Alerts - Prominent Individual Pattern Alerts */}
+      <AttendanceAlertsCard />
+
       {/* Dashboard Widgets - 2 column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Today's Attendance */}
@@ -561,6 +729,13 @@ export default function HRDashboard() {
           <BatchDocumentExportButton />
         </div>
         <ExpiryAlertCard documents={expiringDocs} onRefresh={fetchDashboardData} />
+      </div>
+
+      {/* Footer Legal Notice */}
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("hr:legalNotice", { defaultValue: "All employee data is confidential and handled in accordance with data protection regulations." })}
+        </p>
       </div>
     </div>
   );

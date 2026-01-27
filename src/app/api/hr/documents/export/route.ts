@@ -16,6 +16,7 @@ const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   employment_visa: "Employment Visa",
   emirates_id: "Emirates ID",
   employment_contract: "Employment Contract",
+  certification: "Certification",
 };
 
 export async function POST(request: NextRequest) {

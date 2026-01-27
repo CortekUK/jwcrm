@@ -217,10 +217,10 @@ export function AddReminderDialog({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary" />
-            {t("setReminder")}
+            <Bell className="h-5 w-5 text-[#C6A03B]" />
+            <span className="text-[hsl(var(--jw-primary-green))]">{t("setReminder")}</span>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="ltr:ml-7 rtl:mr-7">
             {t("setReminderDescription")}
           </DialogDescription>
         </DialogHeader>
@@ -233,14 +233,15 @@ export function AddReminderDialog({
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("reminderTitle")} *</FormLabel>
+                  <FormLabel className="text-[#555555]">{t("reminderTitle")} <span className="text-[#C0392B]">*</span></FormLabel>
                   <FormControl>
                     <Input
                       placeholder={t("reminderTitlePlaceholder")}
+                      className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                       {...field}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-[#C0392B]" />
                 </FormItem>
               )}
             />
@@ -253,15 +254,15 @@ export function AddReminderDialog({
                 name="date"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>{t("date")} *</FormLabel>
+                    <FormLabel className="text-[#555555]">{t("date")} <span className="text-[#C0392B]">*</span></FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
                             variant="outline"
                             className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
+                              "w-full pl-3 text-left font-normal border-[#E6E6E4]",
+                              !field.value && "text-[#999999]"
                             )}
                           >
                             {field.value ? (
@@ -269,7 +270,7 @@ export function AddReminderDialog({
                             ) : (
                               <span>{t("pickDate")}</span>
                             )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            <CalendarIcon className="ml-auto h-4 w-4 text-[#C6A03B]" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
@@ -283,14 +284,14 @@ export function AddReminderDialog({
                         />
                       </PopoverContent>
                     </Popover>
-                    <FormMessage />
+                    <FormMessage className="text-[#C0392B]" />
                   </FormItem>
                 )}
               />
 
               {/* Time Picker */}
               <div className="flex flex-col space-y-2">
-                <FormLabel>{t("time")} *</FormLabel>
+                <FormLabel className="text-[#555555]">{t("time")} <span className="text-[#C0392B]">*</span></FormLabel>
                 <div className="flex gap-2">
                   <FormField
                     control={form.control}
@@ -302,7 +303,7 @@ export function AddReminderDialog({
                           onValueChange={field.onChange}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
                               <SelectValue placeholder="HH" />
                             </SelectTrigger>
                           </FormControl>
@@ -314,11 +315,11 @@ export function AddReminderDialog({
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormMessage />
+                        <FormMessage className="text-[#C0392B]" />
                       </FormItem>
                     )}
                   />
-                  <span className="flex items-center text-lg font-bold">:</span>
+                  <span className="flex items-center text-lg font-bold text-[#555555]">:</span>
                   <FormField
                     control={form.control}
                     name="minute"
@@ -329,7 +330,7 @@ export function AddReminderDialog({
                           onValueChange={field.onChange}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
                               <SelectValue placeholder="MM" />
                             </SelectTrigger>
                           </FormControl>
@@ -341,7 +342,7 @@ export function AddReminderDialog({
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormMessage />
+                        <FormMessage className="text-[#C0392B]" />
                       </FormItem>
                     )}
                   />
@@ -353,22 +354,22 @@ export function AddReminderDialog({
             {reminderDateTime && (
               <div className={cn(
                 "rounded-lg border p-3 space-y-2",
-                isPastTime ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950" : "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950"
+                isPastTime ? "border-[#C0392B]/30 bg-[#FEECEC]" : "border-[hsl(var(--jw-primary-green))]/30 bg-[#E6F7F1]"
               )}>
                 {isPastTime ? (
-                  <div className="flex items-center gap-2 text-sm font-medium text-red-600 dark:text-red-400">
+                  <div className="flex items-center gap-2 text-sm font-medium text-[#C0392B]">
                     <Clock className="h-4 w-4" />
                     <span>{t("reminderInPast")}</span>
                   </div>
                 ) : (
                   <>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+                      <div className="flex items-center gap-2 text-sm text-[hsl(var(--jw-primary-green))]">
                         <Clock className="h-4 w-4" />
                         <span>{format(reminderDateTime, "EEE, MMM d 'at' h:mm a")}</span>
                       </div>
                       {timeUntilReminder && (
-                        <div className="flex items-center gap-1.5 bg-green-600 text-white px-2.5 py-1 rounded-full text-xs font-semibold">
+                        <div className="flex items-center gap-1.5 bg-[hsl(var(--jw-primary-green))] text-white px-2.5 py-1 rounded-full text-xs font-semibold">
                           <Timer className="h-3 w-3" />
                           <span>{t("firesIn", { time: timeUntilReminder })}</span>
                         </div>
@@ -385,32 +386,34 @@ export function AddReminderDialog({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("notes")}</FormLabel>
+                  <FormLabel className="text-[#555555]">{t("notes")}</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder={t("reminderDescriptionPlaceholder")}
-                      className="resize-none"
+                      className="resize-none border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                       rows={3}
                       {...field}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-[#C0392B]" />
                 </FormItem>
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className="border-t border-[#E6E6E4] pt-4 mt-6">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
+                className="border-[#E6E6E4] hover:bg-[#F5F5F3]"
               >
                 {t("cancel")}
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting || isPastTime}
+                className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
               >
                 {isSubmitting && <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />}
                 {t("setReminder")}

@@ -89,43 +89,56 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 215 25% 10%;
-    --foreground: 0 0% 98%;
+    /* Consistent dark grey palette */
+    --background: 0 0% 9%;                  /* #171717 - main background */
+    --foreground: 0 0% 95%;                 /* #F2F2F2 - main text */
 
-    --card: 215 25% 12%;
-    --card-foreground: 0 0% 98%;
+    --card: 0 0% 12%;                       /* #1F1F1F - card background */
+    --card-foreground: 0 0% 95%;
 
-    --popover: 215 25% 12%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 12%;                    /* #1F1F1F - popover background */
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 12%;
+    --primary: 0 0% 95%;                    /* Light text for buttons */
+    --primary-foreground: 0 0% 9%;          /* Dark background for buttons */
 
-    --secondary: 215 25% 18%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 0 0% 15%;                  /* #262626 - secondary elements */
+    --secondary-foreground: 0 0% 95%;
 
-    --muted: 215 25% 18%;
-    --muted-foreground: 0 0% 60%;
+    --muted: 0 0% 15%;                      /* #262626 - muted backgrounds */
+    --muted-foreground: 0 0% 65%;           /* #A6A6A6 - muted text */
 
-    --accent: 157 73% 19%;                  /* Primary green */
-    --accent-foreground: 0 0% 98%;
+    --accent: 43 54% 51%;                   /* #C6A03B - Gold accent in dark mode */
+    --accent-foreground: 0 0% 9%;
 
-    --destructive: 25 75% 47%;              /* #B8693C - warm amber-brown */
+    --destructive: 0 62% 55%;               /* #D94545 - red for dark mode */
     --destructive-foreground: 0 0% 98%;
 
-    --border: 147 25% 93%;
-    --input: 215 25% 20%;
-    --ring: 157 73% 19%;
+    --border: 0 0% 20%;                     /* #333333 - subtle borders */
+    --input: 0 0% 15%;                      /* #262626 - input backgrounds */
+    --ring: 43 54% 51%;                     /* Gold focus ring */
 
-    --sidebar-background: 157 65% 21%;      /* #0E4B33 - rich legal green */
-    --sidebar-foreground: 0 0% 97%;         /* #F7F7F5 - light neutral */
+    /* Sidebar stays branded in dark mode */
+    --sidebar-background: 0 0% 10%;         /* #1A1A1A - dark sidebar */
+    --sidebar-foreground: 0 0% 95%;         /* #F2F2F2 - light text */
     --sidebar-primary: 43 54% 51%;          /* #C6A03B - gold */
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 43 54% 51%;           /* #C6A03B - gold */
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 157 73% 22%;          /* Slightly lighter than bg */
+    --sidebar-border: 0 0% 18%;             /* #2E2E2E - subtle border */
     --sidebar-ring: 43 54% 51%;             /* Gold focus ring */
-    --sidebar-icon-inactive: 0 0% 89%;      /* #E2E2E0 - inactive icons */
+    --sidebar-icon-inactive: 0 0% 60%;      /* #999999 - inactive icons */
+
+    /* Typography adjustments for dark mode */
+    --heading-color: #C6A03B;               /* Gold headings in dark mode */
+    --subtitle-color: #B0B0B0;
+    --body-color: #A0A0A0;
+    --caption-color: #888888;
+
+    /* Admin page colors for dark mode */
+    --admin-hover-row: 0 0% 14%;            /* Subtle hover */
+    --admin-divider: 0 0% 20%;              /* Dark dividers */
+    --admin-gold-accent: 43 54% 51% / 0.3;  /* Gold with opacity */
   }
 }
 
@@ -138,6 +151,154 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 
+  /* ============================================
+     DARK MODE OVERRIDES FOR HARDCODED COLORS
+     These rules fix components using hardcoded light colors
+     ============================================ */
+  
+  /* Fix hardcoded white backgrounds */
+  .dark .bg-white {
+    background-color: hsl(var(--card)) !important;
+  }
+  
+  /* Fix hardcoded light cream backgrounds */
+  .dark .bg-\[\#FAFAF8\],
+  .dark .bg-\[\#F8F8F6\],
+  .dark .bg-\[\#F8F6EC\],
+  .dark .bg-\[\#FDFBF4\] {
+    background-color: hsl(var(--muted)) !important;
+  }
+  
+  /* Fix hero banner gradients */
+  .dark .from-white {
+    --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  }
+  .dark .to-\[\#F8F6EC\] {
+    --tw-gradient-to: hsl(var(--muted)) var(--tw-gradient-to-position) !important;
+  }
+  
+  /* Fix hardcoded dark text colors for dark mode */
+  .dark .text-\[\#222222\],
+  .dark .text-\[\#1F1F1F\],
+  .dark .text-\[\#121212\] {
+    color: hsl(var(--foreground)) !important;
+  }
+  
+  /* Fix hardcoded medium text colors */
+  .dark .text-\[\#555555\],
+  .dark .text-\[\#5C5C5C\],
+  .dark .text-\[\#4B4B4B\] {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+  
+  /* Fix hardcoded light grey text */
+  .dark .text-\[\#6B6B6B\],
+  .dark .text-\[\#777777\],
+  .dark .text-\[\#777\] {
+    color: hsl(0 0% 60%) !important;
+  }
+  
+  /* Fix hardcoded border colors */
+  .dark .border-\[\#E6E6E4\],
+  .dark .border-\[\#E8EFEA\],
+  .dark .border-\[\#EAEAE8\] {
+    border-color: hsl(var(--border)) !important;
+  }
+  
+  /* Fix hardcoded hover backgrounds */
+  .dark .hover\:bg-\[\#FAFAF8\]:hover,
+  .dark .hover\:bg-\[\#F8F8F6\]:hover {
+    background-color: hsl(var(--muted)) !important;
+  }
+  
+  /* Fix amber/warning states for dark mode */
+  .dark .bg-amber-50\/50,
+  .dark .bg-amber-50 {
+    background-color: hsl(40 100% 20% / 0.3) !important;
+  }
+  
+  /* Fix red/error states for dark mode */
+  .dark .bg-red-50\/50,
+  .dark .bg-red-50 {
+    background-color: hsl(0 70% 20% / 0.3) !important;
+  }
+  
+  /* Fix green brand color references to work in dark mode */
+  .dark .text-\[\#0C5536\] {
+    color: hsl(43 54% 51%) !important; /* Gold in dark mode */
+  }
+  
+  /* Fix hardcoded input/form borders */
+  .dark .border-\[\#D9D9D6\] {
+    border-color: hsl(var(--border)) !important;
+  }
+  
+  /* Fix light tinted backgrounds */
+  .dark .bg-\[rgba\(198\,160\,59\,0\.15\)\],
+  .dark .bg-\[rgba\(198\,160\,59\,0\.1\)\] {
+    background-color: hsl(43 54% 51% / 0.2) !important;
+  }
+  
+  /* Fix focus ring colors for dark mode */
+  .dark .focus-visible\:ring-\[rgba\(12\,85\,54\,0\.2\)\]:focus-visible {
+    --tw-ring-color: hsl(43 54% 51% / 0.3) !important;
+  }
+  
+  .dark .focus-visible\:border-\[\#0C5536\]:focus-visible,
+  .dark .focus\:border-\[\#0C5536\]:focus {
+    border-color: hsl(43 54% 51%) !important;
+  }
+  
+  /* Fix chart/stats card icon backgrounds */
+  .dark .bg-amber-100 {
+    background-color: hsl(40 100% 30% / 0.4) !important;
+  }
+  
+  .dark .bg-red-100 {
+    background-color: hsl(0 70% 30% / 0.4) !important;
+  }
+  
+  .dark .bg-green-100 {
+    background-color: hsl(157 73% 25% / 0.4) !important;
+  }
+  
+  /* Ensure tables have proper backgrounds */
+  .dark table,
+  .dark thead,
+  .dark tbody,
+  .dark tr {
+    background-color: transparent;
+  }
+  
+  .dark thead tr {
+    background-color: hsl(var(--muted)) !important;
+  }
+  
+  /* Fix toast backgrounds for dark mode */
+  .dark .bg-\[\#FFF8F0\] {
+    background-color: hsl(25 30% 15%) !important;
+  }
+  
+  .dark .bg-\[\#F0F9F4\] {
+    background-color: hsl(157 30% 15%) !important;
+  }
+  
+  .dark .bg-\[\#FFFBF0\] {
+    background-color: hsl(43 30% 15%) !important;
+  }
+  
+  /* Fix card hover states */
+  .dark .hover\:bg-\[rgba\(198\,160\,59\,0\.1\)\]:hover,
+  .dark .hover\:bg-\[rgba\(198\,160\,59\,0\.08\)\]:hover {
+    background-color: hsl(43 54% 51% / 0.15) !important;
+  }
+  
+  /* Fix secondary backgrounds */
+  .dark .bg-\[\#F7F7F5\],
+  .dark .bg-\[\#F4F4F2\] {
+    background-color: hsl(var(--muted)) !important;
+  }
+  
   html.font-arabic {
     font-family: 'Cairo', system-ui, sans-serif;
   }

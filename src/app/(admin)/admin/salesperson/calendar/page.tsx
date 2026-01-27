@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 import {
@@ -11,9 +12,16 @@ import {
   ChevronRight,
   Calendar,
   Loader2,
-  ArrowLeft,
   CalendarDays,
   Clock,
+  Phone,
+  Mail,
+  MessageCircle,
+  Video,
+  Users,
+  Plus,
+  Bell,
+  AlertCircle,
 } from "lucide-react";
 import {
   format,
@@ -21,13 +29,20 @@ import {
   endOfMonth,
   eachDayOfInterval,
   getDay,
-  isSameDay,
   addMonths,
   subMonths,
   isFriday,
   isSaturday,
   isToday,
   parseISO,
+  startOfWeek,
+  endOfWeek,
+  addWeeks,
+  subWeeks,
+  addDays,
+  isPast,
+  isFuture,
+  differenceInDays,
 } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,6 +51,7 @@ import {
   CommunicationData,
 } from "@/components/salesperson/CalendarDayDetailModal";
 import { SendMeetingInviteDialog } from "@/components/salesperson/SendMeetingInviteDialog";
+import { cn } from "@/lib/utils";
 
 const getWeekdayLabels = (t: (key: string) => string): string[] => [
   t("weekday.sun"),
@@ -47,6 +63,26 @@ const getWeekdayLabels = (t: (key: string) => string): string[] => [
   t("weekday.sat"),
 ];
 
+// Color mapping for communication methods
+const COMMUNICATION_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  phone: { bg: "bg-[#E6F7F1]", text: "text-[#0C5536]", border: "border-[#0C5536]/20" },
+  mail: { bg: "bg-[#E6F0FF]", text: "text-[#2563EB]", border: "border-[#2563EB]/20" },
+  "message-circle": { bg: "bg-[#FFF9E6]", text: "text-[#C6A03B]", border: "border-[#C6A03B]/20" },
+  video: { bg: "bg-[#F3E8FF]", text: "text-[#7C3AED]", border: "border-[#7C3AED]/20" },
+  users: { bg: "bg-[#FFEDD5]", text: "text-[#D97706]", border: "border-[#D97706]/20" },
+  default: { bg: "bg-[#F5F5F5]", text: "text-[#6B6B6B]", border: "border-[#E6E6E4]" },
+};
+
+const METHOD_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  phone: Phone,
+  mail: Mail,
+  "message-circle": MessageCircle,
+  video: Video,
+  users: Users,
+};
+
+type ViewMode = "month" | "week";
+
 export default function SalespersonCalendarPage() {
   const { t } = useTranslation(["salesperson", "common"]);
   const router = useRouter();
@@ -54,8 +90,9 @@ export default function SalespersonCalendarPage() {
   const { user } = useAuth();
   const WEEKDAY_LABELS = getWeekdayLabels(t);
 
-  const [loading, setLoading] = useState(true);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [communications, setCommunications] = useState<CommunicationData[]>([]);
 
   // Modal states
@@ -64,20 +101,40 @@ export default function SalespersonCalendarPage() {
   const [meetingInviteOpen, setMeetingInviteOpen] = useState(false);
   const [selectedCommunication, setSelectedCommunication] =
     useState<CommunicationData | null>(null);
+  const [quickAddDate, setQuickAddDate] = useState<Date | null>(null);
 
   const today = new Date();
 
-  // Fetch communications for the current month
+  // Get date range based on view mode
+  const dateRange = useMemo(() => {
+    if (viewMode === "week") {
+      return {
+        start: startOfWeek(currentDate, { weekStartsOn: 0 }),
+        end: endOfWeek(currentDate, { weekStartsOn: 0 }),
+      };
+    }
+    return {
+      start: startOfMonth(currentDate),
+      end: endOfMonth(currentDate),
+    };
+  }, [currentDate, viewMode]);
+
+  // Fetch communications for the current date range
   const fetchCommunications = useCallback(async () => {
     if (!user?.id) return;
 
-    setLoading(true);
+    setIsLoading(true);
     try {
-      const start = startOfMonth(currentMonth);
-      const end = endOfMonth(currentMonth);
+      // Extend range slightly for better coverage
+      const extendedStart = viewMode === "week" 
+        ? dateRange.start 
+        : startOfMonth(subMonths(currentDate, 1));
+      const extendedEnd = viewMode === "week" 
+        ? dateRange.end 
+        : endOfMonth(addMonths(currentDate, 1));
 
       const response = await fetch(
-        `/api/lead-management/calendar?userId=${user.id}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`
+        `/api/lead-management/calendar?userId=${user.id}&startDate=${extendedStart.toISOString()}&endDate=${extendedEnd.toISOString()}`
       );
 
       if (!response.ok) {
@@ -94,23 +151,21 @@ export default function SalespersonCalendarPage() {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }, [user?.id, currentMonth, toast, t]);
+  }, [user?.id, currentDate, viewMode, dateRange, toast, t]);
 
   useEffect(() => {
     fetchCommunications();
   }, [fetchCommunications]);
 
-  // Get days in the current month
-  const daysInMonth = useMemo(() => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    return eachDayOfInterval({ start, end });
-  }, [currentMonth]);
+  // Get days based on view mode
+  const daysToDisplay = useMemo(() => {
+    return eachDayOfInterval({ start: dateRange.start, end: dateRange.end });
+  }, [dateRange]);
 
   // Get the day of week the month starts on (0 = Sunday)
-  const startDayOfWeek = getDay(startOfMonth(currentMonth));
+  const startDayOfWeek = getDay(startOfMonth(currentDate));
 
   // Group communications by date
   const communicationsByDate = useMemo(() => {
@@ -128,23 +183,58 @@ export default function SalespersonCalendarPage() {
 
   // Calculate summary stats
   const stats = useMemo(() => {
-    const thisMonthComms = communications.length;
+    const rangeComms = communications.filter((comm) => {
+      const commDate = parseISO(comm.scheduled_at);
+      return commDate >= dateRange.start && commDate <= dateRange.end;
+    });
 
     const todayStr = format(today, "yyyy-MM-dd");
     const todayComms = communicationsByDate.get(todayStr) || [];
 
-    return {
-      totalThisMonth: thisMonthComms,
-      upcomingToday: todayComms.length,
-    };
-  }, [communications, communicationsByDate, today]);
+    // Upcoming in next 7 days
+    const next7Days = communications.filter((comm) => {
+      const commDate = parseISO(comm.scheduled_at);
+      const daysFromNow = differenceInDays(commDate, today);
+      return daysFromNow >= 0 && daysFromNow <= 7;
+    });
 
-  const handlePreviousMonth = () => {
-    setCurrentMonth(subMonths(currentMonth, 1));
+    // Overdue (past scheduled, not completed)
+    const overdue = communications.filter((comm) => {
+      const commDate = parseISO(comm.scheduled_at);
+      return isPast(commDate) && !isToday(commDate);
+    });
+
+    // This week's meetings
+    const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
+    const thisWeekEnd = endOfWeek(today, { weekStartsOn: 0 });
+    const thisWeekComms = communications.filter((comm) => {
+      const commDate = parseISO(comm.scheduled_at);
+      return commDate >= thisWeekStart && commDate <= thisWeekEnd;
+    });
+
+    return {
+      totalInRange: rangeComms.length,
+      upcomingToday: todayComms.length,
+      upcoming7Days: next7Days.length,
+      thisWeek: thisWeekComms.length,
+      overdue: overdue.length,
+    };
+  }, [communications, communicationsByDate, today, dateRange]);
+
+  const handlePrevious = () => {
+    if (viewMode === "week") {
+      setCurrentDate(subWeeks(currentDate, 1));
+    } else {
+      setCurrentDate(subMonths(currentDate, 1));
+    }
   };
 
-  const handleNextMonth = () => {
-    setCurrentMonth(addMonths(currentMonth, 1));
+  const handleNext = () => {
+    if (viewMode === "week") {
+      setCurrentDate(addWeeks(currentDate, 1));
+    } else {
+      setCurrentDate(addMonths(currentDate, 1));
+    }
   };
 
   const handleDayClick = (day: Date, comms: CommunicationData[]) => {
@@ -152,6 +242,12 @@ export default function SalespersonCalendarPage() {
       setSelectedDay(day);
       setDayModalOpen(true);
     }
+  };
+
+  const handleQuickAddClick = (e: React.MouseEvent, day: Date) => {
+    e.stopPropagation();
+    setQuickAddDate(day);
+    setMeetingInviteOpen(true);
   };
 
   const handleViewLead = (leadId: string) => {
@@ -168,6 +264,8 @@ export default function SalespersonCalendarPage() {
   const handleMeetingInviteSuccess = () => {
     setMeetingInviteOpen(false);
     setSelectedCommunication(null);
+    setQuickAddDate(null);
+    fetchCommunications();
     toast({
       title: t("common:success"),
       description: t("meetingInviteSent"),
@@ -181,7 +279,191 @@ export default function SalespersonCalendarPage() {
     return communicationsByDate.get(dateStr) || [];
   }, [selectedDay, communicationsByDate]);
 
-  if (loading) {
+  // Get color for communication type
+  const getCommColor = (comm: CommunicationData) => {
+    const method = comm.method?.icon || "default";
+    return COMMUNICATION_COLORS[method] || COMMUNICATION_COLORS.default;
+  };
+
+  // Get icon for communication type
+  const getCommIcon = (comm: CommunicationData) => {
+    const method = comm.method?.icon || "phone";
+    return METHOD_ICONS[method] || Phone;
+  };
+
+  // Render a single day cell
+  const renderDayCell = (day: Date, isWeekView: boolean = false) => {
+    const dateStr = format(day, "yyyy-MM-dd");
+    const dayComms = communicationsByDate.get(dateStr) || [];
+    const isTodayDate = isToday(day);
+    const dayNumber = day.getDate();
+    const isWeekend = isFriday(day) || isSaturday(day);
+    const hasCommunications = dayComms.length > 0;
+    const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+
+    // Week view cell
+    if (isWeekView) {
+      return (
+        <div
+          key={dateStr}
+          className={cn(
+            "min-h-[200px] p-2 rounded-lg border transition-colors relative group",
+            isTodayDate && "ring-2 ring-[hsl(var(--jw-primary-green))]",
+            isWeekend && "bg-[#FAFAF8]",
+            !isWeekend && "bg-white border-[#E6E6E4]"
+          )}
+        >
+          {/* Header */}
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "text-sm font-semibold",
+                  isTodayDate ? "text-[hsl(var(--jw-primary-green))]" : "text-[#555555]"
+                )}
+              >
+                {format(day, "EEE d")}
+              </span>
+              {isTodayDate && (
+                <Badge className="text-xs bg-[#0C5536] text-white border-0">
+                  {t("today")}
+                </Badge>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => handleQuickAddClick(e, day)}
+            >
+              <Plus className="h-4 w-4 text-[#C6A03B]" />
+            </Button>
+          </div>
+
+          {/* Communications */}
+          <div className="space-y-1.5 overflow-y-auto max-h-[160px]">
+            {dayComms.map((comm, idx) => {
+              const colors = getCommColor(comm);
+              const Icon = getCommIcon(comm);
+              
+              return (
+                <div
+                  key={idx}
+                  className={cn(
+                    "flex items-center gap-2 p-2 rounded border cursor-pointer hover:shadow-sm transition-shadow",
+                    colors.bg,
+                    colors.border
+                  )}
+                  onClick={() => handleDayClick(day, [comm])}
+                >
+                  <Icon className={cn("h-3 w-3 flex-shrink-0", colors.text)} />
+                  <div className="flex-1 min-w-0">
+                    <p className={cn("text-xs font-medium truncate", colors.text)}>
+                      {format(parseISO(comm.scheduled_at), "h:mm a")}
+                    </p>
+                    <p className="text-xs text-[#6B6B6B] truncate">{comm.lead.full_name}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // Month view cell
+    if (isWeekend && !hasCommunications) {
+      return (
+        <div
+          key={dateStr}
+          className="h-20 md:h-24 flex flex-col items-center justify-center bg-[#FAFAF8] rounded-md"
+        >
+          <span className="text-sm font-medium text-[#9CA3AF]">
+            {dayNumber}
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={dateStr}
+        className={cn(
+          "h-20 md:h-24 p-1 rounded-md border transition-colors relative group",
+          isTodayDate && "ring-2 ring-[hsl(var(--jw-primary-green))]",
+          hasCommunications
+            ? isWeekend
+              ? "bg-[#E6F7F1]/70 border-[#0C5536]/20 cursor-pointer hover:bg-[#E6F7F1]"
+              : "bg-[#E6F7F1] border-[#0C5536]/20 cursor-pointer hover:bg-[#D4EFE4]"
+            : isWeekend
+              ? "bg-[#FAFAF8] border-[#FAFAF8]"
+              : "bg-white border-[#E6E6E4]",
+          !isCurrentMonth && "opacity-50"
+        )}
+        onClick={() => hasCommunications && handleDayClick(day, dayComms)}
+      >
+        <div className="flex justify-between items-start">
+          <span
+            className={cn(
+              "text-sm font-medium",
+              isTodayDate
+                ? "text-[hsl(var(--jw-primary-green))]"
+                : isWeekend
+                  ? "text-[#9CA3AF]"
+                  : "text-[#555555]"
+            )}
+          >
+            {dayNumber}
+          </span>
+          {hasCommunications && (
+            <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-[#FFF9E6] text-[#C6A03B] border-0">
+              {dayComms.length}
+            </Badge>
+          )}
+        </div>
+        
+        {/* Quick add button */}
+        {!isWeekend && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute bottom-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => handleQuickAddClick(e, day)}
+          >
+            <Plus className="h-3 w-3 text-[#C6A03B]" />
+          </Button>
+        )}
+
+        {hasCommunications && (
+          <div className="mt-1 space-y-0.5">
+            {dayComms.slice(0, 2).map((comm, idx) => {
+              const colors = getCommColor(comm);
+              
+              return (
+                <div
+                  key={idx}
+                  className={cn(
+                    "text-xs truncate rounded px-1 flex items-center gap-1",
+                    colors.bg, colors.text
+                  )}
+                  title={`${format(parseISO(comm.scheduled_at), "h:mm a")} - ${comm.lead.full_name}`}
+                >
+                  <span className="font-medium">{format(parseISO(comm.scheduled_at), "h:mm")}</span>
+                </div>
+              );
+            })}
+            {dayComms.length > 2 && (
+              <span className="text-xs text-[#777777]">
+                +{dayComms.length - 2} more
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--jw-primary-green))]" />
@@ -190,100 +472,159 @@ export default function SalespersonCalendarPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push("/admin/salesperson/leads")}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+    <div className="space-y-6 pb-12">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#222222]">{t("calendar")}</h1>
-            <p className="text-[#6B6B6B]">{t("calendarDescription")}</p>
+            <div className="flex items-center gap-3 mb-2">
+              <Calendar className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("calendar")}
+              </h1>
+            </div>
+            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">{t("calendarDescription")}</p>
           </div>
+          {/* View Toggle */}
+          <Tabs value={viewMode} onValueChange={(val) => setViewMode(val as ViewMode)} className="bg-white rounded-lg border border-[#E6E6E4] p-1">
+            <TabsList className="bg-transparent p-0 h-auto gap-1">
+              <TabsTrigger
+                value="month"
+                className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white rounded-md px-3 py-1.5 text-sm"
+              >
+                {t("monthView", "Month")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="week"
+                className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white rounded-md px-3 py-1.5 text-sm"
+              >
+                {t("weekView", "Week")}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
-        <Card className="border-[#E6E6E4]">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">{t("thisMonth")}</p>
-                <p className="text-2xl font-bold text-[#222222]">
-                  {stats.totalThisMonth}
-                </p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-[#6B6B6B]">{t("upcomingToday", "Today")}</p>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E6F7F1]">
+                <Clock className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <CalendarDays className="h-8 w-8 text-[hsl(var(--jw-primary-green))]" />
             </div>
+            <div className="text-2xl font-bold tracking-tight text-[#222222]">{stats.upcomingToday}</div>
+            <div className="h-0.5 w-0 group-hover:w-full bg-[#0C5536] transition-all duration-300 mt-2" />
           </CardContent>
         </Card>
-        <Card className="border-[#E6E6E4]">
+
+        <Card className="border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">{t("upcomingToday")}</p>
-                <p className="text-2xl font-bold text-[hsl(var(--jw-gold-accent))]">
-                  {stats.upcomingToday}
-                </p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-[#6B6B6B]">{t("thisWeekMeetings", "This Week")}</p>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E6F0FF]">
+                <CalendarDays className="h-5 w-5 text-[#2563EB]" />
               </div>
-              <Clock className="h-8 w-8 text-[hsl(var(--jw-gold-accent))]" />
             </div>
+            <div className="text-2xl font-bold tracking-tight text-[#222222]">{stats.thisWeek}</div>
+            <div className="h-0.5 w-0 group-hover:w-full bg-[#2563EB] transition-all duration-300 mt-2" />
+          </CardContent>
+        </Card>
+
+        <Card className="border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-[#6B6B6B]">{t("next7Days", "Next 7 Days")}</p>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FFF9E6]">
+                <Bell className="h-5 w-5 text-[#C6A03B]" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold tracking-tight text-[#222222]">{stats.upcoming7Days}</div>
+            <div className="h-0.5 w-0 group-hover:w-full bg-[#C6A03B] transition-all duration-300 mt-2" />
+          </CardContent>
+        </Card>
+
+        <Card className={cn(
+          "border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group",
+          stats.overdue > 0 && "border-[#C0392B]/30"
+        )}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-[#6B6B6B]">{t("overdueFollowUps", "Overdue")}</p>
+              <div className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-full",
+                stats.overdue > 0 ? "bg-[#FEECEC]" : "bg-[#F5F5F5]"
+              )}>
+                <AlertCircle className={cn("h-5 w-5", stats.overdue > 0 ? "text-[#C0392B]" : "text-[#6B6B6B]")} />
+              </div>
+            </div>
+            <div className={cn(
+              "text-2xl font-bold tracking-tight",
+              stats.overdue > 0 ? "text-[#C0392B]" : "text-[#222222]"
+            )}>
+              {stats.overdue}
+            </div>
+            <div className={cn(
+              "h-0.5 w-0 group-hover:w-full transition-all duration-300 mt-2",
+              stats.overdue > 0 ? "bg-[#C0392B]" : "bg-[#6B6B6B]"
+            )} />
           </CardContent>
         </Card>
       </div>
 
       {/* Calendar */}
-      <Card className="border-[#E6E6E4]">
-        <CardHeader className="pb-4">
+      <Card className="border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
+        <CardHeader className="pb-4 bg-[#FAFAF8]" style={{ borderBottom: '1px solid #EAEAE8' }}>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
               <Calendar className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-              {format(currentMonth, "MMMM yyyy")}
+              {viewMode === "week" 
+                ? `${format(dateRange.start, "MMM d")} - ${format(dateRange.end, "MMM d, yyyy")}`
+                : format(currentDate, "MMMM yyyy")
+              }
             </CardTitle>
 
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="icon"
-                onClick={handlePreviousMonth}
-                className="h-9 w-9"
+                onClick={handlePrevious}
+                className="h-9 w-9 border-[#E6E6E4] hover:bg-[#FDFBF4] hover:border-[#C6A03B]"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-4 w-4 text-[#555555]" />
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentMonth(new Date())}
+                onClick={() => setCurrentDate(new Date())}
+                className="border-[#E6E6E4] hover:bg-[#FDFBF4] hover:border-[#C6A03B]"
               >
                 {t("today")}
               </Button>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={handleNextMonth}
-                className="h-9 w-9"
+                onClick={handleNext}
+                className="h-9 w-9 border-[#E6E6E4] hover:bg-[#FDFBF4] hover:border-[#C6A03B]"
               >
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-4 w-4 text-[#555555]" />
               </Button>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-4">
           {/* Weekday headers */}
           <div className="grid grid-cols-7 gap-1">
             {WEEKDAY_LABELS.map((label, index) => (
               <div
                 key={label}
-                className={`text-center text-xs font-medium py-2 ${
-                  index === 5 || index === 6 ? "text-gray-400" : "text-[#6B6B6B]"
-                }`}
+                className={cn(
+                  "text-center text-xs font-semibold py-2",
+                  index === 5 || index === 6 ? "text-[#9CA3AF]" : "text-[#555555]"
+                )}
               >
                 {label}
               </div>
@@ -291,104 +632,43 @@ export default function SalespersonCalendarPage() {
           </div>
 
           {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-1">
-            {/* Empty cells for days before the month starts */}
-            {Array.from({ length: startDayOfWeek }).map((_, index) => (
-              <div key={`empty-${index}`} className="h-20 md:h-24" />
-            ))}
+          {viewMode === "month" ? (
+            <div className="grid grid-cols-7 gap-1">
+              {/* Empty cells for days before the month starts */}
+              {Array.from({ length: startDayOfWeek }).map((_, index) => (
+                <div key={`empty-${index}`} className="h-20 md:h-24" />
+              ))}
 
-            {/* Day cells */}
-            {daysInMonth.map((day) => {
-              const dateStr = format(day, "yyyy-MM-dd");
-              const dayComms = communicationsByDate.get(dateStr) || [];
-              const isTodayDate = isToday(day);
-              const dayNumber = day.getDate();
-              const isWeekend = isFriday(day) || isSaturday(day);
-
-              const hasCommunications = dayComms.length > 0;
-
-              // Weekend styling (but still show communications if any)
-              if (isWeekend && !hasCommunications) {
-                return (
-                  <div
-                    key={dateStr}
-                    className="h-20 md:h-24 flex flex-col items-center justify-center bg-gray-100 rounded-md"
-                  >
-                    <span className="text-sm font-medium text-gray-400">
-                      {dayNumber}
-                    </span>
-                  </div>
-                );
-              }
-
-              return (
-                <div
-                  key={dateStr}
-                  className={`h-20 md:h-24 p-1 rounded-md border transition-colors ${
-                    isTodayDate
-                      ? "ring-2 ring-[hsl(var(--jw-primary-green))]"
-                      : ""
-                  } ${
-                    hasCommunications
-                      ? isWeekend
-                        ? "bg-green-50/70 border-green-200 cursor-pointer hover:bg-green-100"
-                        : "bg-green-50 border-green-200 cursor-pointer hover:bg-green-100"
-                      : isWeekend
-                        ? "bg-gray-100 border-gray-100"
-                        : "bg-white border-gray-100"
-                  }`}
-                  onClick={() => handleDayClick(day, dayComms)}
-                >
-                  <div className="flex justify-between items-start">
-                    <span
-                      className={`text-sm font-medium ${
-                        isTodayDate
-                          ? "text-[hsl(var(--jw-primary-green))]"
-                          : isWeekend
-                            ? "text-gray-500"
-                            : "text-gray-700"
-                      }`}
-                    >
-                      {dayNumber}
-                    </span>
-                    {hasCommunications && (
-                      <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                        {dayComms.length}
-                      </Badge>
-                    )}
-                  </div>
-                  {hasCommunications && (
-                    <div className="mt-1 space-y-0.5">
-                      {dayComms.slice(0, 2).map((comm, idx) => (
-                        <div
-                          key={idx}
-                          className="text-xs text-gray-600 truncate bg-white rounded px-1"
-                          title={`${format(parseISO(comm.scheduled_at), "h:mm a")} - ${comm.lead.full_name}`}
-                        >
-                          {format(parseISO(comm.scheduled_at), "h:mm a")}
-                        </div>
-                      ))}
-                      {dayComms.length > 2 && (
-                        <span className="text-xs text-gray-500">
-                          +{dayComms.length - 2} more
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+              {/* Day cells */}
+              {daysToDisplay.map((day) => renderDayCell(day, false))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-7 gap-2">
+              {daysToDisplay.map((day) => renderDayCell(day, true))}
+            </div>
+          )}
 
           {/* Legend */}
-          <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-100">
+          <div className="flex flex-wrap gap-4 pt-4 border-t border-[#E6E6E4]">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-green-50 border border-green-200" />
-              <span className="text-sm text-gray-600">{t("scheduledMeetings")}</span>
+              <Phone className="h-4 w-4 text-[#0C5536]" />
+              <span className="text-sm text-[#555555]">{t("phoneCalls", "Phone Calls")}</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-gray-100" />
-              <span className="text-sm text-gray-600">{t("weekend")}</span>
+              <Mail className="h-4 w-4 text-[#2563EB]" />
+              <span className="text-sm text-[#555555]">{t("emails", "Emails")}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 text-[#C6A03B]" />
+              <span className="text-sm text-[#555555]">{t("messages", "Messages")}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Video className="h-4 w-4 text-[#7C3AED]" />
+              <span className="text-sm text-[#555555]">{t("videoMeetings", "Video")}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-[#D97706]" />
+              <span className="text-sm text-[#555555]">{t("inPerson", "In-Person")}</span>
             </div>
           </div>
         </CardContent>
@@ -405,14 +685,20 @@ export default function SalespersonCalendarPage() {
       />
 
       {/* Meeting Invite Dialog */}
-      {selectedCommunication && (
+      {(selectedCommunication || quickAddDate) && (
         <SendMeetingInviteDialog
           open={meetingInviteOpen}
-          onOpenChange={setMeetingInviteOpen}
-          leadId={selectedCommunication.lead.id}
-          leadName={selectedCommunication.lead.full_name}
-          leadEmail={selectedCommunication.lead.email || ""}
-          defaultDate={parseISO(selectedCommunication.scheduled_at)}
+          onOpenChange={(open) => {
+            setMeetingInviteOpen(open);
+            if (!open) {
+              setSelectedCommunication(null);
+              setQuickAddDate(null);
+            }
+          }}
+          leadId={selectedCommunication?.lead.id || ""}
+          leadName={selectedCommunication?.lead.full_name || ""}
+          leadEmail={selectedCommunication?.lead.email || ""}
+          defaultDate={quickAddDate || (selectedCommunication ? parseISO(selectedCommunication.scheduled_at) : undefined)}
           onSuccess={handleMeetingInviteSuccess}
         />
       )}

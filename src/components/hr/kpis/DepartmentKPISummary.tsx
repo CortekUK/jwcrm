@@ -106,24 +106,24 @@ export function DepartmentKPISummary({
   };
 
   const getScoreColor = (score: number | null) => {
-    if (score === null) return "text-gray-400";
-    if (score >= 80) return "text-green-600";
-    if (score >= 60) return "text-yellow-600";
-    return "text-red-600";
+    if (score === null) return "text-[#999999]";
+    if (score >= 80) return "text-[#0C5536]";
+    if (score >= 60) return "text-[#C6A03B]";
+    return "text-[#C0392B]";
   };
 
   const getScoreBgColor = (score: number | null) => {
-    if (score === null) return "bg-gray-100";
-    if (score >= 80) return "bg-green-50 border-green-200";
-    if (score >= 60) return "bg-yellow-50 border-yellow-200";
-    return "bg-red-50 border-red-200";
+    if (score === null) return "bg-[#F5F5F5] border-[#E6E6E4]";
+    if (score >= 80) return "bg-[#E6F7F1] border-[#0C5536]/20";
+    if (score >= 60) return "bg-[#FFF9E6] border-[#C6A03B]/20";
+    return "bg-[#FDF2F2] border-[#C0392B]/20";
   };
 
   const getCompletionColor = (rate: number) => {
-    if (rate >= 100) return "bg-green-500";
-    if (rate >= 75) return "bg-yellow-500";
-    if (rate >= 50) return "bg-orange-500";
-    return "bg-red-500";
+    if (rate >= 100) return "bg-[#0C5536]";
+    if (rate >= 75) return "bg-[#C6A03B]";
+    if (rate >= 50) return "bg-[#D97706]";
+    return "bg-[#C0392B]";
   };
 
   const months = [
@@ -197,65 +197,68 @@ export function DepartmentKPISummary({
         <Card className="border-[#E6E6E4]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[#6B6B6B]">{t("hr:departmentSummary.totalDepartments")}</p>
-                <p className="text-2xl font-bold text-[#222222]">{departmentSummaries.length}</p>
+              <p className="text-sm text-[#6B6B6B]">{t("hr:departmentSummary.totalDepartments")}</p>
+              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                <Building2 className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <Building2 className="h-8 w-8 text-[hsl(var(--jw-primary-green))]" />
             </div>
+            <p className="text-2xl font-bold text-[#222222] mt-2">{departmentSummaries.length}</p>
           </CardContent>
         </Card>
 
         <Card className="border-[#E6E6E4]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[#6B6B6B]">{t("hr:departmentSummary.employeesWithKPIs")}</p>
-                <p className="text-2xl font-bold text-[#222222]">{totalEmployees}</p>
+              <p className="text-sm text-[#6B6B6B]">{t("hr:departmentSummary.employeesWithKPIs")}</p>
+              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                <Users className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <Users className="h-8 w-8 text-[hsl(var(--jw-gold-accent))]" />
             </div>
+            <p className="text-2xl font-bold text-[#222222] mt-2">{totalEmployees}</p>
           </CardContent>
         </Card>
 
         <Card className="border-[#E6E6E4]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[#6B6B6B]">{t("hr:departmentSummary.completionRate")}</p>
-                <p className="text-2xl font-bold text-[#222222]">{overallCompletionRate}%</p>
+              <p className="text-sm text-[#6B6B6B]">{t("hr:departmentSummary.completionRate")}</p>
+              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <TrendingUp className="h-8 w-8 text-blue-500" />
             </div>
-            <Progress value={overallCompletionRate} className="mt-2 h-2" />
+            <p className="text-2xl font-bold text-[#222222] mt-2">{overallCompletionRate}%</p>
+            <Progress value={overallCompletionRate} className="mt-2 h-1.5" />
           </CardContent>
         </Card>
 
-        <Card className={`border ${getScoreBgColor(overallAvgScore)}`}>
+        <Card className="border-[#E6E6E4]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[#6B6B6B]">{t("hr:departmentSummary.averageScore")}</p>
-                <p className={`text-2xl font-bold ${getScoreColor(overallAvgScore)}`}>
-                  {overallAvgScore !== null ? `${overallAvgScore}%` : "-"}
-                </p>
+              <p className="text-sm text-[#6B6B6B]">{t("hr:departmentSummary.averageScore")}</p>
+              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                <Target className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <Target className={`h-8 w-8 ${getScoreColor(overallAvgScore)}`} />
             </div>
+            <p className={`text-2xl font-bold mt-2 ${getScoreColor(overallAvgScore)}`}>
+              {overallAvgScore !== null ? `${overallAvgScore}%` : "-"}
+            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Department Breakdown */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-[#222222]">
-          {t("hr:departmentSummary.departmentBreakdown")}
-        </h3>
+        <div className="flex items-center gap-2 pb-2 border-b border-[#E6E6E4]">
+          <Building2 className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+          <h3 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))]">
+            {t("hr:departmentSummary.departmentBreakdown")}
+          </h3>
+        </div>
 
         {departmentSummaries.length === 0 ? (
           <Card className="border-[#E6E6E4]">
-            <CardContent className="p-8 text-center">
-              <Building2 className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+            <CardContent className="p-12 text-center">
+              <Building2 className="h-10 w-10 mx-auto text-[#C6A03B] mb-3" />
               <p className="text-[#6B6B6B]">{t("hr:departmentSummary.noDepartments")}</p>
             </CardContent>
           </Card>
@@ -301,22 +304,47 @@ export function DepartmentKPISummary({
                           )}
                         </div>
 
-                        {/* Score Badge */}
-                        <div className={`px-3 py-1 rounded-md border ${getScoreBgColor(dept.average_score)}`}>
-                          <span className={`text-sm font-semibold ${getScoreColor(dept.average_score)}`}>
-                            {dept.average_score !== null ? `${dept.average_score}%` : "-"}
-                          </span>
+                        {/* Score Badge with Mini Visual Bar */}
+                        <div className={`px-3 py-1.5 rounded-md border ${getScoreBgColor(dept.average_score)} min-w-[80px]`}>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-semibold ${getScoreColor(dept.average_score)}`}>
+                              {dept.average_score !== null ? `${dept.average_score}%` : "-"}
+                            </span>
+                            {dept.average_score !== null && (
+                              <div className="flex gap-0.5">
+                                {[20, 40, 60, 80, 100].map((threshold) => (
+                                  <div
+                                    key={threshold}
+                                    className={`w-1 h-3 rounded-sm ${
+                                      dept.average_score! >= threshold
+                                        ? threshold <= 40
+                                          ? "bg-red-400"
+                                          : threshold <= 60
+                                          ? "bg-amber-400"
+                                          : threshold <= 80
+                                          ? "bg-yellow-400"
+                                          : "bg-green-500"
+                                        : "bg-gray-200"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         {/* Progress */}
-                        <div className="w-24 hidden md:block">
+                        <div className="w-28 hidden md:block">
                           <div className="flex justify-between text-xs mb-1">
-                            <span className="text-[#6B6B6B]">{dept.completion_rate}%</span>
+                            <span className="text-[#6B6B6B]">{t("hr:departmentSummary.progress")}</span>
+                            <span className="font-medium text-[#222222]">{dept.completion_rate}%</span>
                           </div>
-                          <Progress
-                            value={dept.completion_rate}
-                            className={`h-2 ${getCompletionColor(dept.completion_rate)}`}
-                          />
+                          <div className="h-2 bg-[#E6E6E4] rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full transition-all ${getCompletionColor(dept.completion_rate)}`}
+                              style={{ width: `${dept.completion_rate}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>

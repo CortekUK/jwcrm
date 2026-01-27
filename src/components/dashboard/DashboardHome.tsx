@@ -19,6 +19,24 @@ interface DashboardHomeProps {
   dashboardType: DashboardType;
 }
 
+// Format role name for display
+const formatRoleName = (role: string): string => {
+  const roleLabels: Record<string, string> = {
+    super_admin: "Super Admin",
+    admin: "Admin",
+    hr_manager: "HR Manager",
+    hr: "HR",
+    finance_manager: "Finance Manager",
+    finance: "Finance",
+    salesperson: "Salesperson",
+    client: "Client",
+    lead_manager: "Lead Manager",
+  };
+  return roleLabels[role] || role.split("_").map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(" ");
+};
+
 export function DashboardHome({ dashboardType }: DashboardHomeProps) {
   const { profile, user } = useAuth();
   const { t } = useTranslation(["common", "portal", "hr", "finance", "leadManagement"]);
@@ -26,31 +44,17 @@ export function DashboardHome({ dashboardType }: DashboardHomeProps) {
   const dashboardConfig = getDashboardBySlug(dashboardType);
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      {/* Welcome Header */}
-      <div className="space-y-2">
-        <h1
-          className="text-2xl font-semibold text-[#0C5536]"
-          style={{ fontFamily: "Playfair Display, serif" }}
-        >
-          {t("common:welcome")}, {profile?.full_name || t("common:user")}
-        </h1>
-        <p className="text-sm text-[#777777]">
-          {t("common:loggedInTo")} {t(dashboardConfig.nameKey)}
-        </p>
-      </div>
-
+    <div className="space-y-6">
       {/* User Details Card */}
       <Card className="rounded-lg border border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
-        <CardHeader>
-          <CardTitle
-            className="text-xl font-semibold text-[#0C5536] flex items-center gap-2"
-            style={{ fontFamily: "Playfair Display, serif" }}
-          >
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-2">
             <User className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-            {t("common:accountInformation")}
-          </CardTitle>
-          <CardDescription className="text-sm text-[#777777]">
+            <CardTitle className="text-xl font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+              {t("common:accountInformation")}
+            </CardTitle>
+          </div>
+          <CardDescription className="text-sm text-[#777777] ltr:ml-7 rtl:mr-7">
             {t("common:yourAccountDetails")}
           </CardDescription>
         </CardHeader>
@@ -66,49 +70,48 @@ export function DashboardHome({ dashboardType }: DashboardHomeProps) {
             </div>
             <div>
               <Label className="text-[#555555] text-sm flex items-center gap-1">
-                <Mail className="h-3 w-3" />
+                <Mail className="h-3 w-3 text-[#C6A03B]" />
                 {t("common:email")}
               </Label>
               <p className="mt-1 text-[#222222] font-medium">{user?.email}</p>
             </div>
           </div>
-          <div>
-            <Label className="text-[#555555] text-sm">{t("common:role")}</Label>
-            <div className="mt-1 flex flex-wrap gap-2">
-              {profile?.roles?.map((role) => (
-                <Badge
-                  key={role}
-                  variant="secondary"
-                  className="bg-[rgba(12,85,54,0.1)] text-[#0C5536] border-[#0C5536]/20"
-                >
-                  {role.charAt(0).toUpperCase() +
-                    role.slice(1).replace("_", " ")}
-                </Badge>
-              ))}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label className="text-[#555555] text-sm">{t("common:roleLabel")}</Label>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {profile?.roles?.map((role) => (
+                  <Badge
+                    key={role}
+                    className="bg-[rgba(12,85,54,0.1)] text-[#0C5536] border-0"
+                  >
+                    {formatRoleName(role)}
+                  </Badge>
+                ))}
+              </div>
             </div>
-          </div>
-          <div>
-            <Label className="text-[#555555] text-sm">
-              {t("common:languagePreference")}
-            </Label>
-            <p className="mt-1 text-[#222222] font-medium">
-              {profile?.locale === "ar" ? "العربية (Arabic)" : "English"}
-            </p>
+            <div>
+              <Label className="text-[#555555] text-sm">
+                {t("common:languagePreference")}
+              </Label>
+              <p className="mt-1 text-[#222222] font-medium">
+                {profile?.locale === "ar" ? "العربية (Arabic)" : "English"}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Change Password Card */}
       <Card className="rounded-lg border border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
-        <CardHeader>
-          <CardTitle
-            className="text-xl font-semibold text-[#0C5536] flex items-center gap-2"
-            style={{ fontFamily: "Playfair Display, serif" }}
-          >
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-2">
             <Lock className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-            {t("portal:settings.changePassword")}
-          </CardTitle>
-          <CardDescription className="text-sm text-[#777777]">
+            <CardTitle className="text-xl font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+              {t("portal:settings.changePassword")}
+            </CardTitle>
+          </div>
+          <CardDescription className="text-sm text-[#777777] ltr:ml-7 rtl:mr-7">
             {t("portal:settings.updatePasswordSecure")}
           </CardDescription>
         </CardHeader>

@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export type LeadStatus = "not_started" | "contacted" | "consultation" | "meeting" | "hold" | "qualified" | "negotiation" | "pending" | "won" | "lost";
+export type LeadStatus = "not_started" | "contacted" | "consultation" | "consultation_completed" | "meeting" | "hold" | "qualified" | "negotiation" | "pending" | "won" | "lost" | "unreachable";
 
 interface LeadStatusBadgeProps {
   status: LeadStatus;
@@ -16,43 +16,51 @@ const statusConfig: Record<
 > = {
   not_started: {
     label: "Not Started",
-    className: "bg-gray-100 text-gray-700 hover:bg-gray-100",
+    className: "bg-[#F5F5F5] text-[#6B6B6B] border-0",
   },
   contacted: {
     label: "Contacted",
-    className: "bg-teal-100 text-teal-700 hover:bg-teal-100",
+    className: "bg-[#E6F7F1] text-[#0C5536] border-0",
   },
   consultation: {
     label: "Consultation",
-    className: "bg-cyan-100 text-cyan-700 hover:bg-cyan-100",
+    className: "bg-[#E6F4FF] text-[#0369A1] border-0",
+  },
+  consultation_completed: {
+    label: "Consultation Completed",
+    className: "bg-[#DCFCE7] text-[#166534] border-0",
   },
   meeting: {
     label: "Meeting",
-    className: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+    className: "bg-[#E6F0FF] text-[#2563EB] border-0",
   },
   hold: {
     label: "On Hold",
-    className: "bg-orange-100 text-orange-700 hover:bg-orange-100",
+    className: "bg-[#FFF4E6] text-[#D97706] border-0",
   },
   qualified: {
     label: "Qualified",
-    className: "bg-purple-100 text-purple-700 hover:bg-purple-100",
+    className: "bg-[#F3E8FF] text-[#7C3AED] border-0",
   },
   negotiation: {
     label: "Negotiation",
-    className: "bg-indigo-100 text-indigo-700 hover:bg-indigo-100",
+    className: "bg-[#EEF2FF] text-[#4F46E5] border-0",
   },
   pending: {
     label: "Pending",
-    className: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
+    className: "bg-[#FFF9E6] text-[#C6A03B] border-0",
   },
   won: {
     label: "Won",
-    className: "bg-green-100 text-green-700 hover:bg-green-100",
+    className: "bg-[#E6F7F1] text-[#0C5536] border-0 font-semibold",
   },
   lost: {
     label: "Lost",
-    className: "bg-red-100 text-red-700 hover:bg-red-100",
+    className: "bg-[#FEECEC] text-[#C0392B] border-0",
+  },
+  unreachable: {
+    label: "Unreachable",
+    className: "bg-[#E5E5E5] text-[#737373] border-0",
   },
 };
 

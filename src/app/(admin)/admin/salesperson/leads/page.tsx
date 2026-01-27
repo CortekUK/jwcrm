@@ -3,26 +3,22 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { SalespersonLeadTable, CommunicationMethod } from "@/components/salesperson/SalespersonLeadTable";
+import { LeadPipelineBoard } from "@/components/lead-management/LeadPipelineBoard";
 import { EditLeadDialog } from "@/components/lead-management/EditLeadDialog";
 import { SendProposalDialog } from "@/components/lead-management/SendProposalDialog";
 import { ViewProposalDialog } from "@/components/lead-management/ViewProposalDialog";
 import { AddReminderDialog } from "@/components/lead-management/reminders/AddReminderDialog";
 import { AddCommunicationDialog } from "@/components/lead-management/AddCommunicationDialog";
 import { SendMeetingInviteDialog } from "@/components/salesperson/SendMeetingInviteDialog";
+import { QuickActionsButton } from "@/components/lead-management/QuickActionsButton";
 import { LeadStatus } from "@/components/lead-management/LeadStatusBadge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Search } from "lucide-react";
+import { Target, LayoutGrid, List } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Lead {
   id: string;
@@ -42,8 +38,13 @@ interface Lead {
   paid_currency: string | null;
   created_at: string;
   updated_at: string;
+  last_contact_date?: string | null;
+  next_action_date?: string | null;
   source_data?: { id: string; name: string } | null;
+  assigned_user?: { user_id: string; full_name: string } | null;
 }
+
+type ViewMode = "table" | "kanban";
 
 export default function SalespersonLeadsPage() {
   const { t } = useTranslation("leadManagement");
@@ -53,8 +54,7 @@ export default function SalespersonLeadsPage() {
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
 
   // Dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -67,13 +67,27 @@ export default function SalespersonLeadsPage() {
   const [selectedMethodId, setSelectedMethodId] = useState<string>("");
   const [communicationMethods, setCommunicationMethods] = useState<CommunicationMethod[]>([]);
 
+  // Load view mode from localStorage
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem("salesperson_viewMode");
+    if (savedViewMode === "table" || savedViewMode === "kanban") {
+      setViewMode(savedViewMode);
+    }
+  }, []);
+
+  // Save view mode to localStorage
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("salesperson_viewMode", mode);
+  };
+
   // Fetch only leads assigned to current user
   const fetchLeads = async () => {
     if (!user?.id) return;
 
     setIsLoading(true);
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from("leads")
         .select(`
           *,
@@ -81,18 +95,6 @@ export default function SalespersonLeadsPage() {
         `)
         .eq("assigned_to", user.id)
         .order("created_at", { ascending: false });
-
-      if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter);
-      }
-
-      if (searchQuery) {
-        query = query.or(
-          `full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,company_name.ilike.%${searchQuery}%`
-        );
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
       setLeads(data || []);
@@ -108,7 +110,7 @@ export default function SalespersonLeadsPage() {
     if (user?.id) {
       fetchLeads();
     }
-  }, [user?.id, statusFilter, searchQuery]);
+  }, [user?.id]);
 
   // Fetch communication methods
   useEffect(() => {
@@ -232,59 +234,97 @@ export default function SalespersonLeadsPage() {
     }
   };
 
+  // Handle delete for Kanban (not used for salesperson but required by the interface)
+  const handleDelete = (lead: Lead) => {
+    toast.error(t("cannotDeleteLeads", "You cannot delete leads"));
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{tSalesperson("myLeads")}</h1>
-          <p className="text-muted-foreground">
-            {tSalesperson("myLeadsDescription")}
-          </p>
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Target className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {tSalesperson("myLeads")}
+              </h1>
+            </div>
+            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+              {tSalesperson("myLeadsDescription")}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* View Toggle */}
+            <div className="flex items-center rounded-lg border border-[#E6E6E4] bg-white p-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleViewModeChange("table")}
+                className={cn(
+                  "h-8 px-3 rounded-md transition-all",
+                  viewMode === "table"
+                    ? "bg-[hsl(var(--jw-primary-green))] text-white hover:bg-[hsl(var(--jw-hover-green))] hover:text-white"
+                    : "text-[#6B6B6B] hover:text-[#222222]"
+                )}
+              >
+                <List className="h-4 w-4 mr-1.5" />
+                {t("tableView", "Table")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleViewModeChange("kanban")}
+                className={cn(
+                  "h-8 px-3 rounded-md transition-all",
+                  viewMode === "kanban"
+                    ? "bg-[hsl(var(--jw-primary-green))] text-white hover:bg-[hsl(var(--jw-hover-green))] hover:text-white"
+                    : "text-[#6B6B6B] hover:text-[#222222]"
+                )}
+              >
+                <LayoutGrid className="h-4 w-4 mr-1.5" />
+                {t("kanbanView", "Kanban")}
+              </Button>
+            </div>
+            {/* KPI Badge */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[hsl(var(--jw-primary-green))]/30 bg-white">
+              <Target className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+              <span className="text-sm font-medium text-[hsl(var(--jw-primary-green))]">{leads.length} {tSalesperson("leads")}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder={t("searchLeads")}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="ltr:pl-9 rtl:pr-9"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder={t("filterByStatus")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allStatuses")}</SelectItem>
-            <SelectItem value="not_started">{t("notStarted")}</SelectItem>
-            <SelectItem value="contacted">{t("contacted")}</SelectItem>
-            <SelectItem value="consultation">{t("consultation")}</SelectItem>
-            <SelectItem value="qualified">{t("qualified")}</SelectItem>
-            <SelectItem value="pending">{t("pending")}</SelectItem>
-            <SelectItem value="won">{t("won")}</SelectItem>
-            <SelectItem value="lost">{t("lost")}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Lead Table */}
-      <SalespersonLeadTable
-        leads={leads}
-        onEdit={handleEdit}
-        onSendProposal={handleSendProposal}
-        onViewProposals={handleViewProposals}
-        onStatusChange={handleStatusChange}
-        onViewHistory={(lead) => router.push(`/admin/salesperson/leads/${lead.id}`)}
-        onSetReminder={handleSetReminder}
-        onSendMeetingInvite={handleSendMeetingInvite}
-        onAddCommunication={handleAddCommunication}
-        communicationMethods={communicationMethods}
-        isLoading={isLoading}
-      />
+      {/* Lead View */}
+      {viewMode === "table" ? (
+        <SalespersonLeadTable
+          leads={leads}
+          onEdit={handleEdit}
+          onSendProposal={handleSendProposal}
+          onViewProposals={handleViewProposals}
+          onStatusChange={handleStatusChange}
+          onViewHistory={(lead) => router.push(`/admin/salesperson/leads/${lead.id}`)}
+          onSetReminder={handleSetReminder}
+          onSendMeetingInvite={handleSendMeetingInvite}
+          onAddCommunication={handleAddCommunication}
+          communicationMethods={communicationMethods}
+          isLoading={isLoading}
+        />
+      ) : (
+        <LeadPipelineBoard
+          leads={leads}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onSendProposal={handleSendProposal}
+          onViewProposals={handleViewProposals}
+          onStatusChange={handleStatusChange}
+          onViewHistory={(lead) => router.push(`/admin/salesperson/leads/${lead.id}`)}
+          onSetReminder={handleSetReminder}
+          isLoading={isLoading}
+          basePath="/admin/salesperson/leads"
+        />
+      )}
 
       {/* Edit Lead Dialog */}
       <EditLeadDialog
@@ -352,6 +392,16 @@ export default function SalespersonLeadsPage() {
           onSuccess={fetchLeads}
         />
       )}
+
+      {/* Floating Quick Actions Button */}
+      <QuickActionsButton
+        onOpenCalendar={() => router.push("/admin/salesperson/calendar")}
+      />
+
+      {/* Footer */}
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">{t("legalNotice")}</p>
+      </div>
     </div>
   );
 }

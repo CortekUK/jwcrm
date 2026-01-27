@@ -117,7 +117,7 @@ export default function EditJobRolePage() {
       {/* Form Card */}
       <Card className="border-[#E6E6E4]">
         <CardHeader>
-          <CardTitle className={`flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`}>
+          <CardTitle className={`text-xl font-semibold text-[#0C5536] flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`} style={{ fontFamily: 'Playfair Display, serif' }}>
             <Briefcase className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
             {t("hr:editJobRole")}
           </CardTitle>

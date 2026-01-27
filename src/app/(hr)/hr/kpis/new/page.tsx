@@ -3,8 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { AddKPIForm } from "@/components/hr/kpis";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Target } from "lucide-react";
 
 export default function NewKPIPage() {
@@ -23,33 +22,47 @@ export default function NewKPIPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Back Button */}
-      <Button
-        variant="ghost"
-        onClick={() => router.back()}
-        className={`text-[#6B6B6B] hover:text-[#222222] ${isRtl ? "flex-row-reverse" : ""}`}
-      >
-        <ArrowLeft className={`h-4 w-4 ${isRtl ? "ml-2 rotate-180" : "mr-2"}`} />
-        {t("hr:back")}
-      </Button>
+    <div className="space-y-6 pb-12">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center gap-3 mb-2">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center justify-center h-8 w-8 rounded-lg bg-white border border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-colors"
+            >
+              <ArrowLeft className={`h-4 w-4 text-[#555555] ${isRtl ? "rotate-180" : ""}`} />
+            </button>
+            <Target className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+            <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+              {t("hr:addKPI")}
+            </h1>
+          </div>
+          <p className="text-sm text-[#777777] ltr:ml-[4.5rem] rtl:mr-[4.5rem]">
+            {t("hr:addKPIDescription")}
+          </p>
+        </div>
+      </div>
 
       {/* Form Card */}
-      <Card className="border-[#E6E6E4]">
-        <CardHeader>
-          <CardTitle className={`flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`}>
-            <Target className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-            {t("hr:addKPI")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AddKPIForm
-            preSelectedJobRoleId={preSelectedJobRoleId}
-            onSuccess={handleSuccess}
-            onCancel={handleCancel}
-          />
-        </CardContent>
-      </Card>
+      <div className="max-w-2xl mx-auto">
+        <Card className="border-[#E6E6E4]">
+          <CardContent className="p-6">
+            <AddKPIForm
+              preSelectedJobRoleId={preSelectedJobRoleId}
+              onSuccess={handleSuccess}
+              onCancel={handleCancel}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Footer */}
+      <div className="max-w-2xl mx-auto mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("hr:legalNotice")}
+        </p>
+      </div>
     </div>
   );
 }

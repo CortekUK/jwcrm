@@ -71,19 +71,31 @@ export default function AdminEmployeesPage() {
     );
   }
 
+  const activeCount = employees.filter(e => e.employment_status === "active").length;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       {/* Hero Banner */}
       <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
-        <div className="flex items-center gap-3 mb-2">
-          <Users className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
-          <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
-            {t("hr:employees")}
-          </h1>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Users className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("hr:employees")}
+              </h1>
+            </div>
+            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+              {t("hr:employeesDescription")}
+            </p>
+          </div>
+          <div className="flex items-center gap-3 px-3 py-2 bg-white border border-[#E6E6E4] rounded-md">
+            <Users className="h-4 w-4 text-[#777777]" />
+            <span className="text-[#16A34A] font-medium text-sm">
+              {activeCount} {t("hr:status.active")}
+            </span>
+          </div>
         </div>
-        <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
-          {t("hr:employeesDescription")}
-        </p>
       </div>
 
       <EmployeeTable
@@ -100,6 +112,13 @@ export default function AdminEmployeesPage() {
         employee={deactivateEmployee}
         onSuccess={fetchData}
       />
+
+      {/* Footer */}
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("hr:legalNotice")}
+        </p>
+      </div>
     </div>
   );
 }

@@ -6,12 +6,13 @@
  * - Employment Visa: Expiry date, visa number
  * - Emirates ID: Expiry date, ID number, Arabic name, English name
  * - Employment Contract: Expiry date (if fixed-term), contract type
+ * - Certification: Expiry date, certification name, issuing body, credential ID
  */
 
 import OpenAI from 'openai';
 
 // Document types supported
-export type DocumentType = 'passport' | 'employment_visa' | 'emirates_id' | 'employment_contract';
+export type DocumentType = 'passport' | 'employment_visa' | 'emirates_id' | 'employment_contract' | 'certification';
 
 // Base extraction result
 interface BaseExtractionResult {
@@ -51,12 +52,22 @@ export interface ContractExtractionResult extends BaseExtractionResult {
   startDate: string | null;
 }
 
+// Certification extraction result
+export interface CertificationExtractionResult extends BaseExtractionResult {
+  documentType: 'certification';
+  certificationName: string | null;
+  issuingBody: string | null;
+  credentialId: string | null;
+  issueDate: string | null;
+}
+
 // Union type for all extraction results
 export type DocumentExtractionResult =
   | PassportExtractionResult
   | VisaExtractionResult
   | EmiratesIdExtractionResult
-  | ContractExtractionResult;
+  | ContractExtractionResult
+  | CertificationExtractionResult;
 
 /**
  * Convert File or Blob to base64 string
@@ -174,6 +185,35 @@ Return your response in this exact JSON format:
   "expiryDate": "YYYY-MM-DD or null",
   "contractType": "fixed_term or unlimited or null",
   "startDate": "YYYY-MM-DD or null",
+  "confidence": "high or medium or low"
+}
+
+Do not include any explanations, only return the JSON object.`,
+
+    certification: `You are an expert at extracting information from professional certifications and training certificates.
+
+Please analyze this certification/certificate document and extract the following information:
+
+1. **Expiry Date**: The certification expiration date (if applicable, some certifications don't expire)
+2. **Certification Name**: The name/title of the certification (e.g., "PMP", "AWS Solutions Architect", "OSHA Safety Training")
+3. **Issuing Body**: The organization that issued the certification (e.g., "PMI", "Amazon Web Services", "Microsoft")
+4. **Credential ID**: Any unique ID, certificate number, or credential number
+5. **Issue Date**: When the certification was issued/awarded
+
+IMPORTANT INSTRUCTIONS:
+- For dates, use ISO format: YYYY-MM-DD
+- Look for "Valid Until", "Expiration Date", "Validity Period"
+- Some certifications are lifetime/perpetual - use null for expiryDate in that case
+- Look for terms like "Certificate Number", "Credential ID", "License Number"
+- Return ONLY valid data, use null for any field you cannot confidently extract
+
+Return your response in this exact JSON format:
+{
+  "expiryDate": "YYYY-MM-DD or null",
+  "certificationName": "certification name or null",
+  "issuingBody": "issuing organization or null",
+  "credentialId": "credential ID/number or null",
+  "issueDate": "YYYY-MM-DD or null",
   "confidence": "high or medium or low"
 }
 
@@ -329,6 +369,18 @@ function processExtractionResult(
         extractionMethod: 'ai',
         confidence,
       };
+
+    case 'certification':
+      return {
+        documentType: 'certification',
+        expiryDate,
+        certificationName: cleanString(extracted.certificationName as string),
+        issuingBody: cleanString(extracted.issuingBody as string),
+        credentialId: cleanString(extracted.credentialId as string),
+        issueDate: parseDate(extracted.issueDate as string),
+        extractionMethod: 'ai',
+        confidence,
+      };
   }
 }
 
@@ -379,6 +431,16 @@ function createFailedResult(
         documentType: 'employment_contract',
         contractType: null,
         startDate: null,
+      };
+
+    case 'certification':
+      return {
+        ...baseResult,
+        documentType: 'certification',
+        certificationName: null,
+        issuingBody: null,
+        credentialId: null,
+        issueDate: null,
       };
   }
 }

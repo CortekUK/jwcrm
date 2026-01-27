@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       type,
       category,
       amount,
-      currency = "USD",
+      currency = "AED",
       description,
       reference_number,
       receipt_path,

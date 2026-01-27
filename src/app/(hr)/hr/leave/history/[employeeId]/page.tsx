@@ -370,7 +370,7 @@ export default function EmployeeLeaveHistoryPage() {
         {/* Annual Leave */}
         <Card className="border-[#E6E6E4]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
               <Plane className="h-5 w-5 text-blue-600" />
               Annual Leave
             </CardTitle>
@@ -403,7 +403,7 @@ export default function EmployeeLeaveHistoryPage() {
         {/* Sick Leave */}
         <Card className="border-[#E6E6E4]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
               <Thermometer className="h-5 w-5 text-yellow-600" />
               Sick Leave
             </CardTitle>
@@ -432,7 +432,7 @@ export default function EmployeeLeaveHistoryPage() {
       <Card className="border-[#E6E6E4]">
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
               <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
               Leave History ({selectedYear})
             </CardTitle>

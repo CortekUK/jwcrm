@@ -161,8 +161,8 @@ const DOCUMENT_TYPES = [
   { value: "passport", labelKey: "docType.passport" },
   { value: "employment_visa", labelKey: "docType.employment_visa" },
   { value: "emirates_id", labelKey: "docType.emirates_id" },
-  { value: "work_permit", labelKey: "filter.workPermit" },
-  { value: "medical_certificate", labelKey: "filter.medicalCertificate" },
+  { value: "employment_contract", labelKey: "docType.employment_contract" },
+  { value: "certification", labelKey: "docType.certification" },
 ];
 
 // Sort options
@@ -526,7 +526,7 @@ HR Department`;
         <CardHeader>
           <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
             <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
-              <FileText className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
+              <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
             </div>
             {t("hr:documentAlerts")}
           </CardTitle>
@@ -649,7 +649,7 @@ HR Department`;
           <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
             <span className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
-                <FileText className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
+                <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
               </div>
               {t("hr:documentAlerts")}
             </span>
@@ -962,7 +962,7 @@ HR Department`;
   );
 }
 
-// Summary cards for dashboard stats
+// Summary table for dashboard stats - cleaner format
 interface AlertSummaryCardsProps {
   documents: ExpiringDocument[];
 }
@@ -972,44 +972,79 @@ export function AlertSummaryCards({ documents }: AlertSummaryCardsProps) {
   const alertConfig = getAlertConfig(t);
   const grouped = groupByAlertLevel(documents);
 
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-      {(["expired", "critical", "urgent", "warning", "advisory"] as AlertLevel[]).map((level) => {
-        const config = alertConfig[level];
-        const Icon = config.icon;
-        const count = grouped[level].length;
-        const hasItems = count > 0;
+  const alertLevels: { level: AlertLevel; timeFrame: string }[] = [
+    { level: "expired", timeFrame: "Past Due" },
+    { level: "critical", timeFrame: "0-7 Days" },
+    { level: "urgent", timeFrame: "8-14 Days" },
+    { level: "warning", timeFrame: "15-30 Days" },
+    { level: "advisory", timeFrame: "31-90 Days" },
+  ];
 
-        return (
-          <Card 
-            key={level} 
-            className={`transition-shadow hover:shadow-md ${
-              hasItems 
-                ? `${config.bgColor} ${config.borderColor}` 
-                : "bg-white border-[#E6E6E4]"
-            }`}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-[#6B6B6B] uppercase tracking-wide">
-                    {t(`hr:alert.${level}`)}
-                  </p>
-                  <p className={`text-2xl font-bold ${hasItems ? config.color : "text-[#222222]"}`}>
-                    {count}
-                  </p>
-                  <p className="text-xs text-[#6B6B6B]">{config.label}</p>
-                </div>
-                <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${
-                  hasItems ? `${config.bgColor}` : "bg-gray-50"
-                }`}>
-                  <Icon className={`h-4.5 w-4.5 ${hasItems ? config.color : "text-[#E6E6E4]"}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+  const totalCount = alertLevels.reduce((sum, { level }) => sum + grouped[level].length, 0);
+
+  if (totalCount === 0) {
+    return null;
+  }
+
+  return (
+    <Card className="border-[#E6E6E4]">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+          <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
+            <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+          </div>
+          {t("hr:documentExpiryStatus")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="rounded-lg border border-[#E6E6E4] overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-[#FAFAF8] border-b border-[#E6E6E4]">
+                <th className="text-left px-4 py-2.5 font-semibold text-[#555555]">Status</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-[#555555]">Time Frame</th>
+                <th className="text-right px-4 py-2.5 font-semibold text-[#555555]">Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              {alertLevels.map(({ level, timeFrame }, index) => {
+                const config = alertConfig[level];
+                const count = grouped[level].length;
+                const hasItems = count > 0;
+                const isLast = index === alertLevels.length - 1;
+
+                return (
+                  <tr 
+                    key={level} 
+                    className={`${!isLast ? "border-b border-[#E6E6E4]" : ""} ${hasItems ? config.bgColor : "bg-white"} transition-colors`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${hasItems ? config.color.replace('text-', 'bg-') : "bg-gray-300"}`} />
+                        <span className={`font-medium ${hasItems ? config.color : "text-[#777777]"}`}>
+                          {t(`hr:alert.${level}`)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-[#6B6B6B]">
+                      {timeFrame}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full text-sm font-semibold ${
+                        hasItems 
+                          ? `${config.bgColor} ${config.color} border ${config.borderColor}` 
+                          : "bg-gray-100 text-gray-400"
+                      }`}>
+                        {count}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

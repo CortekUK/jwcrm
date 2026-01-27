@@ -3,26 +3,21 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { LeadTable, Lead, CommunicationMethod } from "@/components/lead-management/LeadTable";
+import { LeadPipelineBoard } from "@/components/lead-management/LeadPipelineBoard";
 import { CreateLeadDialog } from "@/components/lead-management/CreateLeadDialog";
 import { EditLeadDialog } from "@/components/lead-management/EditLeadDialog";
 import { SendProposalDialog } from "@/components/lead-management/SendProposalDialog";
 import { ViewProposalDialog } from "@/components/lead-management/ViewProposalDialog";
 import { AddCommunicationDialog } from "@/components/lead-management/AddCommunicationDialog";
 import { AddReminderDialog } from "@/components/lead-management/reminders/AddReminderDialog";
+import { QuickActionsButton } from "@/components/lead-management/QuickActionsButton";
 import { LeadStatus } from "@/components/lead-management/LeadStatusBadge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search } from "lucide-react";
+import { Target, LayoutGrid, List } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +29,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+type ViewMode = "table" | "kanban";
+
 export default function LeadsPage() {
   const { t } = useTranslation("leadManagement");
   const router = useRouter();
@@ -42,6 +39,7 @@ export default function LeadsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -54,6 +52,20 @@ export default function LeadsPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedMethodId, setSelectedMethodId] = useState<string>("");
   const [communicationMethods, setCommunicationMethods] = useState<CommunicationMethod[]>([]);
+
+  // Load view mode from localStorage
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem("leadManagement_viewMode");
+    if (savedViewMode === "table" || savedViewMode === "kanban") {
+      setViewMode(savedViewMode);
+    }
+  }, []);
+
+  // Save view mode to localStorage
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("leadManagement_viewMode", mode);
+  };
 
   // Fetch leads
   const fetchLeads = async () => {
@@ -287,63 +299,101 @@ export default function LeadsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("leads")}</h1>
-          <p className="text-muted-foreground">
-            {t("leadsDescription")}
-          </p>
+    <div className="space-y-6 pb-12">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Target className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("leads")}
+              </h1>
+            </div>
+            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+              {t("leadsDescription")}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* View Toggle */}
+            <div className="flex items-center rounded-lg border border-[#E6E6E4] bg-white p-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleViewModeChange("table")}
+                className={cn(
+                  "h-8 px-3 rounded-md transition-all",
+                  viewMode === "table"
+                    ? "bg-[hsl(var(--jw-primary-green))] text-white hover:bg-[hsl(var(--jw-hover-green))] hover:text-white"
+                    : "text-[#6B6B6B] hover:text-[#222222]"
+                )}
+              >
+                <List className="h-4 w-4 mr-1.5" />
+                {t("tableView", "Table")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleViewModeChange("kanban")}
+                className={cn(
+                  "h-8 px-3 rounded-md transition-all",
+                  viewMode === "kanban"
+                    ? "bg-[hsl(var(--jw-primary-green))] text-white hover:bg-[hsl(var(--jw-hover-green))] hover:text-white"
+                    : "text-[#6B6B6B] hover:text-[#222222]"
+                )}
+              >
+                <LayoutGrid className="h-4 w-4 mr-1.5" />
+                {t("kanbanView", "Kanban")}
+              </Button>
+            </div>
+            {/* Leads Count Badge */}
+            {!isLoading && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[hsl(var(--jw-primary-green))]/30 bg-white">
+                <Target className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+                <span className="text-sm font-medium text-[hsl(var(--jw-primary-green))]">
+                  {leads.length} {t("leadsCount", "Leads")}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
-          {t("createLead")}
-        </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder={t("searchLeads")}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="ltr:pl-9 rtl:pr-9"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder={t("filterByStatus")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allStatuses")}</SelectItem>
-            <SelectItem value="not_started">{t("notStarted")}</SelectItem>
-            <SelectItem value="contacted">{t("contacted")}</SelectItem>
-            <SelectItem value="consultation">{t("consultation")}</SelectItem>
-            <SelectItem value="qualified">{t("qualified")}</SelectItem>
-            <SelectItem value="pending">{t("pending")}</SelectItem>
-            <SelectItem value="won">{t("won")}</SelectItem>
-            <SelectItem value="lost">{t("lost")}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Lead Table */}
-      <LeadTable
-        leads={leads}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onSendProposal={handleSendProposal}
-        onViewProposals={handleViewProposals}
-        onStatusChange={handleStatusChange}
-        onViewHistory={(lead) => router.push(`/admin/lead-management/leads/${lead.id}`)}
-        onViewSalesperson={(salespersonId) => router.push(`/admin/lead-management/salesperson/${salespersonId}`)}
-        onAddCommunication={handleAddCommunication}
-        onSetReminder={handleSetReminder}
-        communicationMethods={communicationMethods}
-        isLoading={isLoading}
-      />
+      {/* Lead View */}
+      {viewMode === "table" ? (
+        <LeadTable
+          leads={leads}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onSendProposal={handleSendProposal}
+          onViewProposals={handleViewProposals}
+          onStatusChange={handleStatusChange}
+          onViewHistory={(lead) => router.push(`/admin/lead-management/leads/${lead.id}`)}
+          onViewSalesperson={(salespersonId) => router.push(`/admin/lead-management/salesperson/${salespersonId}`)}
+          onAddCommunication={handleAddCommunication}
+          onSetReminder={handleSetReminder}
+          onAddNew={() => setCreateDialogOpen(true)}
+          communicationMethods={communicationMethods}
+          isLoading={isLoading}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+        />
+      ) : (
+        <LeadPipelineBoard
+          leads={leads}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onSendProposal={handleSendProposal}
+          onViewProposals={handleViewProposals}
+          onStatusChange={handleStatusChange}
+          onViewHistory={(lead) => router.push(`/admin/lead-management/leads/${lead.id}`)}
+          onSetReminder={handleSetReminder}
+          isLoading={isLoading}
+          basePath="/admin/lead-management/leads"
+        />
+      )}
 
       {/* Create Lead Dialog */}
       <CreateLeadDialog
@@ -412,22 +462,34 @@ export default function LeadsPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("areYouSure")}</AlertDialogTitle>
+            <AlertDialogTitle className="text-[#C0392B]">{t("areYouSure")}</AlertDialogTitle>
             <AlertDialogDescription>
               {t("permanentlyDeleteWarning", { name: selectedLead?.full_name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogCancel className="border-[#E6E6E4]">{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteLead}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-[#C0392B] hover:bg-[#A33025] text-white"
             >
               {t("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Floating Quick Actions Button */}
+      <QuickActionsButton
+        onCreateLead={() => setCreateDialogOpen(true)}
+      />
+
+      {/* Footer */}
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("legalNotice", "© 2024 Just Wills. All rights reserved.")}
+        </p>
+      </div>
     </div>
   );
 }

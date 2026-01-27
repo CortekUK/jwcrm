@@ -14,7 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
-import { Loader2, User, Briefcase, CalendarIcon, DollarSign, FileText, Upload, X, Sparkles, Check, AlertCircle } from "lucide-react";
+import { Loader2, User, Briefcase, CalendarIcon, FileText, Upload, X, Sparkles, Check, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { employeeSchema, EmployeeFormData, employmentStatusOptions } from "@/lib/hr-validation";
 import { JobRoleSelector } from "@/components/hr/kpis/JobRoleSelector";
@@ -329,12 +329,13 @@ export function AddEmployeeForm({ onSuccess, onCancel, editData }: AddEmployeeFo
               "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
               isDragActive
                 ? "border-[hsl(var(--jw-primary-green))] bg-[#E6F7F1]"
-                : "border-[#E6E6E4] hover:border-[hsl(var(--jw-gold-accent))]",
-              mandatory && !doc.file && "border-red-200 bg-red-50/30"
+                : mandatory
+                  ? "border-[#C6A03B]/50 bg-[#FBF9F3] hover:border-[#C6A03B] hover:bg-[#F8F6EC]"
+                  : "border-[#E6E6E4] hover:border-[hsl(var(--jw-gold-accent))]"
             )}
           >
             <input {...getInputProps()} />
-            <Upload className="h-6 w-6 mx-auto mb-2 text-[#6B6B6B]" />
+            <Upload className={cn("h-6 w-6 mx-auto mb-2", mandatory ? "text-[#C6A03B]" : "text-[#6B6B6B]")} />
             <p className="text-sm text-[#6B6B6B]">{t("hr:dragDropOrClick")}</p>
           </div>
         ) : (
@@ -523,8 +524,9 @@ export function AddEmployeeForm({ onSuccess, onCancel, editData }: AddEmployeeFo
           </h3>
         </div>
 
+        {/* Row 1: Department & Job Role */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Department - Select first */}
+          {/* Department */}
           <div className="space-y-2">
             <Label className="text-[#555555]">{t("hr:department")}</Label>
             <Select
@@ -549,7 +551,7 @@ export function AddEmployeeForm({ onSuccess, onCancel, editData }: AddEmployeeFo
             </Select>
           </div>
 
-          {/* Job Role - Filtered by department */}
+          {/* Job Role */}
           <div className="space-y-2">
             <Label className="text-[#555555]">
               {t("hr:jobRole")}
@@ -561,11 +563,14 @@ export function AddEmployeeForm({ onSuccess, onCancel, editData }: AddEmployeeFo
               departmentId={watch("department_id") || undefined}
               showDepartment={false}
             />
-            {!watch("department_id") && (
-              <p className="text-xs text-[#6B6B6B]">{t("hr:selectDepartmentFirst")}</p>
-            )}
+            <p className={cn("text-xs", !watch("department_id") ? "text-[#6B6B6B]" : "text-transparent")}>
+              {t("hr:selectDepartmentFirst")}
+            </p>
           </div>
+        </div>
 
+        {/* Row 2: Start Date & Salary */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Start Date */}
           <div className="space-y-2">
             <Label className="text-[#555555]">
@@ -603,7 +608,7 @@ export function AddEmployeeForm({ onSuccess, onCancel, editData }: AddEmployeeFo
           {/* Salary */}
           <div className="space-y-2">
             <Label htmlFor="salary" className="text-[#555555] flex items-center gap-1">
-              <DollarSign className="h-4 w-4" />
+              <span className="text-xs font-semibold text-[#0C5536]">AED</span>
               {t("hr:salary")}
             </Label>
             <Input
@@ -616,7 +621,10 @@ export function AddEmployeeForm({ onSuccess, onCancel, editData }: AddEmployeeFo
               disabled={loading}
             />
           </div>
+        </div>
 
+        {/* Row 3: Employment Status */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Employment Status */}
           <div className="space-y-2">
             <Label className="text-[#555555]">{t("hr:employmentStatus")}</Label>
@@ -665,7 +673,7 @@ export function AddEmployeeForm({ onSuccess, onCancel, editData }: AddEmployeeFo
           {/* Optional Contract */}
           <div className="pt-2">
             <h4 className="text-sm font-medium text-[#555555] mb-3">{t("hr:optionalDocument")}</h4>
-            <div className="max-w-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <DocumentUploadField docType="employment_contract" />
             </div>
           </div>

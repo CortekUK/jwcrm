@@ -9,10 +9,12 @@ export { AddKPIForm } from "./AddKPIForm";
 
 // Evaluation Components
 export { EmployeeKPIEvaluationForm } from "./EmployeeKPIEvaluationForm";
+export { EmployeeKPIHistory } from "./EmployeeKPIHistory";
 export { KPIEvaluationTable } from "./KPIEvaluationTable";
 export { SendKPIReportButton } from "./SendKPIReportButton";
 export { DownloadKPIReportButton } from "./DownloadKPIReportButton";
 export { BulkDownloadKPIReportsButton } from "./BulkDownloadKPIReportsButton";
+export { KPIExportButton } from "./KPIExportButton";
 export { KPIReportPDFTemplate } from "./KPIReportPDFTemplate";
 export { BulkKPIReportPDFTemplate } from "./BulkKPIReportPDFTemplate";
 
@@ -22,3 +24,7 @@ export { KPIEvaluationAlertCard } from "./KPIEvaluationAlertCard";
 // Summary Components
 export { DepartmentKPISummary } from "./DepartmentKPISummary";
 export type { DepartmentSummary, JobRoleSummary, EmployeeSummary } from "./DepartmentKPISummary";
+
+// Overview & Analytics Components
+export { KPIOverviewCard } from "./KPIOverviewCard";
+export { KPIAnalyticsCharts } from "./KPIAnalyticsCharts";

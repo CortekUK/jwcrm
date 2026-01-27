@@ -32,6 +32,7 @@ import {
   History,
   Loader2,
   User,
+  Target,
 } from "lucide-react";
 
 interface LeadData {
@@ -108,28 +109,34 @@ export default function SalespersonViewPage({
   const getStatusColor = (status: string) => {
     switch (status) {
       case "won":
-        return "bg-green-100 text-green-800";
+        return "bg-[#E6F7F1] text-[#0C5536] border-0";
       case "lost":
-        return "bg-red-100 text-red-800";
+        return "bg-[#FEECEC] text-[#C0392B] border-0";
       case "pending":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-[#FFF9E6] text-[#C6A03B] border-0";
       case "qualified":
-        return "bg-purple-100 text-purple-800";
+        return "bg-[#F3E8FF] text-[#7C3AED] border-0";
       case "negotiation":
-        return "bg-indigo-100 text-indigo-800";
+        return "bg-[#E6F0FF] text-[#4F46E5] border-0";
       case "meeting":
-        return "bg-blue-100 text-blue-800";
+        return "bg-[#E6F0FF] text-[#2563EB] border-0";
+      case "consultation":
+        return "bg-[#E0F2FE] text-[#0369A1] border-0";
+      case "contacted":
+        return "bg-[#E6F7F1] text-[#0C5536] border-0";
       case "hold":
-        return "bg-orange-100 text-orange-800";
+        return "bg-[#FFF7ED] text-[#D97706] border-0";
       case "not_started":
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-[#F5F5F5] text-[#6B6B6B] border-0";
     }
   };
 
   const getStatusLabel = (status: string) => {
     const statusMap: Record<string, string> = {
       not_started: t("notStarted"),
+      contacted: t("contacted"),
+      consultation: t("consultation"),
       meeting: t("meeting"),
       hold: t("hold"),
       qualified: t("qualified"),
@@ -157,8 +164,8 @@ export default function SalespersonViewPage({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--jw-primary-green))]" />
       </div>
     );
   }
@@ -169,30 +176,37 @@ export default function SalespersonViewPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.back()}
-          className="h-8 w-8"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100">
-              <User className="h-5 w-5 text-blue-600" />
-            </div>
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => router.back()}
+              className="h-9 w-9 rounded-full border-[#E6E6E4] hover:bg-[#FDFBF4] hover:border-[#C6A03B]"
+            >
+              <ArrowLeft className="h-4 w-4 text-[#555555]" />
+            </Button>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">
-                {salesperson.full_name}
-              </h1>
-              <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="flex items-center gap-3 mb-2">
+                <User className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+                <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                  {salesperson.full_name}
+                </h1>
+              </div>
+              <div className="flex items-center gap-2 text-[#777777] ltr:ml-9 rtl:mr-9">
                 <Mail className="h-4 w-4" />
                 <span className="text-sm">{salesperson.email}</span>
               </div>
             </div>
+          </div>
+          {/* KPI Badge */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[hsl(var(--jw-primary-green))]/30 bg-white">
+            <Target className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+            <span className="text-sm font-medium text-[hsl(var(--jw-primary-green))]">
+              {leads.length} {t("leads")}
+            </span>
           </div>
         </div>
       </div>
@@ -201,27 +215,32 @@ export default function SalespersonViewPage({
       {stats && <SalespersonStatsCard stats={stats} isLoading={false} />}
 
       {/* Leads Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("assignedLeads")}</CardTitle>
-          <CardDescription>
+      <Card className="border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
+        <CardHeader className="pb-4 bg-[#FAFAF8]" style={{ borderBottom: '1px solid #EAEAE8' }}>
+          <div className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+            <CardTitle className="text-lg font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+              {t("assignedLeads")}
+            </CardTitle>
+          </div>
+          <CardDescription className="text-[#777777]">
             {t("viewingSalesperson", { name: salesperson.full_name })}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           {/* Filters */}
           <div className="flex items-center gap-4 mb-4">
             <div className="relative flex-1 max-w-sm">
-              <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#C6A03B]" />
               <Input
                 placeholder={t("searchLeads")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="ltr:pl-9 rtl:pr-9"
+                className="ltr:pl-9 rtl:pr-9 border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[180px] border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
                 <SelectValue placeholder={t("filterByStatus")} />
               </SelectTrigger>
               <SelectContent>
@@ -229,7 +248,10 @@ export default function SalespersonViewPage({
                 <SelectItem value="not_started">{t("notStarted")}</SelectItem>
                 <SelectItem value="contacted">{t("contacted")}</SelectItem>
                 <SelectItem value="consultation">{t("consultation")}</SelectItem>
+                <SelectItem value="meeting">{t("meeting")}</SelectItem>
+                <SelectItem value="hold">{t("hold")}</SelectItem>
                 <SelectItem value="qualified">{t("qualified")}</SelectItem>
+                <SelectItem value="negotiation">{t("negotiation")}</SelectItem>
                 <SelectItem value="pending">{t("pending")}</SelectItem>
                 <SelectItem value="won">{t("won")}</SelectItem>
                 <SelectItem value="lost">{t("lost")}</SelectItem>
@@ -239,37 +261,41 @@ export default function SalespersonViewPage({
 
           {/* Leads Table */}
           {filteredLeads.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">{t("noLeads")}</p>
+            <div className="rounded-lg border border-[#E6E6E4] p-12 text-center">
+              <Target className="h-10 w-10 mx-auto mb-3 text-[#C6A03B]" />
+              <p className="font-medium text-[#222222]">{t("noLeads")}</p>
+              <p className="text-sm text-[#6B6B6B] mt-1">
+                {t("noMatchingLeads", "No matching leads found")}
+              </p>
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-lg border border-[#E6E6E4] overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("name")}</TableHead>
-                    <TableHead>{t("email")}</TableHead>
-                    <TableHead>{t("source")}</TableHead>
-                    <TableHead>{t("created")}</TableHead>
-                    <TableHead>{t("status")}</TableHead>
-                    <TableHead className="text-center">{t("actions")}</TableHead>
+                  <TableRow className="bg-[#FAFAF8]" style={{ borderBottom: '1px solid #EAEAE8' }}>
+                    <TableHead className="font-semibold text-[#555555]">{t("name")}</TableHead>
+                    <TableHead className="font-semibold text-[#555555]">{t("email")}</TableHead>
+                    <TableHead className="font-semibold text-[#555555]">{t("source")}</TableHead>
+                    <TableHead className="font-semibold text-[#555555]">{t("created")}</TableHead>
+                    <TableHead className="font-semibold text-[#555555]">{t("status")}</TableHead>
+                    <TableHead className="font-semibold text-[#555555] text-center">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredLeads.map((lead) => (
-                    <TableRow key={lead.id}>
-                      <TableCell className="font-medium">
+                    <TableRow key={lead.id} className="transition-colors hover:bg-[#FDFBF4]" style={{ borderBottom: '1px solid #EAEAE8' }}>
+                      <TableCell className="font-medium text-[#222222]">
                         {lead.full_name}
                       </TableCell>
-                      <TableCell>{lead.email}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-[#555555]">{lead.email}</TableCell>
+                      <TableCell className="text-[#555555]">
                         {lead.source_data?.name ||
                           lead.source
                             ?.replace(/[_-]/g, " ")
                             .replace(/\b\w/g, (c) => c.toUpperCase()) ||
                           "-"}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell className="whitespace-nowrap text-[#555555]">
                         {format(new Date(lead.created_at), "MMM d, yyyy")}
                       </TableCell>
                       <TableCell>
@@ -282,7 +308,7 @@ export default function SalespersonViewPage({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-8 w-8 text-[#999999] hover:text-[hsl(var(--jw-primary-green))] hover:bg-[#E6F7F1]"
                             onClick={() =>
                               router.push(
                                 `/admin/lead-management/leads/${lead.id}`
@@ -302,6 +328,13 @@ export default function SalespersonViewPage({
           )}
         </CardContent>
       </Card>
+
+      {/* Footer */}
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("legalNotice", "© 2024 Just Wills. All rights reserved.")}
+        </p>
+      </div>
     </div>
   );
 }

@@ -33,6 +33,7 @@ import {
   Minus,
   Star,
   User,
+  CheckCircle,
 } from "lucide-react";
 import {
   format,
@@ -95,10 +96,10 @@ interface DayLeaveData {
 }
 
 const getLeaveTypeConfig = (t: (key: string) => string): Record<LeaveType, { icon: any; color: string; bgColor: string; label: string }> => ({
-  annual: { icon: Plane, color: "text-blue-600", bgColor: "bg-blue-100", label: t("leaveBalances.annual") },
-  sick: { icon: Thermometer, color: "text-yellow-600", bgColor: "bg-yellow-100", label: t("leaveBalances.sick") },
-  emergency: { icon: AlertCircle, color: "text-orange-600", bgColor: "bg-orange-100", label: t("leaveType.emergency") },
-  unpaid: { icon: Wallet, color: "text-gray-600", bgColor: "bg-gray-100", label: t("leaveType.unpaid") },
+  annual: { icon: Plane, color: "text-[#2563EB]", bgColor: "bg-[#E6F0FF]", label: t("leaveBalances.annual") },
+  sick: { icon: Thermometer, color: "text-[#C6A03B]", bgColor: "bg-[#FFF9E6]", label: t("leaveBalances.sick") },
+  emergency: { icon: AlertCircle, color: "text-[#D97706]", bgColor: "bg-[#FFEDD5]", label: t("leaveType.emergency") },
+  unpaid: { icon: Wallet, color: "text-[#6B6B6B]", bgColor: "bg-[#F5F5F5]", label: t("leaveType.unpaid") },
 });
 
 // UAE holidays instance will be created with language in component
@@ -367,72 +368,128 @@ export default function LeaveCalendarPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/admin/hr/leave")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+    <div className="space-y-6 pb-12">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#222222]">{t("leaveCalendar.title")}</h1>
-            <p className="text-[#6B6B6B]">{t("leaveCalendar.description")}</p>
+            <div className="flex items-center gap-3 mb-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => router.push("/admin/hr/leave")}
+                className="h-8 w-8 hover:bg-[#F0F0EE]"
+              >
+                <ArrowLeft className="h-5 w-5 text-[#777777]" />
+              </Button>
+              <Calendar className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("leaveCalendar.title")}
+              </h1>
+            </div>
+            <p className="text-sm text-[#777777] ltr:ml-[88px] rtl:mr-[88px]">
+              {t("leaveCalendar.description")}
+            </p>
+          </div>
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-white ${
+            currentCoverage.percentage >= 85 
+              ? "border-[hsl(var(--jw-primary-green))]/30" 
+              : currentCoverage.percentage >= 70 
+                ? "border-[#C6A03B]/30"
+                : "border-[#C0392B]/30"
+          }`}>
+            <Users className={`h-4 w-4 ${
+              currentCoverage.percentage >= 85 
+                ? "text-[hsl(var(--jw-primary-green))]" 
+                : currentCoverage.percentage >= 70 
+                  ? "text-[#C6A03B]"
+                  : "text-[#C0392B]"
+            }`} />
+            <span className={`text-sm font-medium ${
+              currentCoverage.percentage >= 85 
+                ? "text-[hsl(var(--jw-primary-green))]" 
+                : currentCoverage.percentage >= 70 
+                  ? "text-[#C6A03B]"
+                  : "text-[#C0392B]"
+            }`}>
+              {currentCoverage.percentage}% {t("leaveCalendar.coverage")}
+            </span>
           </div>
         </div>
       </div>
 
       {/* Coverage Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-[#E6E6E4]">
+        <Card className="border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">{t("leaveCalendar.totalEmployees")}</p>
-                <p className="text-2xl font-bold text-[#222222]">{currentCoverage.totalEmployees}</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-[#6B6B6B]">{t("leaveCalendar.totalEmployees")}</p>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(198,160,59,0.15)]">
+                <Users className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <Users className="h-8 w-8 text-[#E6E6E4]" />
             </div>
+            <p className="text-2xl font-bold text-[#222222]">{currentCoverage.totalEmployees}</p>
+            <div className="h-0.5 w-0 group-hover:w-full bg-[#C6A03B] transition-all duration-300 mt-3" />
           </CardContent>
         </Card>
-        <Card className="border-[#E6E6E4]">
+        <Card className="border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">{t("leaveCalendar.onLeaveToday")}</p>
-                <p className="text-2xl font-bold text-blue-600">{currentCoverage.onLeave}</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-[#6B6B6B]">{t("leaveCalendar.onLeaveToday")}</p>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E6F0FF]">
+                <Plane className="h-5 w-5 text-[#2563EB]" />
               </div>
-              <Plane className="h-8 w-8 text-blue-500" />
             </div>
+            <p className="text-2xl font-bold text-[#222222]">{currentCoverage.onLeave}</p>
+            <div className="h-0.5 w-0 group-hover:w-full bg-[#2563EB] transition-all duration-300 mt-3" />
           </CardContent>
         </Card>
-        <Card className="border-[#E6E6E4]">
+        <Card className="border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">{t("leaveCalendar.availableToday")}</p>
-                <p className="text-2xl font-bold text-green-600">{currentCoverage.present}</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-[#6B6B6B]">{t("leaveCalendar.availableToday")}</p>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E6F7F1]">
+                <User className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <User className="h-8 w-8 text-green-500" />
             </div>
+            <p className="text-2xl font-bold text-[#222222]">{currentCoverage.present}</p>
+            <div className="h-0.5 w-0 group-hover:w-full bg-[#0C5536] transition-all duration-300 mt-3" />
           </CardContent>
         </Card>
-        <Card className="border-[#E6E6E4]">
+        <Card className={`border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group ${currentCoverage.percentage < 70 ? "border-[#C0392B]/30" : ""}`}>
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">{t("leaveCalendar.coverage")}</p>
-                <p className={`text-2xl font-bold ${currentCoverage.percentage >= 85 ? "text-green-600" : currentCoverage.percentage >= 70 ? "text-yellow-600" : "text-red-600"}`}>
-                  {currentCoverage.percentage}%
-                </p>
-              </div>
-              <div className={`h-8 w-8 rounded-full flex items-center justify-center ${currentCoverage.percentage >= 85 ? "bg-green-100" : currentCoverage.percentage >= 70 ? "bg-yellow-100" : "bg-red-100"}`}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-[#6B6B6B]">{t("leaveCalendar.coverage")}</p>
+              <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                currentCoverage.percentage >= 85 
+                  ? "bg-[#E6F7F1]" 
+                  : currentCoverage.percentage >= 70 
+                    ? "bg-[#FFF9E6]" 
+                    : "bg-[#FEECEC]"
+              }`}>
                 {currentCoverage.percentage >= 85 ? (
-                  <span className="text-green-600 text-lg">✓</span>
+                  <CheckCircle className="h-5 w-5 text-[#0C5536]" />
                 ) : (
-                  <AlertCircle className={`h-5 w-5 ${currentCoverage.percentage >= 70 ? "text-yellow-600" : "text-red-600"}`} />
+                  <AlertCircle className={`h-5 w-5 ${currentCoverage.percentage >= 70 ? "text-[#C6A03B]" : "text-[#C0392B]"}`} />
                 )}
               </div>
             </div>
+            <p className={`text-2xl font-bold ${
+              currentCoverage.percentage >= 85 
+                ? "text-[#0C5536]" 
+                : currentCoverage.percentage >= 70 
+                  ? "text-[#C6A03B]" 
+                  : "text-[#C0392B]"
+            }`}>
+              {currentCoverage.percentage}%
+            </p>
+            <div className={`h-0.5 w-0 group-hover:w-full transition-all duration-300 mt-3 ${
+              currentCoverage.percentage >= 85 
+                ? "bg-[#0C5536]" 
+                : currentCoverage.percentage >= 70 
+                  ? "bg-[#C6A03B]" 
+                  : "bg-[#C0392B]"
+            }`} />
           </CardContent>
         </Card>
       </div>
@@ -441,7 +498,7 @@ export default function LeaveCalendarPage() {
       <Card className="border-[#E6E6E4]">
         <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
               <Calendar className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
               {format(currentMonth, "MMMM yyyy")}
             </CardTitle>
@@ -452,8 +509,8 @@ export default function LeaveCalendarPage() {
                 value={selectedDepartment || "all"}
                 onValueChange={handleDepartmentChange}
               >
-                <SelectTrigger className="w-48">
-                  <Users className="h-4 w-4 mr-2 text-gray-500" />
+                <SelectTrigger className="w-48 border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
+                  <Users className="h-4 w-4 ltr:mr-2 rtl:ml-2 text-[#C6A03B]" />
                   <SelectValue placeholder={t("leaveCalendar.allDepartments")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -472,7 +529,7 @@ export default function LeaveCalendarPage() {
                   variant="outline"
                   size="icon"
                   onClick={handlePreviousMonth}
-                  className="h-9 w-9"
+                  className="h-9 w-9 border-[#E6E6E4] hover:bg-[#FDFBF4] hover:border-[#C6A03B]"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -480,6 +537,7 @@ export default function LeaveCalendarPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentMonth(new Date())}
+                  className="border-[#E6E6E4] hover:bg-[#FDFBF4] hover:border-[#C6A03B]"
                 >
                   {t("leaveCalendar.today")}
                 </Button>
@@ -487,7 +545,7 @@ export default function LeaveCalendarPage() {
                   variant="outline"
                   size="icon"
                   onClick={handleNextMonth}
-                  className="h-9 w-9"
+                  className="h-9 w-9 border-[#E6E6E4] hover:bg-[#FDFBF4] hover:border-[#C6A03B]"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -502,8 +560,8 @@ export default function LeaveCalendarPage() {
             {WEEKDAY_LABELS.map((label, index) => (
               <div
                 key={label}
-                className={`text-center text-xs font-medium py-2 ${
-                  index === 5 || index === 6 ? "text-gray-400" : "text-[#6B6B6B]"
+                className={`text-center text-xs font-semibold py-2 ${
+                  index === 5 || index === 6 ? "text-[#9CA3AF]" : "text-[#555555]"
                 }`}
               >
                 {label}
@@ -534,11 +592,11 @@ export default function LeaveCalendarPage() {
                 return (
                   <div
                     key={dateStr}
-                    className="h-20 md:h-24 flex flex-col items-center justify-center bg-gray-100 rounded-md"
+                    className="h-20 md:h-24 flex flex-col items-center justify-center bg-[#FAFAF8] rounded-md"
                     title="Weekend"
                   >
-                    <span className="text-sm font-medium text-gray-400">{dayNumber}</span>
-                    <Minus className="h-4 w-4 text-gray-400 mt-1" />
+                    <span className="text-sm font-medium text-[#9CA3AF]">{dayNumber}</span>
+                    <Minus className="h-4 w-4 text-[#9CA3AF] mt-1" />
                   </div>
                 );
               }
@@ -548,11 +606,11 @@ export default function LeaveCalendarPage() {
                 return (
                   <div
                     key={dateStr}
-                    className="h-20 md:h-24 flex flex-col items-center justify-center bg-amber-50 rounded-md border border-amber-200"
+                    className="h-20 md:h-24 flex flex-col items-center justify-center bg-[#FFF9E6] rounded-md border border-[#C6A03B]/30"
                     title={holidayName}
                   >
-                    <span className="text-sm font-medium text-amber-700">{dayNumber}</span>
-                    <Star className="h-4 w-4 text-amber-500 mt-1" />
+                    <span className="text-sm font-medium text-[#C6A03B]">{dayNumber}</span>
+                    <Star className="h-4 w-4 text-[#C6A03B] mt-1" />
                   </div>
                 );
               }
@@ -563,9 +621,13 @@ export default function LeaveCalendarPage() {
                 ? Math.round(((filteredEmployees.length - leaves.length) / filteredEmployees.length) * 100)
                 : 100;
               const coverageColor =
-                coveragePercent >= 85 ? "bg-green-50" :
-                coveragePercent >= 70 ? "bg-yellow-50" :
-                "bg-red-50";
+                coveragePercent >= 85 ? "bg-[#E6F7F1]" :
+                coveragePercent >= 70 ? "bg-[#FFF9E6]" :
+                "bg-[#FEECEC]";
+              const coverageBorder =
+                coveragePercent >= 85 ? "border-[#0C5536]/20" :
+                coveragePercent >= 70 ? "border-[#C6A03B]/20" :
+                "border-[#C0392B]/20";
 
               return (
                 <div
@@ -574,18 +636,18 @@ export default function LeaveCalendarPage() {
                     isToday ? "ring-2 ring-[hsl(var(--jw-primary-green))]" : ""
                   } ${
                     hasLeaves
-                      ? `${coverageColor} border-gray-200 cursor-pointer hover:opacity-80`
-                      : "bg-white border-gray-100"
+                      ? `${coverageColor} ${coverageBorder} cursor-pointer hover:opacity-80`
+                      : "bg-white border-[#E6E6E4]"
                   }`}
                   onClick={() => hasLeaves && handleDayClick(dateStr)}
                   title={hasLeaves ? `${leaves.length} on leave` : "No leaves"}
                 >
                   <div className="flex justify-between items-start">
-                    <span className={`text-sm font-medium ${isToday ? "text-[hsl(var(--jw-primary-green))]" : "text-gray-700"}`}>
+                    <span className={`text-sm font-medium ${isToday ? "text-[hsl(var(--jw-primary-green))]" : "text-[#555555]"}`}>
                       {dayNumber}
                     </span>
                     {hasLeaves && (
-                      <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-[#FFF9E6] text-[#C6A03B] border-0">
                         {leaves.length}
                       </Badge>
                     )}
@@ -603,7 +665,7 @@ export default function LeaveCalendarPage() {
                         );
                       })}
                       {leaves.length > 3 && (
-                        <span className="text-xs text-gray-500">+{leaves.length - 3}</span>
+                        <span className="text-xs text-[#777777]">+{leaves.length - 3}</span>
                       )}
                     </div>
                   )}
@@ -613,7 +675,7 @@ export default function LeaveCalendarPage() {
           </div>
 
           {/* Legend */}
-          <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-100">
+          <div className="flex flex-wrap gap-4 pt-4 border-t border-[#E6E6E4]">
             {(Object.keys(leaveTypeConfig) as LeaveType[]).map((type) => {
               const config = leaveTypeConfig[type];
               const Icon = config.icon;
@@ -621,19 +683,19 @@ export default function LeaveCalendarPage() {
                 <div key={type} className="flex items-center gap-2">
                   <div className={`w-3 h-3 rounded-full ${config.bgColor}`} />
                   <Icon className={`h-4 w-4 ${config.color}`} />
-                  <span className="text-sm text-gray-600">{config.label}</span>
+                  <span className="text-sm text-[#555555]">{config.label}</span>
                 </div>
               );
             })}
-            <div className="flex items-center gap-2 ml-4">
-              <div className="w-3 h-3 rounded bg-gray-100" />
-              <Minus className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-600">{t("leaveCalendar.weekend")}</span>
+            <div className="flex items-center gap-2 ltr:ml-4 rtl:mr-4">
+              <div className="w-3 h-3 rounded bg-[#F0F0EE] border border-[#D4D4D2]" />
+              <Minus className="h-4 w-4 text-[#9CA3AF]" />
+              <span className="text-sm text-[#555555]">{t("leaveCalendar.weekend")}</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-amber-100" />
-              <Star className="h-4 w-4 text-amber-500" />
-              <span className="text-sm text-gray-600">{t("leaveCalendar.holiday")}</span>
+              <div className="w-3 h-3 rounded bg-[#FFF9E6] border border-[#C6A03B]/30" />
+              <Star className="h-4 w-4 text-[#C6A03B]" />
+              <span className="text-sm text-[#555555]">{t("leaveCalendar.holiday")}</span>
             </div>
           </div>
         </CardContent>
@@ -643,7 +705,7 @@ export default function LeaveCalendarPage() {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-[hsl(var(--jw-primary-green))]">
               <Calendar className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
               {selectedDay && format(new Date(selectedDay.date), "EEEE, MMMM d, yyyy")}
             </DialogTitle>
@@ -651,12 +713,12 @@ export default function LeaveCalendarPage() {
           <div className="py-4">
             {selectedDay && (
               <>
-                <div className="mb-4 p-3 rounded-lg bg-gray-50">
+                <div className="mb-4 p-3 rounded-lg bg-[#FAFAF8] border border-[#E6E6E4]">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">{t("leaveCalendar.employeesOnLeave")}</span>
-                    <Badge variant="secondary">{selectedDay.leaves.length}</Badge>
+                    <span className="text-sm text-[#555555]">{t("leaveCalendar.employeesOnLeave")}</span>
+                    <Badge variant="secondary" className="bg-[#FFF9E6] text-[#C6A03B] border-0">{selectedDay.leaves.length}</Badge>
                   </div>
-                  <div className="mt-1 text-xs text-gray-500">
+                  <div className="mt-1 text-xs text-[#777777]">
                     {t("leaveCalendar.coverage")}: {filteredEmployees.length - selectedDay.leaves.length}/{filteredEmployees.length} {t("leaveCalendarPage.employeesAvailable")}
                   </div>
                 </div>
@@ -668,22 +730,22 @@ export default function LeaveCalendarPage() {
                     return (
                       <div
                         key={idx}
-                        className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
+                        className="flex items-center justify-between p-3 rounded-lg border border-[#E6E6E4] hover:bg-[#FDFBF4] transition-colors"
                       >
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-full ${config.bgColor}`}>
                             <Icon className={`h-4 w-4 ${config.color}`} />
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{leave.employeeName}</p>
-                            <p className="text-sm text-gray-500">{config.label}</p>
+                            <p className="font-medium text-[#222222]">{leave.employeeName}</p>
+                            <p className="text-sm text-[#6B6B6B]">{config.label}</p>
                           </div>
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleViewHistory(leave.employeeId)}
-                          className="text-[hsl(var(--jw-primary-green))] hover:text-[hsl(var(--jw-hover-green))]"
+                          className="text-[hsl(var(--jw-primary-green))] hover:text-[hsl(var(--jw-hover-green))] hover:bg-[#E6F7F1]"
                         >
                           {t("leaveCalendar.viewHistory")}
                         </Button>
@@ -696,6 +758,13 @@ export default function LeaveCalendarPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Footer */}
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("legalNotice")}
+        </p>
+      </div>
     </div>
   );
 }

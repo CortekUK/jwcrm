@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Phone, MessageCircle, Mail, Video, Users } from "lucide-react";
+import { Loader2, Phone, MessageCircle, Mail, Video, Users, PhoneOff, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
 
 interface CommunicationMethod {
@@ -50,10 +50,22 @@ interface AddCommunicationDialogProps {
   preSelectedMethodId?: string;
 }
 
+// Call outcome options
+const CALL_OUTCOMES = [
+  { value: "answered", icon: PhoneCall },
+  { value: "no_answer", icon: PhoneOff },
+  { value: "voicemail", icon: Phone },
+  { value: "busy", icon: PhoneOff },
+  { value: "wrong_number", icon: PhoneOff },
+] as const;
+
+type CallOutcome = typeof CALL_OUTCOMES[number]["value"];
+
 const communicationFormSchema = z.object({
   communication_method_id: z.string().min(1, "Please select a communication method"),
   scheduled_at: z.string().min(1, "Please select a date and time"),
   notes: z.string().optional(),
+  call_outcome: z.string().optional(),
 });
 
 type CommunicationFormValues = z.infer<typeof communicationFormSchema>;
@@ -84,8 +96,19 @@ export function AddCommunicationDialog({
       communication_method_id: "",
       scheduled_at: "",
       notes: "",
+      call_outcome: "",
     },
   });
+
+  // Watch the selected method to conditionally show call outcome
+  const selectedMethodId = useWatch({
+    control: form.control,
+    name: "communication_method_id",
+  });
+
+  // Check if the selected method is a phone call
+  const selectedMethod = methods.find((m) => m.id === selectedMethodId);
+  const isPhoneCall = selectedMethod?.icon === "phone" || selectedMethod?.name?.toLowerCase() === "phone";
 
   // Fetch communication methods when dialog opens
   useEffect(() => {
@@ -95,6 +118,7 @@ export function AddCommunicationDialog({
         communication_method_id: preSelectedMethodId || "",
         scheduled_at: new Date().toISOString().slice(0, 16),
         notes: "",
+        call_outcome: "",
       });
     }
   }, [open, form, preSelectedMethodId]);
@@ -115,6 +139,12 @@ export function AddCommunicationDialog({
   };
 
   const handleSubmit = async (data: CommunicationFormValues) => {
+    // Validate call outcome is selected for phone calls
+    if (isPhoneCall && !data.call_outcome) {
+      form.setError("call_outcome", { message: t("callOutcomeRequired") });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const response = await fetch(`/api/lead-management/leads/${leadId}/communications`, {
@@ -124,6 +154,7 @@ export function AddCommunicationDialog({
           communication_method_id: data.communication_method_id,
           scheduled_at: new Date(data.scheduled_at).toISOString(),
           notes: data.notes || null,
+          call_outcome: isPhoneCall ? data.call_outcome : null,
         }),
       });
 
@@ -152,8 +183,11 @@ export function AddCommunicationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{t("addCommunication")}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-[#C6A03B]" />
+            <span className="text-[hsl(var(--jw-primary-green))]">{t("addCommunication")}</span>
+          </DialogTitle>
+          <DialogDescription className="ltr:ml-7 rtl:mr-7">
             {t("addCommunicationDescription")}
           </DialogDescription>
         </DialogHeader>
@@ -164,20 +198,20 @@ export function AddCommunicationDialog({
               name="communication_method_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("communicationMethod")} *</FormLabel>
+                  <FormLabel className="text-[#555555]">{t("communicationMethod")} <span className="text-[#C0392B]">*</span></FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
                         <SelectValue placeholder={loadingMethods ? t("loading") : t("selectMethod")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {loadingMethods ? (
                         <div className="p-2 text-center">
-                          <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                          <Loader2 className="h-4 w-4 animate-spin mx-auto text-[#C6A03B]" />
                         </div>
                       ) : methods.length === 0 ? (
-                        <div className="p-2 text-center text-sm text-muted-foreground">
+                        <div className="p-2 text-center text-sm text-[#999999]">
                           {t("noMethodsAvailable")}
                         </div>
                       ) : (
@@ -192,21 +226,59 @@ export function AddCommunicationDialog({
                       )}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
+                  <FormMessage className="text-[#C0392B]" />
                 </FormItem>
               )}
             />
+
+            {/* Call Outcome - Only shown for phone calls */}
+            {isPhoneCall && (
+              <FormField
+                control={form.control}
+                name="call_outcome"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[#555555]">{t("callOutcome")} <span className="text-[#C0392B]">*</span></FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
+                          <SelectValue placeholder={t("selectCallOutcome")} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {CALL_OUTCOMES.map((outcome) => {
+                          const OutcomeIcon = outcome.icon;
+                          return (
+                            <SelectItem key={outcome.value} value={outcome.value}>
+                              <div className="flex items-center gap-2">
+                                <OutcomeIcon className="h-4 w-4" />
+                                <span>{t(`callOutcome_${outcome.value}`)}</span>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage className="text-[#C0392B]" />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
               name="scheduled_at"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("dateTime")} *</FormLabel>
+                  <FormLabel className="text-[#555555]">{t("dateTime")} <span className="text-[#C0392B]">*</span></FormLabel>
                   <FormControl>
-                    <Input type="datetime-local" {...field} />
+                    <Input 
+                      type="datetime-local" 
+                      className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                      {...field} 
+                    />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-[#C0392B]" />
                 </FormItem>
               )}
             />
@@ -216,30 +288,35 @@ export function AddCommunicationDialog({
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("notes")}</FormLabel>
+                  <FormLabel className="text-[#555555]">{t("notes")}</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder={t("communicationNotesPlaceholder")}
-                      className="resize-none"
+                      className="resize-none border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                       rows={3}
                       {...field}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-[#C0392B]" />
                 </FormItem>
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className="border-t border-[#E6E6E4] pt-4 mt-6">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
+                className="border-[#E6E6E4] hover:bg-[#F5F5F3]"
               >
                 {t("cancel")}
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+              >
                 {isSubmitting && <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />}
                 {t("addCommunication")}
               </Button>

@@ -37,7 +37,7 @@ export const departmentSchema = z.object({
 
 // Document upload schema
 export const documentUploadSchema = z.object({
-  document_type: z.enum(["passport", "employment_visa", "emirates_id", "employment_contract"]),
+  document_type: z.enum(["passport", "employment_visa", "emirates_id", "employment_contract", "certification"]),
   expiry_date: z.string().optional().or(z.literal("")),
 });
 
@@ -70,4 +70,5 @@ export const documentTypeOptions = [
   { value: "employment_visa", label: "Employment Visa" },
   { value: "emirates_id", label: "Emirates ID" },
   { value: "employment_contract", label: "Employment Contract" },
+  { value: "certification", label: "Certification" },
 ] as const;

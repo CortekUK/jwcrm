@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Edit, Archive, ArchiveRestore, Target, AlertTriangle, Loader2 } from "lucide-react";
+import { Plus, Search, Edit, Archive, ArchiveRestore, Target, AlertTriangle, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -64,6 +64,7 @@ type KPITableProps = {
   onRefresh: () => void;
   showArchived?: boolean;
   onShowArchivedChange?: (value: boolean) => void;
+  initialRoleFilter?: string;
 };
 
 export function KPITable({
@@ -74,14 +75,38 @@ export function KPITable({
   onRefresh,
   showArchived = false,
   onShowArchivedChange,
+  initialRoleFilter,
 }: KPITableProps) {
   const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
   const router = useRouter();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [jobRoleFilter, setJobRoleFilter] = useState<string>("all");
+  const [jobRoleFilter, setJobRoleFilter] = useState<string>(initialRoleFilter || "all");
   const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+  
+  // Sorting state
+  type SortColumn = "name" | "job_role" | "target" | "unit" | "weighting";
+  const [sortColumn, setSortColumn] = useState<SortColumn>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (column: SortColumn) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-4 w-4 text-[#999999]" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-4 w-4 text-[#C6A03B]" /> 
+      : <ArrowDown className="h-4 w-4 text-[#C6A03B]" />;
+  };
   const [selectedKPI, setSelectedKPI] = useState<KPI | null>(null);
   const [archiving, setArchiving] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -91,6 +116,31 @@ export function KPITable({
     const matchesSearch = kpi.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesJobRole = jobRoleFilter === "all" || kpi.job_role_id === jobRoleFilter;
     return matchesSearch && matchesJobRole;
+  });
+
+  // Sort KPIs
+  const sortedKPIs = [...filteredKPIs].sort((a, b) => {
+    let comparison = 0;
+    
+    switch (sortColumn) {
+      case "name":
+        comparison = a.name.localeCompare(b.name);
+        break;
+      case "job_role":
+        comparison = (a.job_role?.name || "").localeCompare(b.job_role?.name || "");
+        break;
+      case "target":
+        comparison = a.target_value - b.target_value;
+        break;
+      case "unit":
+        comparison = a.unit.localeCompare(b.unit);
+        break;
+      case "weighting":
+        comparison = a.weighting - b.weighting;
+        break;
+    }
+    
+    return sortDirection === "asc" ? comparison : -comparison;
   });
 
   // Calculate total weighting per job role
@@ -169,26 +219,50 @@ export function KPITable({
     return "bg-red-50 text-red-600";
   };
 
+  // Color palette for job role badges
+  const roleColorPalette = [
+    { bg: "bg-[rgba(12,85,54,0.1)]", text: "text-[#0C5536]" },       // Green
+    { bg: "bg-[rgba(139,92,246,0.1)]", text: "text-[#7C3AED]" },     // Purple
+    { bg: "bg-[rgba(20,184,166,0.1)]", text: "text-[#0D9488]" },     // Teal
+    { bg: "bg-[rgba(234,179,8,0.1)]", text: "text-[#CA8A04]" },      // Yellow
+    { bg: "bg-[rgba(59,130,246,0.1)]", text: "text-[#2563EB]" },     // Blue
+    { bg: "bg-[rgba(245,158,11,0.1)]", text: "text-[#D97706]" },     // Orange
+    { bg: "bg-[rgba(236,72,153,0.1)]", text: "text-[#DB2777]" },     // Pink
+    { bg: "bg-[rgba(99,102,241,0.1)]", text: "text-[#4F46E5]" },     // Indigo
+  ];
+
+  // Get consistent color for a job role based on its ID
+  const getJobRoleColor = (roleId: string) => {
+    if (!roleId) return { bg: "bg-[#F5F5F5]", text: "text-[#6B6B6B]" };
+    // Use a simple hash of the role ID to get a consistent color index
+    let hash = 0;
+    for (let i = 0; i < roleId.length; i++) {
+      hash = roleId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % roleColorPalette.length;
+    return roleColorPalette[index];
+  };
+
   return (
     <div className="space-y-4">
       {/* Header with Search, Filter and Add Button */}
       <div className={`flex flex-col md:flex-row gap-4 justify-between ${isRtl ? "md:flex-row-reverse" : ""}`}>
         <div className={`flex flex-col sm:flex-row gap-2 flex-1 ${isRtl ? "sm:flex-row-reverse" : ""}`}>
           <div className="relative flex-1 max-w-sm">
-            <Search className={`absolute top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B6B6B] ${isRtl ? "right-3" : "left-3"}`} />
+            <Search className={`absolute top-1/2 -translate-y-1/2 h-4 w-4 text-[#C6A03B] ${isRtl ? "right-3" : "left-3"}`} />
             <Input
-              placeholder={t("hr:searchEmployees")}
+              placeholder={t("hr:searchKPIs")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`border-[#E6E6E4] ${isRtl ? "pr-10" : "pl-10"}`}
+              className={`border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B] ${isRtl ? "pr-10" : "pl-10"}`}
             />
           </div>
           <Select value={jobRoleFilter} onValueChange={setJobRoleFilter}>
-            <SelectTrigger className="border-[#E6E6E4] w-full sm:w-[180px]">
-              <SelectValue placeholder={t("hr:selectJobRole")} />
+            <SelectTrigger className="border-[#E6E6E4] w-full sm:w-[200px]">
+              <SelectValue placeholder={t("hr:allJobRoles")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("hr:allEmployees")}</SelectItem>
+              <SelectItem value="all">{t("hr:allJobRoles")}</SelectItem>
               {jobRoles.map((role) => (
                 <SelectItem key={role.id} value={role.id}>
                   {role.name}
@@ -221,7 +295,7 @@ export function KPITable({
             onClick={onAddNew}
             className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
             {t("hr:addKPI")}
           </Button>
         </div>
@@ -245,25 +319,65 @@ export function KPITable({
       <div className="border border-[#E6E6E4] rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-[#FAFAF8]">
-              <TableHead>{t("hr:kpiName")}</TableHead>
-              <TableHead>{t("hr:jobRoles")}</TableHead>
-              <TableHead className="text-center">{t("hr:targetValue")}</TableHead>
-              <TableHead className="text-center">{t("hr:unit")}</TableHead>
-              <TableHead className="text-center">{t("hr:weighting")}</TableHead>
-              <TableHead className={isRtl ? "text-left" : "text-right"}>{t("hr:actions")}</TableHead>
+            <TableRow className="bg-[#FAFAF8] hover:bg-[#FAFAF8]">
+              <TableHead 
+                className="font-semibold text-[#222222] cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+                onClick={() => handleSort("name")}
+              >
+                <div className="flex items-center gap-1">
+                  {t("hr:kpiName")}
+                  {getSortIcon("name")}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="font-semibold text-[#222222] cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+                onClick={() => handleSort("job_role")}
+              >
+                <div className="flex items-center gap-1">
+                  {t("hr:jobRole")}
+                  {getSortIcon("job_role")}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="font-semibold text-[#222222] text-center cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+                onClick={() => handleSort("target")}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  {t("hr:targetValue")}
+                  {getSortIcon("target")}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="font-semibold text-[#222222] text-center cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+                onClick={() => handleSort("unit")}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  {t("hr:unit")}
+                  {getSortIcon("unit")}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="font-semibold text-[#222222] text-center cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+                onClick={() => handleSort("weighting")}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  {t("hr:weighting")}
+                  {getSortIcon("weighting")}
+                </div>
+              </TableHead>
+              <TableHead className={`font-semibold text-[#222222] ${isRtl ? "text-left" : "text-right"}`}>{t("hr:actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredKPIs.length === 0 ? (
+            {sortedKPIs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  <Target className="h-12 w-12 text-[#E6E6E4] mx-auto mb-2" />
+                <TableCell colSpan={6} className="text-center py-12">
+                  <Target className="h-10 w-10 text-[#C6A03B] mx-auto mb-3" />
                   <p className="text-[#6B6B6B]">{t("hr:noKPIs")}</p>
                 </TableCell>
               </TableRow>
             ) : (
-              filteredKPIs.map((kpi) => (
+              sortedKPIs.map((kpi) => (
                 <TableRow key={kpi.id} className={`hover:bg-[#FAFAF8] ${kpi.is_archived ? "opacity-60" : ""}`}>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -283,9 +397,13 @@ export function KPITable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="border-[#E6E6E4]">
-                      {kpi.job_role?.name || "-"}
-                    </Badge>
+                    {kpi.job_role ? (
+                      <Badge className={`${getJobRoleColor(kpi.job_role_id).bg} ${getJobRoleColor(kpi.job_role_id).text} border-0`}>
+                        {kpi.job_role.name}
+                      </Badge>
+                    ) : (
+                      <span className="text-[#6B6B6B]">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
                     <span className="font-medium">{kpi.target_value}</span>
@@ -346,7 +464,7 @@ export function KPITable({
       {/* Results Count */}
       <div className="text-sm text-[#6B6B6B]">
         {t("hr:showingResults", {
-          count: filteredKPIs.length,
+          count: sortedKPIs.length,
           total: kpis.length,
         })}
       </div>

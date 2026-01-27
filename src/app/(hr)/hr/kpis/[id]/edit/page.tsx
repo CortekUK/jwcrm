@@ -5,10 +5,9 @@ import { useRouter, useParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { AddKPIForm } from "@/components/hr/kpis";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Target } from "lucide-react";
+import { ArrowLeft, Target, Edit3 } from "lucide-react";
 import type { KPIFormData } from "@/lib/kpi-validation";
 
 export default function EditKPIPage() {
@@ -69,72 +68,102 @@ export default function EditKPIPage() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <Skeleton className="h-10 w-24" />
-        <Card className="border-[#E6E6E4]">
-          <CardHeader>
-            <Skeleton className="h-6 w-48" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-10 w-32" />
-          </CardContent>
-        </Card>
+      <div className="space-y-6 pb-12">
+        {/* Hero Banner Skeleton */}
+        <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+          <div className="max-w-2xl mx-auto">
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </div>
+        <div className="max-w-2xl mx-auto">
+          <Card className="border-[#E6E6E4]">
+            <CardContent className="p-6 space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-10 w-32" />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   if (notFound) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className={`text-[#6B6B6B] hover:text-[#222222] ${isRtl ? "flex-row-reverse" : ""}`}
-        >
-          <ArrowLeft className={`h-4 w-4 ${isRtl ? "ml-2 rotate-180" : "mr-2"}`} />
-          {t("hr:back")}
-        </Button>
-        <Card className="border-[#E6E6E4]">
-          <CardContent className="py-12 text-center">
-            <Target className="h-12 w-12 text-[#E6E6E4] mx-auto mb-4" />
-            <p className="text-[#6B6B6B]">{t("hr:noKPIs")}</p>
-          </CardContent>
-        </Card>
+      <div className="space-y-6 pb-12">
+        {/* Hero Banner */}
+        <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center gap-3 mb-2">
+              <button
+                onClick={() => router.back()}
+                className="flex items-center justify-center h-8 w-8 rounded-lg bg-white border border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-colors"
+              >
+                <ArrowLeft className={`h-4 w-4 text-[#555555] ${isRtl ? "rotate-180" : ""}`} />
+              </button>
+              <Target className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("hr:editKPI")}
+              </h1>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-2xl mx-auto">
+          <Card className="border-[#E6E6E4]">
+            <CardContent className="py-12 text-center">
+              <Target className="h-10 w-10 text-[#C6A03B] mx-auto mb-3" />
+              <p className="text-[#6B6B6B]">{t("hr:kpiNotFound")}</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Back Button */}
-      <Button
-        variant="ghost"
-        onClick={() => router.back()}
-        className={`text-[#6B6B6B] hover:text-[#222222] ${isRtl ? "flex-row-reverse" : ""}`}
-      >
-        <ArrowLeft className={`h-4 w-4 ${isRtl ? "ml-2 rotate-180" : "mr-2"}`} />
-        {t("hr:back")}
-      </Button>
+    <div className="space-y-6 pb-12">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center gap-3 mb-2">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center justify-center h-8 w-8 rounded-lg bg-white border border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-colors"
+            >
+              <ArrowLeft className={`h-4 w-4 text-[#555555] ${isRtl ? "rotate-180" : ""}`} />
+            </button>
+            <Edit3 className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+            <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+              {t("hr:editKPI")}
+            </h1>
+          </div>
+          <p className="text-sm text-[#777777] ltr:ml-[4.5rem] rtl:mr-[4.5rem]">
+            {t("hr:editKPIDescription")}
+          </p>
+        </div>
+      </div>
 
       {/* Form Card */}
-      <Card className="border-[#E6E6E4]">
-        <CardHeader>
-          <CardTitle className={`flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`}>
-            <Target className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-            {t("hr:editKPI")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AddKPIForm
-            editData={kpi!}
-            onSuccess={handleSuccess}
-            onCancel={handleCancel}
-          />
-        </CardContent>
-      </Card>
+      <div className="max-w-2xl mx-auto">
+        <Card className="border-[#E6E6E4]">
+          <CardContent className="p-6">
+            <AddKPIForm
+              editData={kpi!}
+              onSuccess={handleSuccess}
+              onCancel={handleCancel}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Footer */}
+      <div className="max-w-2xl mx-auto mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("hr:legalNotice")}
+        </p>
+      </div>
     </div>
   );
 }

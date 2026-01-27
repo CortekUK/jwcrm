@@ -47,7 +47,7 @@ export const formatNumber = (
 export const formatCurrency = (
   amount: number,
   locale: Locale,
-  currency: string = 'USD'
+  currency: string = 'AED'
 ): string => {
   return new Intl.NumberFormat(locale === 'ar' ? 'ar-SA' : 'en-US', {
     style: 'currency',
@@ -106,13 +106,13 @@ export const formatInvoiceNumber = (invoiceNumber: string, locale: Locale): stri
  * Includes currency symbol placement based on locale
  * @param amount - Amount in decimal
  * @param locale - Target locale
- * @param currency - Currency code (default: USD)
+ * @param currency - Currency code (default: AED)
  * @returns Formatted currency string
  */
 export const formatCurrencyDisplay = (
   amount: number,
   locale: Locale,
-  currency: string = 'USD'
+  currency: string = 'AED'
 ): string => {
   const formatted = new Intl.NumberFormat(locale === 'ar' ? 'ar-SA' : 'en-US', {
     style: 'currency',

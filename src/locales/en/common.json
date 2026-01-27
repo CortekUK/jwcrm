@@ -33,6 +33,7 @@
   "yourAccountDetails": "Your account details",
   "fullName": "Full Name",
   "email": "Email",
+  "roleLabel": "Role",
   "role": {
     "superadmin": "Super Admin",
     "admin": "Admin",
@@ -47,5 +48,11 @@
   "settings": "Settings",
   "settingsDescription": "Manage your account settings",
   "dashboard": "Dashboard",
-  "internalDashboard": "Internal Dashboard"
+  "internalDashboard": "Internal Dashboard",
+  "collapseSidebar": "Collapse sidebar",
+  "expandSidebar": "Expand sidebar",
+  "theme": "Theme",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "themeSystem": "System"
 }

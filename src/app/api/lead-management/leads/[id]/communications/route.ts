@@ -60,6 +60,9 @@ export async function GET(
   }
 }
 
+// Valid call outcomes matching the database enum
+const VALID_CALL_OUTCOMES = ["answered", "no_answer", "voicemail", "busy", "wrong_number"];
+
 // POST - Add new communication to lead
 export async function POST(
   request: NextRequest,
@@ -68,7 +71,7 @@ export async function POST(
   try {
     const { id: leadId } = await params;
     const body = await request.json();
-    const { communication_method_id, scheduled_at, notes, created_by } = body;
+    const { communication_method_id, scheduled_at, notes, created_by, call_outcome } = body;
 
     if (!communication_method_id) {
       return NextResponse.json(
@@ -80,6 +83,14 @@ export async function POST(
     if (!scheduled_at) {
       return NextResponse.json(
         { error: "Date/time is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate call_outcome if provided
+    if (call_outcome && !VALID_CALL_OUTCOMES.includes(call_outcome)) {
+      return NextResponse.json(
+        { error: "Invalid call outcome" },
         { status: 400 }
       );
     }
@@ -103,6 +114,7 @@ export async function POST(
         scheduled_at,
         notes: notes || null,
         created_by: created_by || null,
+        call_outcome: call_outcome || null,
       })
       .select(`
         *,
@@ -119,6 +131,8 @@ export async function POST(
     }
 
     // Update lead status to 'contacted' when communication is logged
+    // Note: If call_outcome indicates the call wasn't answered, the database trigger
+    // will handle creating retry reminders and tracking attempt counts
     await supabaseAdmin
       .from("leads")
       .update({ status: "contacted" })

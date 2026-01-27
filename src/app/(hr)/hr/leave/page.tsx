@@ -23,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "react-i18next";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Loader2,
   CalendarDays,
@@ -37,11 +37,19 @@ import {
   Wallet,
   User,
   Calendar,
+  Search,
+  Filter,
+  X,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Download,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays, isWeekend, eachDayOfInterval, isFriday, isSaturday } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
+import { ExportLeaveModal } from "@/components/hr/leave/ExportLeaveModal";
 
 type LeaveType = Database["public"]["Enums"]["leave_type"];
 type LeaveRequestStatus = Database["public"]["Enums"]["leave_request_status"];
@@ -71,7 +79,7 @@ interface AttendanceConflict {
 }
 
 const getLeaveTypeConfig = (t: (key: string) => string): Record<LeaveType, { icon: any; color: string; label: string }> => ({
-  annual: { icon: Plane, color: "text-blue-600", label: t("leaveType.annual") },
+  annual: { icon: Plane, color: "text-purple-600", label: t("leaveType.annual") },
   sick: { icon: Thermometer, color: "text-yellow-600", label: t("leaveType.sick") },
   emergency: { icon: AlertCircle, color: "text-orange-600", label: t("leaveType.emergency") },
   unpaid: { icon: Wallet, color: "text-gray-600", label: t("leaveType.unpaid") },
@@ -133,12 +141,41 @@ async function sendLeaveNotification(params: {
 export default function LeavePage() {
   const { t } = useTranslation(["hr"]);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const leaveTypeConfig = getLeaveTypeConfig(t);
 
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("pending");
+  const [leaveTypeFilter, setLeaveTypeFilter] = useState<string>("all");
+
+  // Sorting state
+  type SortColumn = "employee" | "type" | "dates" | "days" | "status" | "submitted";
+  const [sortColumn, setSortColumn] = useState<SortColumn>("submitted");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (column: SortColumn) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-3 w-3 text-[#999999]" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-3 w-3 text-[#C6A03B]" /> 
+      : <ArrowDown className="h-3 w-3 text-[#C6A03B]" />;
+  };
 
   // New request dialog
   const [newRequestOpen, setNewRequestOpen] = useState(false);
@@ -159,17 +196,19 @@ export default function LeavePage() {
   const [conflictRequest, setConflictRequest] = useState<LeaveRequest | null>(null);
   const [conflicts, setConflicts] = useState<AttendanceConflict[]>([]);
 
+  // Export modal
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch pending leave requests with employee names
+      // Fetch all leave requests with employee names (not just pending)
       const { data: requestsData } = await supabase
         .from("leave_requests")
         .select(`
           *,
           employees!inner(full_name)
         `)
-        .eq("status", "pending")
         .order("created_at", { ascending: false });
 
       const formattedRequests: LeaveRequest[] = (requestsData || []).map((req: any) => ({
@@ -207,9 +246,74 @@ export default function LeavePage() {
     }
   }, [toast, t]);
 
+  // Filter requests based on current filters
+  const filteredRequests = requests.filter((request) => {
+    // Status filter
+    if (statusFilter !== "all" && request.status !== statusFilter) {
+      return false;
+    }
+
+    // Leave type filter
+    if (leaveTypeFilter !== "all" && request.leave_type !== leaveTypeFilter) {
+      return false;
+    }
+
+    // Search filter (employee name)
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      if (!request.employee_name.toLowerCase().includes(query)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Sort requests
+  const sortedRequests = [...filteredRequests].sort((a, b) => {
+    let comparison = 0;
+    
+    switch (sortColumn) {
+      case "employee":
+        comparison = a.employee_name.localeCompare(b.employee_name);
+        break;
+      case "type":
+        comparison = a.leave_type.localeCompare(b.leave_type);
+        break;
+      case "dates":
+        comparison = new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+        break;
+      case "days":
+        comparison = a.total_days - b.total_days;
+        break;
+      case "status":
+        comparison = a.status.localeCompare(b.status);
+        break;
+      case "submitted":
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        break;
+    }
+    
+    return sortDirection === "asc" ? comparison : -comparison;
+  });
+
+  // Get pending count for badge
+  const pendingCount = requests.filter((r) => r.status === "pending").length;
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Open new request dialog if action=new in URL
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (action === "new") {
+      setNewRequestOpen(true);
+      // Clear the action parameter from URL without navigation
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, [searchParams]);
 
   // Check for attendance conflicts before approving
   const checkAttendanceConflicts = async (request: LeaveRequest): Promise<AttendanceConflict[]> => {
@@ -582,82 +686,234 @@ export default function LeavePage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#222222]">{t("leavePage.leaveRequests")}</h1>
-          <p className="text-[#6B6B6B]">{t("leavePage.manageLeaveRequests")}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => router.push("/admin/hr/leave/calendar")}>
-            <Calendar className="h-4 w-4 mr-2" />
-            {t("leaveCalendar.title")}
-          </Button>
-          <Button variant="outline" onClick={() => router.push("/admin/hr/leave/balances")}>
-            {t("leavePage.viewBalances")}
-          </Button>
-          <Button
-            onClick={() => setNewRequestOpen(true)}
-            className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {t("leavePage.newRequest")}
-          </Button>
+    <div className="space-y-6 pb-12">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <CalendarDays className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("leavePage.leaveRequests")}
+              </h1>
+            </div>
+            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+              {t("leavePage.manageLeaveRequests")}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => router.push("/admin/hr/leave/calendar")}
+              className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+            >
+              <Calendar className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+              {t("leaveCalendar.title")}
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => router.push("/admin/hr/leave/balances")}
+              className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+            >
+              <Wallet className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+              {t("leavePage.viewBalances")}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setExportModalOpen(true)}
+              className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+            >
+              <Download className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+              {t("hr:export", "Export")}
+            </Button>
+            <Button
+              onClick={() => setNewRequestOpen(true)}
+              className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+            >
+              <Plus className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+              {t("leavePage.newRequest")}
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-[#E6E6E4]">
+        <Card 
+          className={`border-[#E6E6E4] cursor-pointer transition-all hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] ${statusFilter === "pending" ? "ring-2 ring-[#C6A03B]" : ""}`}
+          onClick={() => setStatusFilter("pending")}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">{t("leavePage.pendingCount")}</p>
-                <p className="text-2xl font-bold text-yellow-600">{requests.length}</p>
+              <p className="text-sm text-[#6B6B6B]">{t("leavePage.pendingCount")}</p>
+              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                <Clock className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <Clock className="h-8 w-8 text-yellow-500" />
             </div>
+            <p className="text-2xl font-bold mt-2 text-[#222222]">{pendingCount}</p>
           </CardContent>
         </Card>
         {(Object.keys(leaveTypeConfig) as LeaveType[]).slice(0, 3).map((type) => {
           const config = leaveTypeConfig[type];
           const Icon = config.icon;
-          const count = requests.filter((r) => r.leave_type === type).length;
+          const count = requests.filter((r) => r.leave_type === type && r.status === "pending").length;
 
           return (
-            <Card key={type} className="border-[#E6E6E4]">
+            <Card 
+              key={type} 
+              className={`border-[#E6E6E4] cursor-pointer transition-all hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] ${leaveTypeFilter === type ? "ring-2 ring-[#C6A03B]" : ""}`}
+              onClick={() => {
+                setLeaveTypeFilter(leaveTypeFilter === type ? "all" : type);
+                setStatusFilter("pending");
+              }}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-[#6B6B6B]">{config.label}</p>
-                    <p className={`text-2xl font-bold ${count > 0 ? config.color : "text-[#222222]"}`}>{count}</p>
+                  <p className="text-sm text-[#6B6B6B]">{config.label}</p>
+                  <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                    <Icon className="h-5 w-5 text-[#0C5536]" />
                   </div>
-                  <Icon className={`h-8 w-8 ${count > 0 ? config.color : "text-[#E6E6E4]"}`} />
                 </div>
+                <p className="text-2xl font-bold mt-2 text-[#222222]">{count}</p>
               </CardContent>
             </Card>
           );
         })}
       </div>
 
-      {/* Pending Requests */}
+      {/* Filter Bar */}
       <Card className="border-[#E6E6E4]">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Clock className="h-5 w-5 text-yellow-500" />
-            {t("leavePage.pendingRequests")} ({requests.length})
-          </CardTitle>
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#C6A03B]" />
+              <Input
+                placeholder={t("leavePage.searchEmployee", "Search by employee name...")}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="ltr:pl-9 rtl:pr-9 border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+              />
+            </div>
+
+            {/* Status Filter */}
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full md:w-[180px] border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
+                <SelectValue placeholder={t("leavePage.filterByStatus", "Filter by status")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("leavePage.allStatuses", "All Statuses")}</SelectItem>
+                <SelectItem value="pending">{t("leavePage.statusPending", "Pending")}</SelectItem>
+                <SelectItem value="approved">{t("leavePage.statusApproved", "Approved")}</SelectItem>
+                <SelectItem value="denied">{t("leavePage.statusDenied", "Denied")}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Leave Type Filter */}
+            <Select value={leaveTypeFilter} onValueChange={setLeaveTypeFilter}>
+              <SelectTrigger className="w-full md:w-[180px] border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
+                <SelectValue placeholder={t("leavePage.filterByType", "Filter by type")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("leavePage.allTypes", "All Types")}</SelectItem>
+                {(Object.keys(leaveTypeConfig) as LeaveType[]).map((type) => {
+                  const config = leaveTypeConfig[type];
+                  const Icon = config.icon;
+                  return (
+                    <SelectItem key={type} value={type}>
+                      <div className="flex items-center gap-2">
+                        <Icon className={`h-4 w-4 ${config.color}`} />
+                        {config.label}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+
+            {/* Sort By */}
+            <Select value={`${sortColumn}-${sortDirection}`} onValueChange={(value) => {
+              const [col, dir] = value.split("-") as [SortColumn, "asc" | "desc"];
+              setSortColumn(col);
+              setSortDirection(dir);
+            }}>
+              <SelectTrigger className="w-full md:w-[180px] border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
+                <SelectValue placeholder={t("leavePage.sortBy", "Sort by")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="submitted-desc">{t("leavePage.sortNewest", "Newest First")}</SelectItem>
+                <SelectItem value="submitted-asc">{t("leavePage.sortOldest", "Oldest First")}</SelectItem>
+                <SelectItem value="employee-asc">{t("leavePage.sortEmployeeAZ", "Employee A-Z")}</SelectItem>
+                <SelectItem value="employee-desc">{t("leavePage.sortEmployeeZA", "Employee Z-A")}</SelectItem>
+                <SelectItem value="dates-asc">{t("leavePage.sortDateEarliest", "Start Date (Earliest)")}</SelectItem>
+                <SelectItem value="dates-desc">{t("leavePage.sortDateLatest", "Start Date (Latest)")}</SelectItem>
+                <SelectItem value="days-desc">{t("leavePage.sortDaysMore", "Most Days")}</SelectItem>
+                <SelectItem value="days-asc">{t("leavePage.sortDaysLess", "Fewest Days")}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Clear Filters */}
+            {(searchQuery || statusFilter !== "pending" || leaveTypeFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setStatusFilter("pending");
+                  setLeaveTypeFilter("all");
+                }}
+                className="text-[#777777] hover:text-[#222222]"
+              >
+                <X className="h-4 w-4 ltr:mr-1 rtl:ml-1" />
+                {t("leavePage.clearFilters", "Clear")}
+              </Button>
+            )}
+          </div>
+
+          {/* Results count */}
+          <div className="mt-3 text-sm text-[#6B6B6B]">
+            {t("leavePage.showingResults", "Showing {{count}} of {{total}} requests", { 
+              count: sortedRequests.length, 
+              total: requests.length 
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Leave Requests */}
+      <Card className="border-[#E6E6E4]">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+            <CardTitle className="text-xl font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+              {statusFilter === "pending" 
+                ? t("leavePage.pendingRequests") 
+                : statusFilter === "approved" 
+                  ? t("leavePage.approvedRequests", "Approved Requests")
+                  : statusFilter === "denied"
+                    ? t("leavePage.deniedRequests", "Denied Requests")
+                    : t("leavePage.allRequests", "All Requests")}
+            </CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
-          {requests.length === 0 ? (
-            <div className="text-center py-8 text-[#6B6B6B]">
-              <CalendarDays className="h-12 w-12 mx-auto mb-2 text-[#E6E6E4]" />
-              <p>{t("leavePage.noPendingRequests")}</p>
+          {sortedRequests.length === 0 ? (
+            <div className="text-center py-12 text-[#6B6B6B]">
+              <CalendarDays className="h-10 w-10 mx-auto mb-3 text-[#C6A03B]" />
+              <p className="font-medium text-[#222222]">
+                {statusFilter === "pending" 
+                  ? t("leavePage.noPendingRequests") 
+                  : t("leavePage.noRequestsFound", "No requests found")}
+              </p>
+              <p className="text-sm mt-1">
+                {statusFilter === "pending" 
+                  ? t("leavePage.allCaughtUp", "All caught up!") 
+                  : t("leavePage.tryDifferentFilters", "Try adjusting your filters")}
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {requests.map((request) => {
+            <div className="space-y-3">
+              {sortedRequests.map((request) => {
                 const config = leaveTypeConfig[request.leave_type];
                 const Icon = config.icon;
                 const daysAgo = differenceInDays(new Date(), new Date(request.created_at));
@@ -665,28 +921,53 @@ export default function LeavePage() {
                 return (
                   <div
                     key={request.id}
-                    className="p-4 rounded-lg border border-[#E6E6E4] bg-white hover:bg-gray-50"
+                    className="p-4 rounded-lg border border-[#E6E6E4] bg-white hover:border-[#C6A03B]/50 hover:bg-[#FAFAF8] transition-colors"
                   >
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <User className="h-5 w-5 text-[#6B6B6B]" />
+                          <div className="h-8 w-8 rounded-full bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
+                            <span className="text-xs font-semibold text-[hsl(var(--jw-primary-green))]">
+                              {request.employee_name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                            </span>
+                          </div>
                           <span className="font-medium text-[#222222]">{request.employee_name}</span>
-                          <Badge className={`${config.color.replace("text", "bg").replace("600", "100")} ${config.color}`}>
-                            <Icon className="h-3 w-3 mr-1" />
+                          <Badge className={`${config.color.replace("text", "bg").replace("600", "100")} ${config.color} border-0`}>
+                            <Icon className="h-3 w-3 ltr:mr-1 rtl:ml-1" />
                             {config.label}
                           </Badge>
+                          {/* Status Badge */}
+                          {request.status === "approved" && (
+                            <Badge className="bg-[#E6F7F1] text-[#0C5536] border-0">
+                              <CheckCircle className="h-3 w-3 ltr:mr-1 rtl:ml-1" />
+                              {t("leavePage.statusApproved", "Approved")}
+                            </Badge>
+                          )}
+                          {request.status === "denied" && (
+                            <Badge className="bg-[#FEECEC] text-[#C0392B] border-0">
+                              <XCircle className="h-3 w-3 ltr:mr-1 rtl:ml-1" />
+                              {t("leavePage.statusDenied", "Denied")}
+                            </Badge>
+                          )}
+                          {request.status === "pending" && (
+                            <Badge className="bg-[#FFF9E6] text-[#C6A03B] border-0">
+                              <Clock className="h-3 w-3 ltr:mr-1 rtl:ml-1" />
+                              {t("leavePage.statusPending", "Pending")}
+                            </Badge>
+                          )}
                         </div>
-                        <div className="text-sm text-[#6B6B6B] space-y-1 ml-8">
+                        <div className="text-sm text-[#6B6B6B] space-y-1 ltr:ml-11 rtl:mr-11">
                           <p>
-                            <span className="font-medium">{t("leavePage.dates")}:</span>{" "}
+                            <span className="font-medium text-[#555555]">{t("leavePage.dates")}:</span>{" "}
                             {format(new Date(request.start_date), "MMM d")} -{" "}
                             {format(new Date(request.end_date), "MMM d, yyyy")}
-                            <span className="ml-2 font-medium">({request.total_days} {t("days")})</span>
+                            <Badge variant="outline" className="ml-2 text-[#222222] border-[#E6E6E4]">
+                              {request.total_days} {t("days")}
+                            </Badge>
                           </p>
                           {request.reason && (
                             <p>
-                              <span className="font-medium">{t("common.reason")}:</span> {request.reason}
+                              <span className="font-medium text-[#555555]">{t("common.reason")}:</span> {request.reason}
                             </p>
                           )}
                           <p className="text-xs text-[#999999]">
@@ -694,28 +975,30 @@ export default function LeavePage() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 ml-8 md:ml-0">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 border-red-200 hover:bg-red-50"
-                          onClick={() => {
-                            setSelectedRequest(request);
-                            setDenyDialogOpen(true);
-                          }}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          {t("leavePage.deny")}
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => handleApprove(request)}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          {t("leavePage.approve")}
-                        </Button>
-                      </div>
+                      {request.status === "pending" && (
+                        <div className="flex items-center gap-2 ltr:ml-11 rtl:mr-11 md:ml-0 md:mr-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[#C0392B] border-[#C0392B]/30 hover:bg-[#C0392B]/10"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setDenyDialogOpen(true);
+                            }}
+                          >
+                            <XCircle className="h-4 w-4 ltr:mr-1 rtl:ml-1" />
+                            {t("leavePage.deny")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-[#0C5536] hover:bg-[#094228] text-white"
+                            onClick={() => handleApprove(request)}
+                          >
+                            <CheckCircle className="h-4 w-4 ltr:mr-1 rtl:ml-1" />
+                            {t("leavePage.approve")}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -729,14 +1012,17 @@ export default function LeavePage() {
       <Dialog open={newRequestOpen} onOpenChange={setNewRequestOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{t("leavePage.submitLeaveRequest")}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-[hsl(var(--jw-primary-green))]">
+              <Plus className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+              {t("leavePage.submitLeaveRequest")}
+            </DialogTitle>
             <DialogDescription>{t("leavePage.submitRequestDescription")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="employee">{t("leavePage.employee")}</Label>
+              <Label htmlFor="employee" className="text-[#555555]">{t("leavePage.employee")} <span className="text-red-500">*</span></Label>
               <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger>
+                <SelectTrigger className="border-[#E6E6E4]">
                   <SelectValue placeholder={t("leavePage.selectEmployee")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -749,9 +1035,9 @@ export default function LeavePage() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="leave_type">{t("leavePage.leaveTypeLabel")}</Label>
+              <Label htmlFor="leave_type" className="text-[#555555]">{t("leavePage.leaveTypeLabel")} <span className="text-red-500">*</span></Label>
               <Select value={leaveType} onValueChange={(v) => setLeaveType(v as LeaveType)}>
-                <SelectTrigger>
+                <SelectTrigger className="border-[#E6E6E4]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -772,54 +1058,59 @@ export default function LeavePage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="start_date">{t("leavePage.startDate")}</Label>
+                <Label htmlFor="start_date" className="text-[#555555]">{t("leavePage.startDate")} <span className="text-red-500">*</span></Label>
                 <Input
                   id="start_date"
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="end_date">{t("leavePage.endDate")}</Label>
+                <Label htmlFor="end_date" className="text-[#555555]">{t("leavePage.endDate")} <span className="text-red-500">*</span></Label>
                 <Input
                   id="end_date"
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   min={startDate}
+                  className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                 />
               </div>
             </div>
             {calculatedDays > 0 && (
-              <p className="text-sm text-[#6B6B6B]">
-                {t("leavePage.workingDays")}: <span className="font-medium text-[#222222]">{calculatedDays}</span>{" "}
-                <span className="text-xs">({t("leavePage.excludingFriSat")})</span>
-              </p>
+              <div className="p-3 rounded-lg bg-[#E6F7F1] border border-[#0C5536]/20">
+                <p className="text-sm text-[#0C5536]">
+                  {t("leavePage.workingDays")}: <span className="font-semibold">{calculatedDays}</span>{" "}
+                  <span className="text-xs opacity-75">({t("leavePage.excludingFriSat")})</span>
+                </p>
+              </div>
             )}
             <div className="grid gap-2">
-              <Label htmlFor="reason">{t("leavePage.reasonOptional")}</Label>
+              <Label htmlFor="reason" className="text-[#555555]">{t("leavePage.reasonOptional")}</Label>
               <Textarea
                 id="reason"
                 placeholder={t("leavePage.enterReason")}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={3}
+                className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNewRequestOpen(false)}>
+            <Button variant="outline" onClick={() => setNewRequestOpen(false)} className="border-[#E6E6E4]">
               {t("common.cancel")}
             </Button>
             <Button
               onClick={handleSubmitRequest}
               disabled={isSubmitting || !selectedEmployee || !startDate || !endDate}
-              className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))]"
+              className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />
                   {t("leavePage.submitting")}
                 </>
               ) : (
@@ -834,33 +1125,37 @@ export default function LeavePage() {
       <Dialog open={denyDialogOpen} onOpenChange={setDenyDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>{t("leavePage.denyLeaveRequest")}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-[#C0392B]">
+              <XCircle className="h-5 w-5" />
+              {t("leavePage.denyLeaveRequest")}
+            </DialogTitle>
             <DialogDescription>
               {selectedRequest && t("leavePage.denyDescription", { name: selectedRequest.employee_name, type: leaveTypeConfig[selectedRequest.leave_type].label })}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="denial_reason">{t("leavePage.reasonForDenial")}</Label>
+              <Label htmlFor="denial_reason" className="text-[#555555]">{t("leavePage.reasonForDenial")} <span className="text-red-500">*</span></Label>
               <Textarea
                 id="denial_reason"
                 placeholder={t("leavePage.enterDenialReason")}
                 value={denialReason}
                 onChange={(e) => setDenialReason(e.target.value)}
                 rows={3}
+                className="border-[#E6E6E4] focus:border-[#C0392B] focus:ring-1 focus:ring-[#C0392B]"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDenyDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setDenyDialogOpen(false)} className="border-[#E6E6E4]">
               {t("common.cancel")}
             </Button>
             <Button
               onClick={handleDeny}
               disabled={!denialReason.trim()}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-[#C0392B] hover:bg-[#A33025] text-white"
             >
-              <XCircle className="mr-2 h-4 w-4" />
+              <XCircle className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
               {t("leavePage.denyRequest")}
             </Button>
           </DialogFooter>
@@ -871,7 +1166,7 @@ export default function LeavePage() {
       <Dialog open={conflictDialogOpen} onOpenChange={setConflictDialogOpen}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-yellow-600">
+            <DialogTitle className="flex items-center gap-2 text-[#C6A03B]">
               <AlertCircle className="h-5 w-5" />
               {t("leavePage.conflictDetected")}
             </DialogTitle>
@@ -880,14 +1175,14 @@ export default function LeavePage() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <p className="text-sm text-yellow-800 font-medium mb-2">{t("leavePage.conflictingRecords")}:</p>
+            <div className="bg-[#FFF9E6] border border-[#C6A03B]/30 rounded-lg p-3">
+              <p className="text-sm text-[#8B6914] font-medium mb-2">{t("leavePage.conflictingRecords")}:</p>
               <ul className="space-y-1">
                 {conflicts.map((conflict, idx) => (
-                  <li key={idx} className="text-sm text-yellow-700 flex items-center gap-2">
+                  <li key={idx} className="text-sm text-[#8B6914] flex items-center gap-2">
                     <span className="font-medium">{format(new Date(conflict.date), "MMM d, yyyy")}</span>
                     <span>-</span>
-                    <Badge variant="outline" className="text-xs capitalize">
+                    <Badge variant="outline" className="text-xs capitalize border-[#C6A03B]/30">
                       {conflict.status.replace("_", " ")}
                     </Badge>
                   </li>
@@ -906,16 +1201,30 @@ export default function LeavePage() {
                 setConflictRequest(null);
                 setConflicts([]);
               }}
+              className="border-[#E6E6E4]"
             >
               {t("common.cancel")}
             </Button>
-            <Button onClick={handleConfirmOverride} className="bg-yellow-600 hover:bg-yellow-700">
-              <AlertCircle className="mr-2 h-4 w-4" />
+            <Button onClick={handleConfirmOverride} className="bg-[#C6A03B] hover:bg-[#A88A2F] text-white">
+              <AlertCircle className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
               {t("leavePage.overrideAndApprove")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Export Modal */}
+      <ExportLeaveModal
+        open={exportModalOpen}
+        onOpenChange={setExportModalOpen}
+      />
+
+      {/* Footer */}
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("legalNotice")}
+        </p>
+      </div>
     </div>
   );
 }

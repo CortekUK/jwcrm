@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -31,6 +32,7 @@ import {
   CheckCircle2,
   Archive,
   Clock,
+  FolderOpen,
 } from "lucide-react";
 import { BatchDocumentExportButton } from "@/components/hr/documents/BatchDocumentExportButton";
 
@@ -65,11 +67,13 @@ const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   employment_visa: "Employment Visa",
   emirates_id: "Emirates ID",
   employment_contract: "Employment Contract",
+  certification: "Certification",
 };
 
 export default function DocumentsPage() {
   const { t, i18n } = useTranslation(["hr"]);
   const isRtl = i18n.language === "ar";
+  const searchParams = useSearchParams();
 
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -81,10 +85,10 @@ export default function DocumentsPage() {
   });
   const [typeStats, setTypeStats] = useState<DocumentTypeCount[]>([]);
 
-  // Filters
+  // Filters - initialize from URL params
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState(() => searchParams.get("type") || "all");
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") || "all");
 
   useEffect(() => {
     fetchDocuments();
@@ -133,10 +137,10 @@ export default function DocumentsPage() {
 
       setDocuments(formattedDocs);
 
-      // Calculate stats
+      // Calculate stats - use 90 days to match HR dashboard threshold
       const today = new Date();
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      const ninetyDaysFromNow = new Date();
+      ninetyDaysFromNow.setDate(ninetyDaysFromNow.getDate() + 90);
 
       const activeDocs = formattedDocs.filter((d) => d.is_active);
       const expiredDocs = activeDocs.filter(
@@ -146,7 +150,7 @@ export default function DocumentsPage() {
         (d) =>
           d.expiry_date &&
           new Date(d.expiry_date) >= today &&
-          new Date(d.expiry_date) <= thirtyDaysFromNow
+          new Date(d.expiry_date) <= ninetyDaysFromNow
       );
 
       setStats({
@@ -183,7 +187,8 @@ export default function DocumentsPage() {
     const daysUntilExpiry = Math.ceil(
       (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
     );
-    if (daysUntilExpiry <= 30) return "expiring";
+    // Match HR dashboard threshold of 90 days
+    if (daysUntilExpiry <= 90) return "expiring";
     return "active";
   };
 
@@ -254,8 +259,8 @@ export default function DocumentsPage() {
       statusFilter === "all" ||
       (statusFilter === "active" && docStatus === "active") ||
       (statusFilter === "archived" && docStatus === "archived") ||
-      (statusFilter === "expired" &&
-        (docStatus === "expired" || docStatus === "expiring"));
+      (statusFilter === "expired" && docStatus === "expired") ||
+      (statusFilter === "expiring" && docStatus === "expiring");
 
     return matchesSearch && matchesType && matchesStatus;
   });
@@ -275,16 +280,31 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#222222]">
-            {t("hr:documentsPage.title")}
-          </h1>
-          <p className="text-[#6B6B6B]">{t("hr:documentsPage.description")}</p>
+    <div className="space-y-6 pb-12">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <FolderOpen className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("hr:documentsPage.title")}
+              </h1>
+            </div>
+            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+              {t("hr:documentsPage.description")}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[hsl(var(--jw-primary-green))]/30 bg-white">
+              <FileText className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+              <span className="text-sm font-medium text-[hsl(var(--jw-primary-green))]">
+                {stats.total} {t("hr:documentsPage.documents")}
+              </span>
+            </div>
+            <BatchDocumentExportButton />
+          </div>
         </div>
-        <BatchDocumentExportButton />
       </div>
 
       {/* Stats Cards */}
@@ -292,124 +312,119 @@ export default function DocumentsPage() {
         <Card className="border-[#E6E6E4]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">
-                  {t("hr:documentsPage.totalDocuments")}
-                </p>
-                <p className="text-2xl font-bold text-[#222222]">
-                  {stats.total}
-                </p>
+              <p className="text-sm text-[#6B6B6B]">
+                {t("hr:documentsPage.totalDocuments")}
+              </p>
+              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                <FileText className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <FileText className="h-8 w-8 text-[#6B6B6B]" />
             </div>
+            <p className="text-2xl font-bold text-[#222222] mt-2">
+              {stats.total}
+            </p>
           </CardContent>
         </Card>
 
         <Card className="border-[#E6E6E4]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">
-                  {t("hr:documentsPage.activeDocuments")}
-                </p>
-                <p className="text-2xl font-bold text-[hsl(var(--jw-primary-green))]">
-                  {stats.active}
-                </p>
+              <p className="text-sm text-[#6B6B6B]">
+                {t("hr:documentsPage.activeDocuments")}
+              </p>
+              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                <CheckCircle2 className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <CheckCircle2 className="h-8 w-8 text-[hsl(var(--jw-primary-green))]" />
             </div>
+            <p className="text-2xl font-bold text-[#222222] mt-2">
+              {stats.active}
+            </p>
           </CardContent>
         </Card>
 
-        <Card
-          className={`border-[#E6E6E4] ${stats.expiringSoon > 0 ? "bg-amber-50 border-amber-200" : ""}`}
-        >
+        <Card className={`border-[#E6E6E4] ${stats.expiringSoon > 0 ? "bg-amber-50/50 border-amber-200" : ""}`}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">
-                  {t("hr:documentsPage.expiringDocuments")}
-                </p>
-                <p
-                  className={`text-2xl font-bold ${stats.expiringSoon > 0 ? "text-amber-600" : "text-[#222222]"}`}
-                >
-                  {stats.expiringSoon}
-                </p>
+              <p className="text-sm text-[#6B6B6B]">
+                {t("hr:documentsPage.expiringDocuments")}
+              </p>
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${stats.expiringSoon > 0 ? "bg-amber-100" : "bg-[rgba(198,160,59,0.15)]"}`}>
+                <Clock className={`h-5 w-5 ${stats.expiringSoon > 0 ? "text-amber-600" : "text-[#0C5536]"}`} />
               </div>
-              <Clock
-                className={`h-8 w-8 ${stats.expiringSoon > 0 ? "text-amber-500" : "text-[#6B6B6B]"}`}
-              />
             </div>
+            <p className={`text-2xl font-bold mt-2 ${stats.expiringSoon > 0 ? "text-amber-600" : "text-[#222222]"}`}>
+              {stats.expiringSoon}
+            </p>
           </CardContent>
         </Card>
 
-        <Card
-          className={`border-[#E6E6E4] ${stats.expired > 0 ? "bg-red-50 border-red-200" : ""}`}
-        >
+        <Card className={`border-[#E6E6E4] ${stats.expired > 0 ? "bg-red-50/50 border-red-200" : ""}`}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B6B6B]">
-                  {t("hr:documentsPage.expiredDocuments")}
-                </p>
-                <p
-                  className={`text-2xl font-bold ${stats.expired > 0 ? "text-red-600" : "text-[#222222]"}`}
-                >
-                  {stats.expired}
-                </p>
+              <p className="text-sm text-[#6B6B6B]">
+                {t("hr:documentsPage.expiredDocuments")}
+              </p>
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${stats.expired > 0 ? "bg-red-100" : "bg-[rgba(198,160,59,0.15)]"}`}>
+                <AlertTriangle className={`h-5 w-5 ${stats.expired > 0 ? "text-red-600" : "text-[#0C5536]"}`} />
               </div>
-              <AlertTriangle
-                className={`h-8 w-8 ${stats.expired > 0 ? "text-red-500" : "text-[#6B6B6B]"}`}
-              />
             </div>
+            <p className={`text-2xl font-bold mt-2 ${stats.expired > 0 ? "text-red-600" : "text-[#222222]"}`}>
+              {stats.expired}
+            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Documents by Type */}
-      <Card className="border-[#E6E6E4]">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">{t("hr:documentsPage.byType")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            {typeStats.map((item) => (
-              <div
-                key={item.type}
-                className="flex items-center gap-2 px-3 py-2 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4]"
-              >
-                <FileText className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
-                <span className="text-sm font-medium">
-                  {t(`hr:docType.${item.type}`) ||
-                    DOCUMENT_TYPE_LABELS[item.type] ||
-                    item.type}
-                </span>
-                <Badge variant="secondary">{item.count}</Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {typeStats.length > 0 && (
+        <Card className="border-[#E6E6E4]">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+              <h3 className="text-xl font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>{t("hr:documentsPage.byType")}</h3>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {typeStats.map((item) => (
+                <div
+                  key={item.type}
+                  className="flex items-center gap-2 px-3 py-2 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4] hover:border-[#C6A03B] transition-colors"
+                >
+                  <span className="text-sm font-medium text-[#222222]">
+                    {t(`hr:docType.${item.type}`) ||
+                      DOCUMENT_TYPE_LABELS[item.type] ||
+                      item.type}
+                  </span>
+                  <Badge variant="secondary" className="bg-[rgba(198,160,59,0.15)] text-[#0C5536] hover:bg-[rgba(198,160,59,0.25)]">
+                    {item.count}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Documents Table */}
       <Card className="border-[#E6E6E4]">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="text-lg">
-              {t("hr:documentsPage.documentsList")}
-            </CardTitle>
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+              <h3 className="text-xl font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("hr:documentsPage.documentsList")}
+              </h3>
+            </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B6B6B]" />
+                <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C6A03B]" />
                 <Input
                   placeholder={t("hr:documentsPage.searchPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-full sm:w-[250px]"
+                  className="ltr:pl-9 rtl:pr-9 w-full sm:w-[250px] border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                 />
               </div>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px] border-[#E6E6E4]">
                   <SelectValue placeholder={t("hr:documentsPage.allTypes")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -428,10 +443,13 @@ export default function DocumentsPage() {
                   <SelectItem value="employment_contract">
                     {t("hr:docType.employment_contract")}
                   </SelectItem>
+                  <SelectItem value="certification">
+                    {t("hr:docType.certification")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectTrigger className="w-full sm:w-[180px] border-[#E6E6E4]">
                   <SelectValue
                     placeholder={t("hr:documentsPage.allStatuses")}
                   />
@@ -443,6 +461,9 @@ export default function DocumentsPage() {
                   <SelectItem value="active">
                     {t("hr:documentsPage.active")}
                   </SelectItem>
+                  <SelectItem value="expiring">
+                    {t("hr:documentsPage.expiringSoon")}
+                  </SelectItem>
                   <SelectItem value="expired">
                     {t("hr:documentsPage.expired")}
                   </SelectItem>
@@ -453,18 +474,16 @@ export default function DocumentsPage() {
               </Select>
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border border-[#E6E6E4] overflow-hidden">
+          <div className="rounded-lg border border-[#E6E6E4] overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="bg-[#FAFAF8]">
-                  <TableHead>{t("hr:documentsPage.employee")}</TableHead>
-                  <TableHead>{t("hr:documentsPage.documentType")}</TableHead>
-                  <TableHead>{t("hr:documentsPage.uploadedAt")}</TableHead>
-                  <TableHead>{t("hr:documentsPage.expiryDate")}</TableHead>
-                  <TableHead>{t("hr:documentsPage.status")}</TableHead>
-                  <TableHead className="text-right">
+                <TableRow className="bg-[#FAFAF8] hover:bg-[#FAFAF8]">
+                  <TableHead className="font-semibold text-[#222222]">{t("hr:documentsPage.employee")}</TableHead>
+                  <TableHead className="font-semibold text-[#222222]">{t("hr:documentsPage.documentType")}</TableHead>
+                  <TableHead className="font-semibold text-[#222222]">{t("hr:documentsPage.uploadedAt")}</TableHead>
+                  <TableHead className="font-semibold text-[#222222]">{t("hr:documentsPage.expiryDate")}</TableHead>
+                  <TableHead className="font-semibold text-[#222222]">{t("hr:documentsPage.status")}</TableHead>
+                  <TableHead className="font-semibold text-[#222222] text-right">
                     {t("hr:actions")}
                   </TableHead>
                 </TableRow>
@@ -474,9 +493,10 @@ export default function DocumentsPage() {
                   <TableRow>
                     <TableCell
                       colSpan={6}
-                      className="text-center py-8 text-[#6B6B6B]"
+                      className="text-center py-12"
                     >
-                      {t("hr:documentsPage.noDocumentsFound")}
+                      <FolderOpen className="h-10 w-10 text-[#C6A03B] mx-auto mb-3" />
+                      <p className="text-[#6B6B6B]">{t("hr:documentsPage.noDocumentsFound")}</p>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -492,17 +512,17 @@ export default function DocumentsPage() {
                           </p>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-[#555555]">
                         {t(`hr:docType.${doc.document_type}`) ||
                           DOCUMENT_TYPE_LABELS[doc.document_type] ||
                           doc.document_type}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-[#555555]">
                         {doc.uploaded_at
                           ? new Date(doc.uploaded_at).toLocaleDateString()
                           : "-"}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-[#555555]">
                         {doc.expiry_date
                           ? new Date(doc.expiry_date).toLocaleDateString()
                           : t("hr:noExpiry")}
@@ -513,9 +533,9 @@ export default function DocumentsPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleViewDocument(doc)}
-                          className="text-[hsl(var(--jw-primary-green))] hover:text-[hsl(var(--jw-hover-green))]"
+                          className="text-[hsl(var(--jw-primary-green))] hover:text-[hsl(var(--jw-hover-green))] hover:bg-[rgba(198,160,59,0.1)]"
                         >
-                          <Eye className="h-4 w-4 mr-1" />
+                          <Eye className="h-4 w-4 ltr:mr-1 rtl:ml-1" />
                           {t("hr:documentsPage.viewDocument")}
                         </Button>
                       </TableCell>
@@ -526,7 +546,7 @@ export default function DocumentsPage() {
             </Table>
           </div>
           {filteredDocuments.length > 50 && (
-            <p className="text-sm text-[#6B6B6B] mt-2 text-center">
+            <p className="text-sm text-[#6B6B6B] mt-3 text-center">
               {t("hr:showingResults", {
                 count: 50,
                 total: filteredDocuments.length,
@@ -535,6 +555,13 @@ export default function DocumentsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Footer */}
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("hr:legalNotice")}
+        </p>
+      </div>
     </div>
   );
 }

@@ -69,7 +69,7 @@ export async function GET(
     // Get the most common currency
     const currencies =
       leads?.filter((l) => l.paid_currency).map((l) => l.paid_currency!) || [];
-    const currency = currencies.length > 0 ? currencies[0] : "USD";
+    const currency = currencies.length > 0 ? currencies[0] : "AED";
 
     return NextResponse.json({
       data: {

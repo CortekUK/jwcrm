@@ -13,7 +13,7 @@ import {
   Shield,
   User,
   Users,
-  DollarSign,
+  Wallet,
   Target,
   ArrowRight
 } from "lucide-react";
@@ -48,7 +48,7 @@ const dashboardOptions: DashboardOption[] = [
   },
   {
     type: "finance",
-    icon: <DollarSign className="h-8 w-8" />,
+    icon: <Wallet className="h-8 w-8" />,
     color: "text-amber-600",
     bgColor: "bg-amber-50 hover:bg-amber-100",
   },

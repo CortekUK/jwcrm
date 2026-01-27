@@ -33,6 +33,7 @@
   "yourAccountDetails": "تفاصيل حسابك",
   "fullName": "الاسم الكامل",
   "email": "البريد الإلكتروني",
+  "roleLabel": "الدور",
   "role": {
     "superadmin": "المسؤول الأعلى",
     "admin": "المسؤول",
@@ -47,5 +48,11 @@
   "settings": "الإعدادات",
   "settingsDescription": "إدارة إعدادات حسابك",
   "dashboard": "لوحة التحكم",
-  "internalDashboard": "لوحة التحكم الداخلية"
+  "internalDashboard": "لوحة التحكم الداخلية",
+  "collapseSidebar": "طي الشريط الجانبي",
+  "expandSidebar": "توسيع الشريط الجانبي",
+  "theme": "المظهر",
+  "themeLight": "فاتح",
+  "themeDark": "داكن",
+  "themeSystem": "النظام"
 }

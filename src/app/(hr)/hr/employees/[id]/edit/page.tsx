@@ -181,7 +181,7 @@ export default function EditEmployeePage() {
         <TabsContent value="details" className="mt-4">
           <Card className="border-[#E6E6E4]">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
+              <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
                 <Edit className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                 {t("hr:personalInfo")} & {t("hr:jobInfo")}
               </CardTitle>
@@ -202,7 +202,7 @@ export default function EditEmployeePage() {
             {/* Document List */}
             <Card className="border-[#E6E6E4]">
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+                <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
                   <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                   {t("hr:uploadedDocuments")}
                 </CardTitle>
@@ -254,7 +254,7 @@ export default function EditEmployeePage() {
             {/* Upload Form - Always visible */}
             <Card className="border-[#E6E6E4]">
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+                <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
                   <Upload className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                   {t("hr:uploadNewDocument")}
                 </CardTitle>

@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Edit3 } from "lucide-react";
 import { Lead } from "./LeadTable";
 import { LeadStatus } from "./LeadStatusBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,7 +89,7 @@ export function EditLeadDialog({
         company_name: z.string(),
         source_id: z.string().optional(),
         notes: z.string().optional(),
-        status: z.enum(["not_started", "contacted", "consultation", "meeting", "hold", "qualified", "negotiation", "pending", "won", "lost"]),
+        status: z.enum(["not_started", "contacted", "consultation", "consultation_completed", "meeting", "hold", "qualified", "negotiation", "pending", "won", "lost"]),
         assigned_to: z.string().optional(),
       })
     : z.object({
@@ -102,7 +102,7 @@ export function EditLeadDialog({
         company_name: z.string().min(1, t("companyRequired")),
         source_id: z.string().optional(),
         notes: z.string().optional(),
-        status: z.enum(["not_started", "contacted", "consultation", "meeting", "hold", "qualified", "negotiation", "pending", "won", "lost"]),
+        status: z.enum(["not_started", "contacted", "consultation", "consultation_completed", "meeting", "hold", "qualified", "negotiation", "pending", "won", "lost"]),
         assigned_to: z.string().optional(),
       });
 
@@ -110,10 +110,15 @@ export function EditLeadDialog({
     { value: "not_started", label: t("notStarted") },
     { value: "contacted", label: t("contacted") },
     { value: "consultation", label: t("consultation") },
+    { value: "consultation_completed", label: t("consultationCompleted", "Consultation Completed") },
+    { value: "meeting", label: t("meeting") },
+    { value: "hold", label: t("hold") },
     { value: "qualified", label: t("qualified") },
+    { value: "negotiation", label: t("negotiation") },
     { value: "pending", label: t("pending") },
     { value: "won", label: t("won") },
     { value: "lost", label: t("lost") },
+    { value: "unreachable", label: t("unreachable") },
   ];
 
   const form = useForm<LeadFormValues>({
@@ -242,8 +247,11 @@ export function EditLeadDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{t("editLead")}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="flex items-center gap-2">
+            <Edit3 className="h-5 w-5 text-[#C6A03B]" />
+            <span className="text-[hsl(var(--jw-primary-green))]">{t("editLead")}</span>
+          </DialogTitle>
+          <DialogDescription className="ltr:ml-7 rtl:mr-7">
             {t("editLeadDescription")}
           </DialogDescription>
         </DialogHeader>
@@ -252,23 +260,23 @@ export function EditLeadDialog({
             {isSalesperson ? (
               // Salesperson view - read-only lead info + editable notes/status
               <>
-                <div className="bg-gray-50 p-4 rounded-md space-y-2">
+                <div className="bg-[#FAFAF8] p-4 rounded-md space-y-2 border border-[#E6E6E4]">
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <span className="text-muted-foreground">{t("fullName")}:</span>
-                      <p className="font-medium">{lead?.full_name}</p>
+                      <span className="text-[#777777]">{t("fullName")}:</span>
+                      <p className="font-medium text-[#222222]">{lead?.full_name}</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">{t("email")}:</span>
-                      <p className="font-medium">{lead?.email}</p>
+                      <span className="text-[#777777]">{t("email")}:</span>
+                      <p className="font-medium text-[#222222]">{lead?.email}</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">{t("phone")}:</span>
-                      <p className="font-medium">{lead?.phone || "-"}</p>
+                      <span className="text-[#777777]">{t("phone")}:</span>
+                      <p className="font-medium text-[#222222]">{lead?.phone || "-"}</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">{t("company")}:</span>
-                      <p className="font-medium">{lead?.company_name || "-"}</p>
+                      <span className="text-[#777777]">{t("company")}:</span>
+                      <p className="font-medium text-[#222222]">{lead?.company_name || "-"}</p>
                     </div>
                   </div>
                 </div>
@@ -277,10 +285,10 @@ export function EditLeadDialog({
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("status")} *</FormLabel>
+                      <FormLabel className="text-[#555555]">{t("status")} <span className="text-[#C0392B]">*</span></FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
                             <SelectValue placeholder={t("selectStatus")} />
                           </SelectTrigger>
                         </FormControl>
@@ -292,7 +300,7 @@ export function EditLeadDialog({
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
+                      <FormMessage className="text-[#C0392B]" />
                     </FormItem>
                   )}
                 />
@@ -301,16 +309,16 @@ export function EditLeadDialog({
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("notes")}</FormLabel>
+                      <FormLabel className="text-[#555555]">{t("notes")}</FormLabel>
                       <FormControl>
                         <Textarea
                           placeholder={t("additionalNotes")}
-                          className="resize-none"
+                          className="resize-none border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                           rows={4}
                           {...field}
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-[#C0392B]" />
                     </FormItem>
                   )}
                 />
@@ -323,11 +331,15 @@ export function EditLeadDialog({
                   name="full_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("fullName")} *</FormLabel>
+                      <FormLabel className="text-[#555555]">{t("fullName")} <span className="text-[#C0392B]">*</span></FormLabel>
                       <FormControl>
-                        <Input placeholder="John Doe" {...field} />
+                        <Input 
+                          placeholder="John Doe" 
+                          className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                          {...field} 
+                        />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-[#C0392B]" />
                     </FormItem>
                   )}
                 />
@@ -336,11 +348,16 @@ export function EditLeadDialog({
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("email")} *</FormLabel>
+                      <FormLabel className="text-[#555555]">{t("email")} <span className="text-[#C0392B]">*</span></FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="john@example.com" {...field} />
+                        <Input 
+                          type="email" 
+                          placeholder="john@example.com" 
+                          className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                          {...field} 
+                        />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-[#C0392B]" />
                     </FormItem>
                   )}
                 />
@@ -350,11 +367,15 @@ export function EditLeadDialog({
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t("phone")} *</FormLabel>
+                        <FormLabel className="text-[#555555]">{t("phone")} <span className="text-[#C0392B]">*</span></FormLabel>
                         <FormControl>
-                          <Input placeholder="+971 50 123 4567" {...field} />
+                          <Input 
+                            placeholder="+971 50 123 4567" 
+                            className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                            {...field} 
+                          />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-[#C0392B]" />
                       </FormItem>
                     )}
                   />
@@ -363,11 +384,15 @@ export function EditLeadDialog({
                     name="company_name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t("company")} *</FormLabel>
+                        <FormLabel className="text-[#555555]">{t("company")} <span className="text-[#C0392B]">*</span></FormLabel>
                         <FormControl>
-                          <Input placeholder={t("company")} {...field} />
+                          <Input 
+                            placeholder={t("company")} 
+                            className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                            {...field} 
+                          />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-[#C0392B]" />
                       </FormItem>
                     )}
                   />
@@ -378,20 +403,20 @@ export function EditLeadDialog({
                     name="source_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t("source")}</FormLabel>
+                        <FormLabel className="text-[#555555]">{t("source")}</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
                               <SelectValue placeholder={loadingSources ? t("loadingSources") : t("selectSource")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {loadingSources ? (
-                              <div className="p-2 text-center text-sm text-muted-foreground">
-                                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                              <div className="p-2 text-center text-sm text-[#999999]">
+                                <Loader2 className="h-4 w-4 animate-spin mx-auto text-[#C6A03B]" />
                               </div>
                             ) : sources.length === 0 ? (
-                              <div className="p-2 text-center text-sm text-muted-foreground">
+                              <div className="p-2 text-center text-sm text-[#999999]">
                                 {t("noSourcesAvailable")}
                               </div>
                             ) : (
@@ -404,7 +429,7 @@ export function EditLeadDialog({
                             )}
                           </SelectContent>
                         </Select>
-                        <FormMessage />
+                        <FormMessage className="text-[#C0392B]" />
                       </FormItem>
                     )}
                   />
@@ -413,10 +438,10 @@ export function EditLeadDialog({
                     name="status"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t("status")} *</FormLabel>
+                        <FormLabel className="text-[#555555]">{t("status")} <span className="text-[#C0392B]">*</span></FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
                               <SelectValue placeholder={t("selectStatus")} />
                             </SelectTrigger>
                           </FormControl>
@@ -428,7 +453,7 @@ export function EditLeadDialog({
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormMessage />
+                        <FormMessage className="text-[#C0392B]" />
                       </FormItem>
                     )}
                   />
@@ -440,20 +465,20 @@ export function EditLeadDialog({
                     name="assigned_to"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t("assignedTo")}</FormLabel>
+                        <FormLabel className="text-[#555555]">{t("assignedTo")}</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
                               <SelectValue placeholder={loadingSalespeople ? t("loadingSalespeople") : t("selectSalesperson")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {loadingSalespeople ? (
-                              <div className="p-2 text-center text-sm text-muted-foreground">
-                                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                              <div className="p-2 text-center text-sm text-[#999999]">
+                                <Loader2 className="h-4 w-4 animate-spin mx-auto text-[#C6A03B]" />
                               </div>
                             ) : salespeople.length === 0 ? (
-                              <div className="p-2 text-center text-sm text-muted-foreground">
+                              <div className="p-2 text-center text-sm text-[#999999]">
                                 {t("noSalespersonAssigned")}
                               </div>
                             ) : (
@@ -466,13 +491,13 @@ export function EditLeadDialog({
                             )}
                           </SelectContent>
                         </Select>
-                        <FormMessage />
+                        <FormMessage className="text-[#C0392B]" />
                       </FormItem>
                     )}
                   />
                 )}
                 {!lead?.source_id && lead?.assigned_user?.full_name && (
-                  <div className="text-sm text-muted-foreground bg-gray-50 p-3 rounded-md">
+                  <div className="text-sm text-[#555555] bg-[#FAFAF8] p-3 rounded-md border border-[#E6E6E4]">
                     <span className="font-medium">{t("assignedTo")}:</span>{" "}
                     {lead.assigned_user.full_name}
                   </div>
@@ -482,31 +507,36 @@ export function EditLeadDialog({
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("notes")}</FormLabel>
+                      <FormLabel className="text-[#555555]">{t("notes")}</FormLabel>
                       <FormControl>
                         <Textarea
                           placeholder={t("additionalNotes")}
-                          className="resize-none"
+                          className="resize-none border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                           rows={3}
                           {...field}
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-[#C0392B]" />
                     </FormItem>
                   )}
                 />
               </>
             )}
-            <DialogFooter>
+            <DialogFooter className="border-t border-[#E6E6E4] pt-4 mt-6">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
+                className="border-[#E6E6E4] hover:bg-[#F5F5F3]"
               >
                 {t("cancel")}
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+              >
                 {isSubmitting && <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />}
                 {t("saveChanges")}
               </Button>

@@ -62,7 +62,7 @@ const transactionFormSchema = z.object({
 
 type TransactionFormValues = z.infer<typeof transactionFormSchema>;
 
-const CURRENCIES = ["USD", "AED", "EUR", "GBP", "SAR"];
+const CURRENCIES = ["AED", "USD", "EUR", "GBP", "SAR"];
 const ALLOWED_FILE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -86,7 +86,7 @@ export function AddTransactionDialog({
       type: defaultType,
       category: "",
       amount: 0,
-      currency: "USD",
+      currency: "AED",
       description: "",
       reference_number: "",
       transaction_date: new Date().toISOString().split("T")[0],
@@ -115,7 +115,7 @@ export function AddTransactionDialog({
           type: defaultType,
           category: "",
           amount: 0,
-          currency: "USD",
+          currency: "AED",
           description: "",
           reference_number: "",
           transaction_date: new Date().toISOString().split("T")[0],

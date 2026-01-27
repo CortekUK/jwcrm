@@ -14,7 +14,9 @@ import {
   Briefcase,
   Target,
   UserCog,
-  Receipt,
+  ArrowLeftRight,
+  ClipboardCheck,
+  FileBarChart,
 } from "lucide-react";
 
 export type DashboardType = "admin" | "hr" | "finance" | "lead-management" | "client" | "salesperson";
@@ -67,6 +69,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
       { path: "/hr/documents", labelKey: "hr:documents", icon: FolderOpen },
       { path: "/hr/attendance", labelKey: "hr:attendance", icon: Calendar },
       { path: "/hr/leave", labelKey: "hr:leave", icon: CalendarDays },
+      { path: "/hr/reports", labelKey: "hr:reports.titleAnalytics", icon: FileBarChart },
       { path: "/hr/settings", labelKey: "common:settings", icon: Settings },
     ],
   },
@@ -79,6 +82,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     layoutType: "header",
     navItems: [
       { path: "/finance", labelKey: "finance:dashboard", icon: LayoutDashboard },
+      { path: "/finance/reports", labelKey: "finance:reports.title", icon: FileBarChart },
       { path: "/finance/settings", labelKey: "common:settings", icon: Settings },
     ],
   },
@@ -91,6 +95,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     layoutType: "header",
     navItems: [
       { path: "/lead-management/leads", labelKey: "leadManagement:leads", icon: Users },
+      { path: "/lead-management/analytics", labelKey: "leadManagement:reports.title", icon: FileBarChart },
       { path: "/lead-management/settings", labelKey: "common:settings", icon: Settings },
     ],
   },
@@ -119,6 +124,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     navItems: [
       { path: "/admin/salesperson/leads", labelKey: "salesperson:myLeads", icon: Users },
       { path: "/admin/salesperson/calendar", labelKey: "salesperson:calendar", icon: Calendar },
+      { path: "/admin/salesperson/reports", labelKey: "salesperson:reports.title", icon: FileBarChart },
       { path: "/admin/salesperson/settings", labelKey: "common:settings", icon: Settings },
     ],
   },
@@ -203,15 +209,18 @@ const hrNavItems: NavItem[] = [
   { path: "/admin/hr/documents", labelKey: "hr:documents", icon: FolderOpen },
   { path: "/admin/hr/job-roles", labelKey: "hr:jobRoles", icon: Briefcase },
   { path: "/admin/hr/kpis", labelKey: "hr:kpis", icon: Target },
+  { path: "/admin/hr/reviews", labelKey: "hr:performanceReviews", icon: ClipboardCheck },
   { path: "/admin/hr/attendance", labelKey: "hr:attendance", icon: Calendar },
   { path: "/admin/hr/leave", labelKey: "hr:leave", icon: CalendarDays },
+  { path: "/admin/hr/reports", labelKey: "hr:reports.titleAnalytics", icon: FileBarChart },
   { path: "/admin/hr/settings", labelKey: "common:settings", icon: Settings },
 ];
 
 // Finance role nav items - all under /admin/finance
 const financeNavItems: NavItem[] = [
   { path: "/admin/finance", labelKey: "finance:dashboard", icon: LayoutDashboard },
-  { path: "/admin/finance/transactions", labelKey: "finance:transactions", icon: Receipt },
+  { path: "/admin/finance/transactions", labelKey: "finance:transactions", icon: ArrowLeftRight },
+  { path: "/admin/finance/reports", labelKey: "finance:reports.title", icon: FileBarChart },
   { path: "/admin/finance/settings", labelKey: "common:settings", icon: Settings },
 ];
 
@@ -219,6 +228,7 @@ const financeNavItems: NavItem[] = [
 const leadManagementNavItems: NavItem[] = [
   { path: "/admin/lead-management/leads", labelKey: "leadManagement:leads", icon: Users },
   { path: "/admin/lead-management/sources", labelKey: "leadManagement:sources", icon: FolderOpen },
+  { path: "/admin/lead-management/reports", labelKey: "leadManagement:reports.title", icon: FileBarChart },
   { path: "/admin/lead-management/settings", labelKey: "common:settings", icon: Settings },
 ];
 
@@ -226,6 +236,7 @@ const leadManagementNavItems: NavItem[] = [
 const salespersonNavItems: NavItem[] = [
   { path: "/admin/salesperson/leads", labelKey: "salesperson:myLeads", icon: Users },
   { path: "/admin/salesperson/calendar", labelKey: "salesperson:calendar", icon: Calendar },
+  { path: "/admin/salesperson/reports", labelKey: "salesperson:reports.title", icon: FileBarChart },
   { path: "/admin/salesperson/settings", labelKey: "common:settings", icon: Settings },
 ];
 

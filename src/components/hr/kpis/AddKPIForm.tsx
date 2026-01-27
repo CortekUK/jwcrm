@@ -173,7 +173,7 @@ export function AddKPIForm({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Job Role */}
       <div className="space-y-2">
-        <Label>{t("hr:jobRoles")} *</Label>
+        <Label className="text-[#555555]">{t("hr:jobRole")} <span className="text-red-500">*</span></Label>
         <JobRoleSelector
           value={selectedJobRoleId}
           onChange={(value) => setValue("job_role_id", value)}
@@ -181,7 +181,7 @@ export function AddKPIForm({
           disabled={!!preSelectedJobRoleId}
         />
         {errors.job_role_id && (
-          <p className="text-sm text-red-500">
+          <p className="text-[12px] text-[#C0392B]">
             {t(`hr:${errors.job_role_id.message}`)}
           </p>
         )}
@@ -217,16 +217,16 @@ export function AddKPIForm({
 
       {/* KPI Name */}
       <div className="space-y-2">
-        <Label htmlFor="name">{t("hr:kpiName")} *</Label>
+        <Label htmlFor="name" className="text-[#555555]">{t("hr:kpiName")} <span className="text-red-500">*</span></Label>
         <Input
           id="name"
           {...register("name")}
           placeholder={t("hr:enterKPIName")}
-          className={`border-[#E6E6E4] ${errors.name ? "border-red-500" : ""}`}
+          className={`border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B] ${errors.name ? "border-[#C0392B]" : ""}`}
           dir={isRtl ? "rtl" : "ltr"}
         />
         {errors.name && (
-          <p className="text-sm text-red-500">
+          <p className="text-[12px] text-[#C0392B]">
             {t(`hr:${errors.name.message}`)}
           </p>
         )}
@@ -234,42 +234,42 @@ export function AddKPIForm({
 
       {/* Description */}
       <div className="space-y-2">
-        <Label htmlFor="description">{t("hr:kpiDescription")}</Label>
+        <Label htmlFor="description" className="text-[#555555]">{t("hr:kpiDescription")}</Label>
         <Textarea
           id="description"
           {...register("description")}
           placeholder={t("hr:enterKPIDescription")}
-          className="border-[#E6E6E4] min-h-[80px]"
+          className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B] min-h-[80px]"
           dir={isRtl ? "rtl" : "ltr"}
         />
       </div>
 
       {/* Target Value and Unit in a row */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="target_value">{t("hr:targetValue")} *</Label>
+          <Label htmlFor="target_value" className="text-[#555555]">{t("hr:targetValue")} <span className="text-red-500">*</span></Label>
           <Input
             id="target_value"
             type="number"
             step="0.01"
             {...register("target_value")}
             placeholder={t("hr:enterTargetValue")}
-            className={`border-[#E6E6E4] ${errors.target_value ? "border-red-500" : ""}`}
+            className={`border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B] ${errors.target_value ? "border-[#C0392B]" : ""}`}
           />
           {errors.target_value && (
-            <p className="text-sm text-red-500">
+            <p className="text-[12px] text-[#C0392B]">
               {t(`hr:${errors.target_value.message}`)}
             </p>
           )}
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="unit">{t("hr:unit")} *</Label>
+          <Label htmlFor="unit" className="text-[#555555]">{t("hr:unit")} <span className="text-red-500">*</span></Label>
           <Select
             value={watch("unit")}
             onValueChange={(value) => setValue("unit", value)}
           >
-            <SelectTrigger className={`border-[#E6E6E4] ${errors.unit ? "border-red-500" : ""}`}>
+            <SelectTrigger className={`border-[#E6E6E4] ${errors.unit ? "border-[#C0392B]" : ""}`}>
               <SelectValue placeholder={t("hr:selectUnit")} />
             </SelectTrigger>
             <SelectContent>
@@ -281,7 +281,7 @@ export function AddKPIForm({
             </SelectContent>
           </Select>
           {errors.unit && (
-            <p className="text-sm text-red-500">
+            <p className="text-[12px] text-[#C0392B]">
               {t(`hr:${errors.unit.message}`)}
             </p>
           )}
@@ -290,7 +290,7 @@ export function AddKPIForm({
 
       {/* Weighting */}
       <div className="space-y-2">
-        <Label htmlFor="weighting">{t("hr:weighting")} *</Label>
+        <Label htmlFor="weighting" className="text-[#555555]">{t("hr:weighting")} <span className="text-red-500">*</span></Label>
         <div className="relative">
           <Input
             id="weighting"
@@ -299,32 +299,32 @@ export function AddKPIForm({
             max={editData ? 100 : remainingWeighting}
             {...register("weighting")}
             placeholder={t("hr:enterWeighting")}
-            className={`border-[#E6E6E4] pr-8 ${errors.weighting || !isWeightingValid ? "border-red-500" : ""}`}
+            className={`border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B] ltr:pr-8 rtl:pl-8 ${errors.weighting || !isWeightingValid ? "border-[#C0392B]" : ""}`}
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6B6B]">
+          <span className="absolute ltr:right-3 rtl:left-3 top-1/2 -translate-y-1/2 text-[#6B6B6B]">
             %
           </span>
         </div>
         {errors.weighting && (
-          <p className="text-sm text-red-500">
+          <p className="text-[12px] text-[#C0392B]">
             {t(`hr:${errors.weighting.message}`)}
           </p>
         )}
         {!isWeightingValid && (
-          <p className="text-sm text-red-500">
+          <p className="text-[12px] text-[#C0392B]">
             {t("hr:weightingMustTotal100")}
           </p>
         )}
       </div>
 
       {/* Action Buttons */}
-      <div className={`flex gap-3 pt-4 ${isRtl ? "flex-row-reverse" : ""}`}>
+      <div className={`flex gap-3 pt-4 border-t border-[#E6E6E4] ${isRtl ? "flex-row-reverse" : ""}`}>
         {onCancel && (
           <Button
             type="button"
             variant="outline"
             onClick={onCancel}
-            className="border-[#E6E6E4]"
+            className="border-[#E6E6E4] hover:bg-[#FAFAF8]"
           >
             {t("hr:cancel")}
           </Button>
@@ -334,8 +334,8 @@ export function AddKPIForm({
           disabled={loading || !isWeightingValid}
           className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
         >
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {editData ? t("hr:editKPI") : t("hr:addKPI")}
+          {loading && <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />}
+          {editData ? t("hr:saveChanges") : t("hr:addKPI")}
         </Button>
       </div>
     </form>

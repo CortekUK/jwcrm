@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { proposalId, amount, currency = 'USD', leadEmail, leadName } = body;
+    const { proposalId, amount, currency = 'AED', leadEmail, leadName } = body;
 
     if (!proposalId || !amount || !leadEmail) {
       return NextResponse.json(

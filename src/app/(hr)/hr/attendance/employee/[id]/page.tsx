@@ -397,7 +397,7 @@ export default function EmployeeAttendanceHistoryPage() {
       {/* Summary Stats */}
       <Card className="border-[#E6E6E4]">
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
+          <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
             <TrendingUp className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
             {t("employeeAttendance.summary")}
           </CardTitle>
@@ -463,7 +463,7 @@ export default function EmployeeAttendanceHistoryPage() {
       {/* Recent Activity */}
       <Card className="border-[#E6E6E4]">
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
+          <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
             <Calendar className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
             {t("employeeAttendance.recentActivity")}
             <Badge variant="outline" className="ml-2">{records.length} {t("employeeAttendance.records")}</Badge>

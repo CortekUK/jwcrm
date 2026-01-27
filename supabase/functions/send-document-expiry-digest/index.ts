@@ -43,6 +43,7 @@ function getDocumentTypeLabel(type: string): string {
     employment_visa: 'Work Permit',
     emirates_id: 'Emirates ID',
     employment_contract: 'Employment Contract',
+    certification: 'Certification',
   };
   return labels[type] || type;
 }

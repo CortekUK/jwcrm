@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
 import { SourcesTable, LeadSource } from "@/components/lead-management/sources/SourcesTable";
 import { CreateSourceDialog } from "@/components/lead-management/sources/CreateSourceDialog";
 import { EditSourceDialog } from "@/components/lead-management/sources/EditSourceDialog";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Megaphone } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -144,18 +143,30 @@ export default function SourcesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("sources")}</h1>
-          <p className="text-muted-foreground">
-            {t("sourcesDescription")}
-          </p>
+    <div className="space-y-6 pb-12">
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Megaphone className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+              <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                {t("sources")}
+              </h1>
+            </div>
+            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+              {t("sourcesDescription")}
+            </p>
+          </div>
+          {!isLoading && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[hsl(var(--jw-primary-green))]/30 bg-white">
+              <Megaphone className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+              <span className="text-sm font-medium text-[hsl(var(--jw-primary-green))]">
+                {sources.filter(s => s.is_active).length} {t("activeSourcesCount", "Active")}
+              </span>
+            </div>
+          )}
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
-          {t("createSource")}
-        </Button>
       </div>
 
       {/* Sources Table */}
@@ -163,6 +174,7 @@ export default function SourcesPage() {
         sources={sources}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onAddNew={() => setCreateDialogOpen(true)}
         isLoading={isLoading}
       />
 
@@ -185,22 +197,29 @@ export default function SourcesPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("areYouSure")}</AlertDialogTitle>
+            <AlertDialogTitle className="text-[#C0392B]">{t("areYouSure")}</AlertDialogTitle>
             <AlertDialogDescription>
               {t("deleteSourceWarning", { name: selectedSource?.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogCancel className="border-[#E6E6E4]">{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteSource}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-[#C0392B] hover:bg-[#A33025] text-white"
             >
               {t("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Footer */}
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
+        <p className="text-xs text-[#777777]">
+          {t("legalNotice", "© 2024 Just Wills. All rights reserved.")}
+        </p>
+      </div>
     </div>
   );
 }

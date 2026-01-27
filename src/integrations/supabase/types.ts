@@ -608,11 +608,15 @@ export type Database = {
           full_name: string
           id: string
           is_paid: boolean | null
+          needs_identified: string | null
+          next_steps: string | null
           notes: string | null
           paid_amount: number | null
           paid_at: string | null
           paid_currency: string | null
           phone: string | null
+          quoted_currency: string | null
+          quoted_price: number | null
           source: string | null
           source_id: string | null
           status: Database["public"]["Enums"]["lead_status"]
@@ -628,11 +632,15 @@ export type Database = {
           full_name: string
           id?: string
           is_paid?: boolean | null
+          needs_identified?: string | null
+          next_steps?: string | null
           notes?: string | null
           paid_amount?: number | null
           paid_at?: string | null
           paid_currency?: string | null
           phone?: string | null
+          quoted_currency?: string | null
+          quoted_price?: number | null
           source?: string | null
           source_id?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
@@ -648,11 +656,15 @@ export type Database = {
           full_name?: string
           id?: string
           is_paid?: boolean | null
+          needs_identified?: string | null
+          next_steps?: string | null
           notes?: string | null
           paid_amount?: number | null
           paid_at?: string | null
           paid_currency?: string | null
           phone?: string | null
+          quoted_currency?: string | null
+          quoted_price?: number | null
           source?: string | null
           source_id?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
@@ -1187,6 +1199,7 @@ export type Database = {
       lead_status:
         | "not_started"
         | "consultation"
+        | "consultation_completed"
         | "pending"
         | "won"
         | "lost"
@@ -1362,6 +1375,7 @@ export const Constants = {
       lead_status: [
         "not_started",
         "consultation",
+        "consultation_completed",
         "pending",
         "won",
         "lost",

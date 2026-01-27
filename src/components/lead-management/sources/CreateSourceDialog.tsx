@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, Megaphone } from "lucide-react";
 
 interface Salesperson {
   user_id: string;
@@ -119,8 +119,11 @@ export function CreateSourceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{t("createSource")}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="flex items-center gap-2">
+            <Megaphone className="h-5 w-5 text-[#C6A03B]" />
+            <span className="text-[hsl(var(--jw-primary-green))]">{t("createSource")}</span>
+          </DialogTitle>
+          <DialogDescription className="ltr:ml-7 rtl:mr-7">
             {t("createSourceDescription")}
           </DialogDescription>
         </DialogHeader>
@@ -131,11 +134,15 @@ export function CreateSourceDialog({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("sourceName")} *</FormLabel>
+                  <FormLabel className="text-[#555555]">{t("sourceName")} <span className="text-[#C0392B]">*</span></FormLabel>
                   <FormControl>
-                    <Input placeholder={t("sourceNamePlaceholder")} {...field} />
+                    <Input 
+                      placeholder={t("sourceNamePlaceholder")} 
+                      className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                      {...field} 
+                    />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-[#C0392B]" />
                 </FormItem>
               )}
             />
@@ -144,47 +151,48 @@ export function CreateSourceDialog({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("description")}</FormLabel>
+                  <FormLabel className="text-[#555555]">{t("description")}</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder={t("sourceDescriptionPlaceholder")}
-                      className="resize-none"
+                      className="resize-none border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                       rows={3}
                       {...field}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-[#C0392B]" />
                 </FormItem>
               )}
             />
 
             {/* Salespeople Selection */}
             <div className="space-y-2">
-              <Label>{t("assignSalespeople")}</Label>
+              <Label className="text-[#555555]">{t("assignSalespeople")}</Label>
               {loadingSalespeople ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
+                <div className="p-4 text-center text-sm text-[#999999]">
+                  <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2 text-[#C6A03B]" />
                   {t("loadingSalespeople")}
                 </div>
               ) : availableSalespeople.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground border rounded-md">
+                <div className="p-4 text-center text-sm text-[#999999] border border-[#E6E6E4] rounded-md">
                   {t("noAvailableSalespeople")}
                 </div>
               ) : (
-                <div className="border rounded-md p-3 max-h-[200px] overflow-y-auto space-y-2">
+                <div className="border border-[#E6E6E4] rounded-md p-3 max-h-[200px] overflow-y-auto space-y-2">
                   {availableSalespeople.map((sp) => (
                     <div
                       key={sp.user_id}
-                      className="flex items-center space-x-2"
+                      className="flex items-center space-x-2 hover:bg-[#FAFAF8] p-1 rounded"
                     >
                       <Checkbox
                         id={`sp-${sp.user_id}`}
                         checked={selectedSalespeople.includes(sp.user_id)}
                         onCheckedChange={() => toggleSalesperson(sp.user_id)}
+                        className="data-[state=checked]:bg-[hsl(var(--jw-primary-green))] data-[state=checked]:border-[hsl(var(--jw-primary-green))]"
                       />
                       <label
                         htmlFor={`sp-${sp.user_id}`}
-                        className="text-sm cursor-pointer flex-1"
+                        className="text-sm cursor-pointer flex-1 text-[#555555]"
                       >
                         {sp.full_name}
                       </label>
@@ -192,21 +200,26 @@ export function CreateSourceDialog({
                   ))}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[#777777]">
                 {t("salespeopleAssignmentNote")}
               </p>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="border-t border-[#E6E6E4] pt-4 mt-6">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
+                className="border-[#E6E6E4] hover:bg-[#F5F5F3]"
               >
                 {t("cancel")}
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+              >
                 {isSubmitting && <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />}
                 {t("createSource")}
               </Button>

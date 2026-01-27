@@ -329,21 +329,21 @@ export function KPIEvaluationAlertCard() {
   const hasAlerts = hasOverdue || hasPending;
 
   const getAlertColor = () => {
-    if (alertType === "overdue") return "bg-red-50 border-red-300";
-    if (daysRemaining <= 2) return "bg-red-50 border-red-300";
-    if (daysRemaining <= 5) return "bg-orange-50 border-orange-300";
-    return "bg-yellow-50 border-yellow-300";
+    if (alertType === "overdue") return "bg-white border-l-4 border-l-amber-500 border-[#E6E6E4]";
+    if (daysRemaining <= 2) return "bg-white border-l-4 border-l-red-400 border-[#E6E6E4]";
+    if (daysRemaining <= 5) return "bg-white border-l-4 border-l-orange-400 border-[#E6E6E4]";
+    return "bg-white border-l-4 border-l-yellow-400 border-[#E6E6E4]";
   };
 
   const getTextColor = () => {
-    if (alertType === "overdue") return "text-red-600";
+    if (alertType === "overdue") return "text-amber-700";
     if (daysRemaining <= 2) return "text-red-600";
     if (daysRemaining <= 5) return "text-orange-600";
     return "text-yellow-600";
   };
 
   const getIconColor = () => {
-    if (alertType === "overdue") return "text-red-500";
+    if (alertType === "overdue") return "text-amber-500";
     if (daysRemaining <= 2) return "text-red-500";
     if (daysRemaining <= 5) return "text-orange-500";
     return "text-yellow-500";
@@ -399,10 +399,10 @@ export function KPIEvaluationAlertCard() {
 
   // Alert state - has pending or overdue evaluations
   return (
-    <Card className={`border-2 ${getAlertColor()}`}>
+    <Card className={`${getAlertColor()} shadow-sm`}>
       <CardHeader className="pb-2">
-        <CardTitle className={`text-xl font-semibold flex items-center gap-2 ${getTextColor()}`} style={{ fontFamily: 'Playfair Display, serif' }}>
-          <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${alertType === "overdue" ? "bg-red-100" : "bg-amber-100"}`}>
+        <CardTitle className="text-xl font-semibold flex items-center gap-2 text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+          <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${alertType === "overdue" ? "bg-amber-100" : "bg-[hsl(var(--jw-gold-accent))]/10"}`}>
             <AlertTriangle className={`h-4 w-4 ${getIconColor()}`} />
           </div>
           {alertType === "overdue"
@@ -413,7 +413,7 @@ export function KPIEvaluationAlertCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Alert Message */}
-        <div className={`flex items-center gap-3 p-3 rounded-lg ${alertType === "overdue" ? "bg-red-100" : daysRemaining <= 2 ? "bg-red-100" : daysRemaining <= 5 ? "bg-orange-100" : "bg-yellow-100"}`}>
+        <div className={`flex items-center gap-3 p-3 rounded-lg border ${alertType === "overdue" ? "bg-amber-50 border-amber-200" : daysRemaining <= 2 ? "bg-red-50 border-red-200" : daysRemaining <= 5 ? "bg-orange-50 border-orange-200" : "bg-yellow-50 border-yellow-200"}`}>
           <Clock className={`h-5 w-5 ${getIconColor()} shrink-0`} />
           <div>
             {alertType === "overdue" ? (
@@ -421,7 +421,7 @@ export function KPIEvaluationAlertCard() {
                 <p className={`font-medium ${getTextColor()}`}>
                   {t("hr:kpiEvaluationAlert.overdueMessage")}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-[#6B6B6B]">
                   {missedMonths.map((m, i) => (
                     <span key={`${m.month}-${m.year}`}>
                       {i > 0 && ", "}
@@ -438,7 +438,7 @@ export function KPIEvaluationAlertCard() {
                     : t("hr:kpiEvaluationAlert.monthEndApproaching", { days: daysRemaining })
                   }
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-[#6B6B6B]">
                   {t("hr:kpiEvaluationAlert.pendingCount", { count: pendingEvaluations.length })}
                 </p>
               </>
@@ -451,19 +451,19 @@ export function KPIEvaluationAlertCard() {
           {displayItems.slice(0, 5).map((item, index) => (
             <div
               key={`${item.employee_id}-${item.month || "current"}-${index}`}
-              className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 cursor-pointer transition-colors"
+              className="flex items-center justify-between p-3 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4] hover:border-[#C6A03B] cursor-pointer transition-colors"
               onClick={() => router.push(`/admin/hr/kpis/evaluations/${item.employee_id}${item.month ? `?month=${item.month}&year=${item.year}` : ""}`)}
             >
               <div className="flex items-center gap-3">
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center ${alertType === "overdue" ? "bg-red-100" : "bg-gray-100"}`}>
-                  <Target className={`h-4 w-4 ${alertType === "overdue" ? "text-red-500" : "text-gray-500"}`} />
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center ${alertType === "overdue" ? "bg-amber-100" : "bg-[hsl(var(--jw-gold-accent))]/10"}`}>
+                  <Target className={`h-4 w-4 ${alertType === "overdue" ? "text-amber-600" : "text-[#0C5536]"}`} />
                 </div>
                 <div>
                   <p className="font-medium text-[#222222]">{item.employee_name}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-[#6B6B6B]">
                     {item.job_role_name}
                     {item.month && (
-                      <span className="text-red-500 ml-1">
+                      <span className="text-amber-600 ltr:ml-1 rtl:mr-1">
                         • {getMonthName(item.month)} {item.year}
                       </span>
                     )}
@@ -473,11 +473,11 @@ export function KPIEvaluationAlertCard() {
               <div className="flex items-center gap-2">
                 <Badge
                   variant="outline"
-                  className={`${item.evaluated_count === 0 ? "bg-red-50 text-red-600 border-red-200" : "bg-yellow-50 text-yellow-600 border-yellow-200"}`}
+                  className={`${item.evaluated_count === 0 ? "bg-amber-50 text-amber-600 border-amber-200" : "bg-yellow-50 text-yellow-600 border-yellow-200"}`}
                 >
                   {item.evaluated_count}/{item.kpi_count} {t("hr:kpiEvaluationAlert.evaluated")}
                 </Badge>
-                <ChevronRight className={`h-4 w-4 text-gray-400 ${isRtl ? "rotate-180" : ""}`} />
+                <ChevronRight className={`h-4 w-4 text-[#C6A03B] ${isRtl ? "rotate-180" : ""}`} />
               </div>
             </div>
           ))}
@@ -485,7 +485,7 @@ export function KPIEvaluationAlertCard() {
 
         {/* Show more if there are more than 5 */}
         {displayItems.length > 5 && (
-          <p className="text-sm text-gray-500 text-center">
+          <p className="text-sm text-[#6B6B6B] text-center">
             {t("hr:kpiEvaluationAlert.andMore", { count: displayItems.length - 5 })}
           </p>
         )}

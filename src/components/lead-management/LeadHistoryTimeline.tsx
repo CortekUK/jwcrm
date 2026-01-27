@@ -80,23 +80,23 @@ export function LeadHistoryTimeline({ events, isLoading }: LeadHistoryTimelinePr
   const getEventColor = (type: TimelineEvent["type"]) => {
     switch (type) {
       case "created":
-        return "bg-blue-100 text-blue-600 border-blue-200";
+        return "bg-[#E6F0FF] text-[#2563EB] border-[#E6F0FF]";
       case "assigned":
-        return "bg-purple-100 text-purple-600 border-purple-200";
+        return "bg-[#F3E8FF] text-[#7C3AED] border-[#F3E8FF]";
       case "proposal_created":
-        return "bg-gray-100 text-gray-600 border-gray-200";
+        return "bg-[#F5F5F5] text-[#6B6B6B] border-[#F5F5F5]";
       case "proposal_sent":
-        return "bg-yellow-100 text-yellow-600 border-yellow-200";
+        return "bg-[#FFF9E6] text-[#C6A03B] border-[#FFF9E6]";
       case "payment_received":
-        return "bg-green-100 text-green-600 border-green-200";
+        return "bg-[#E6F7F1] text-[#0C5536] border-[#E6F7F1]";
       case "communication":
-        return "bg-cyan-100 text-cyan-600 border-cyan-200";
+        return "bg-[#E6F4FF] text-[#0369A1] border-[#E6F4FF]";
       default:
-        return "bg-gray-100 text-gray-600 border-gray-200";
+        return "bg-[#F5F5F5] text-[#6B6B6B] border-[#F5F5F5]";
     }
   };
 
-  const formatCurrency = (amount: number, currency: string = "USD") => {
+  const formatCurrency = (amount: number, currency: string = "AED") => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency,
@@ -108,10 +108,10 @@ export function LeadHistoryTimeline({ events, isLoading }: LeadHistoryTimelinePr
       <div className="space-y-4">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="flex gap-4">
-            <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" />
+            <div className="w-10 h-10 rounded-full bg-[#E6E6E4] animate-pulse" />
             <div className="flex-1 space-y-2">
-              <div className="h-4 bg-gray-200 rounded animate-pulse w-1/3" />
-              <div className="h-3 bg-gray-200 rounded animate-pulse w-1/2" />
+              <div className="h-4 bg-[#E6E6E4] rounded animate-pulse w-1/3" />
+              <div className="h-3 bg-[#E6E6E4] rounded animate-pulse w-1/2" />
             </div>
           </div>
         ))}
@@ -121,9 +121,10 @@ export function LeadHistoryTimeline({ events, isLoading }: LeadHistoryTimelinePr
 
   if (events.length === 0) {
     return (
-      <div className="text-center py-8">
-        <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-        <p className="text-muted-foreground">{t("noTimelineEvents")}</p>
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Clock className="h-10 w-10 text-[#C6A03B] mb-3" />
+        <p className="font-medium text-[#222222]">{t("noTimelineEvents")}</p>
+        <p className="text-sm text-[#6B6B6B] mt-1">{t("noTimelineEventsDescription", "Activity will appear here as it happens")}</p>
       </div>
     );
   }
@@ -131,7 +132,7 @@ export function LeadHistoryTimeline({ events, isLoading }: LeadHistoryTimelinePr
   return (
     <div className="relative">
       {/* Timeline line */}
-      <div className="absolute ltr:left-5 rtl:right-5 top-0 bottom-0 w-px bg-gray-200" />
+      <div className="absolute ltr:left-5 rtl:right-5 top-0 bottom-0 w-px bg-[#E6E6E4]" />
 
       <div className="space-y-6">
         {events.map((event, index) => (
@@ -149,22 +150,22 @@ export function LeadHistoryTimeline({ events, isLoading }: LeadHistoryTimelinePr
             <div className="flex-1 pb-2">
               <div className="flex items-start justify-between">
                 <div>
-                  <h4 className="font-medium text-gray-900">{event.title}</h4>
-                  <p className="text-sm text-muted-foreground">
+                  <h4 className="font-medium text-[#222222]">{event.title}</h4>
+                  <p className="text-sm text-[#777777]">
                     {event.description}
                   </p>
                   {event.metadata?.amount && (
-                    <p className="text-sm font-semibold text-green-600 mt-1">
+                    <p className="text-sm font-semibold text-[#0C5536] mt-1">
                       {formatCurrency(event.metadata.amount, event.metadata.currency)}
                     </p>
                   )}
                   {event.metadata?.invoiceNumber && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-xs text-[#999999] mt-0.5">
                       {t("invoiceNumber")}: {event.metadata.invoiceNumber}
                     </p>
                   )}
                 </div>
-                <time className="text-xs text-muted-foreground whitespace-nowrap ltr:ml-4 rtl:mr-4">
+                <time className="text-xs text-[#999999] whitespace-nowrap ltr:ml-4 rtl:mr-4">
                   {format(new Date(event.timestamp), "MMM d, yyyy")}
                   <br />
                   {format(new Date(event.timestamp), "h:mm a")}

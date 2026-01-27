@@ -106,7 +106,7 @@ export function ChangePasswordForm() {
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value.replace(/\s/g, ""))}
             placeholder={t("portal:settings.enterNewPassword")}
-            className="border-[#E6E6E4] ltr:pr-10 rtl:pl-10"
+            className="border-[#E6E6E4] ltr:pr-10 rtl:pl-10 focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
             disabled={loading}
             required
           />
@@ -141,7 +141,7 @@ export function ChangePasswordForm() {
               setConfirmPassword(e.target.value.replace(/\s/g, ""))
             }
             placeholder={t("portal:settings.confirmPasswordPlaceholder")}
-            className="border-[#E6E6E4] ltr:pr-10 rtl:pl-10"
+            className="border-[#E6E6E4] ltr:pr-10 rtl:pl-10 focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
             disabled={loading}
             required
           />
@@ -176,7 +176,7 @@ export function ChangePasswordForm() {
             setConfirmPassword("");
           }}
           disabled={loading}
-          className="border-[#E6E6E4]"
+          className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
         >
           {t("portal:settings.clear")}
         </Button>
