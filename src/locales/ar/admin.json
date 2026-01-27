@@ -378,5 +378,28 @@
   "confirmDeleteDocumentDescription": "لا يمكن التراجع عن هذا الإجراء. سيؤدي هذا إلى حذف المستند نهائيًا من خوادمنا.",
   "documentDeleted": "تم حذف المستند بنجاح",
   "numberSaved": "تم حفظ الرقم بنجاح",
-  "failedToSaveNumber": "فشل حفظ الرقم"
+  "failedToSaveNumber": "فشل حفظ الرقم",
+  "reports": {
+    "title": "التقارير والتحليلات",
+    "subtitle": "إحصائيات الوصايا والاتجاهات وتصدير البيانات",
+    "overview": "نظرة عامة",
+    "insights": "الرؤى",
+    "dataExports": "تصدير البيانات",
+    "totalWills": "إجمالي الوصايا",
+    "submitted": "مقدمة",
+    "willsThisMonth": "الوصايا هذا الشهر",
+    "finalizedWills": "الوصايا المكتملة",
+    "averageProcessingTime": "متوسط وقت المعالجة",
+    "days": "أيام",
+    "approvalRate": "معدل الموافقة",
+    "clientApprovalRate": "معدل موافقة العملاء",
+    "willsByStatus": "الوصايا حسب الحالة",
+    "monthlySubmissions": "التقديمات الشهرية",
+    "processingTimeline": "الجدول الزمني للمعالجة",
+    "clientApprovals": "موافقات العملاء",
+    "pendingReview": "قيد المراجعة",
+    "noData": "لا توجد بيانات متاحة",
+    "wills": "الوصايا",
+    "exportWills": "تصدير الوصايا"
+  }
 }

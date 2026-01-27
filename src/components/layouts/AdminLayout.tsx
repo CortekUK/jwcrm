@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, FileText, Users } from "lucide-react";
+import { LogOut, LayoutDashboard, FileText, Users, FileBarChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -22,6 +22,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navItems = [
     { path: "/admin", label: t('admin:adminDashboard'), icon: LayoutDashboard },
     { path: "/admin/wills", label: t('admin:wills'), icon: FileText },
+    { path: "/admin/wills/reports", label: t('admin:reports.title'), icon: FileBarChart },
     ...(isSuperAdmin ? [{ path: "/admin/manage-users", label: t('admin:manageUsers'), icon: Users }] : []),
   ];
 

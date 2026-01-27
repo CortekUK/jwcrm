@@ -596,18 +596,5 @@
     "conversionFunnel": "قمع التحويل",
     "leads": "العملاء المحتملين",
     "noData": "لا توجد بيانات متاحة"
-  },
-
-  "status": {
-    "not_started": "لم يبدأ",
-    "contacted": "تم الاتصال",
-    "consultation": "استشارة",
-    "meeting": "اجتماع",
-    "hold": "معلق",
-    "qualified": "مؤهل",
-    "negotiation": "مفاوضة",
-    "pending": "قيد الانتظار",
-    "won": "مكتسب",
-    "lost": "خاسر"
   }
 }

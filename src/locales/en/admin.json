@@ -387,5 +387,28 @@
   "confirmDeleteDocumentDescription": "This action cannot be undone. This will permanently delete the Document from our servers.",
   "documentDeleted": "Document deleted successfully",
   "numberSaved": "Number saved successfully",
-  "failedToSaveNumber": "Failed to save number"
+  "failedToSaveNumber": "Failed to save number",
+  "reports": {
+    "title": "Reports & Analytics",
+    "subtitle": "Will statistics, trends, and data exports",
+    "overview": "Overview",
+    "insights": "Insights",
+    "dataExports": "Data Exports",
+    "totalWills": "Total Wills",
+    "submitted": "Submitted",
+    "willsThisMonth": "Wills This Month",
+    "finalizedWills": "Finalized Wills",
+    "averageProcessingTime": "Avg. Processing Time",
+    "days": "days",
+    "approvalRate": "Approval Rate",
+    "clientApprovalRate": "Client Approval Rate",
+    "willsByStatus": "Wills by Status",
+    "monthlySubmissions": "Monthly Submissions",
+    "processingTimeline": "Processing Timeline",
+    "clientApprovals": "Client Approvals",
+    "pendingReview": "Pending Review",
+    "noData": "No data available",
+    "wills": "Wills",
+    "exportWills": "Export Wills"
+  }
 }

@@ -687,37 +687,50 @@ export default function HRDashboard() {
         </Card>
       </div>
 
-      {/* Expiry Alert Summary */}
-      <AlertSummaryCards documents={expiringDocs} />
-
+      {/* ============================================ */}
+      {/* KPI & Performance Section */}
+      {/* ============================================ */}
+      
       {/* KPI Evaluation Alert */}
       <KPIEvaluationAlertCard />
 
       {/* Quarterly Review Alerts */}
       <ReviewAlertCard />
 
-      {/* Pending Leave Approvals */}
-      <PendingApprovalsWidget />
-
       {/* KPI Performance Overview */}
       <KPIOverviewCard />
 
-      {/* Attendance Alerts - Prominent Individual Pattern Alerts */}
-      <AttendanceAlertsCard />
+      {/* ============================================ */}
+      {/* Leave Management Section */}
+      {/* ============================================ */}
+      
+      {/* Pending Leave Approvals */}
+      <PendingApprovalsWidget />
 
-      {/* Dashboard Widgets - 2 column layout */}
+      {/* Leave Summary & Analytics - 2 column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Today's Attendance */}
-        <AttendanceSummaryCard />
-
-        {/* Leave Requests */}
         <LeaveSummaryWidget />
+        <LeaveAnalyticsWidget />
       </div>
 
-      {/* AI-Powered Leave Analytics */}
-      <LeaveAnalyticsWidget />
+      {/* ============================================ */}
+      {/* Attendance Section */}
+      {/* ============================================ */}
+      
+      {/* Attendance Alerts */}
+      <AttendanceAlertsCard />
 
-      {/* Document Expiry Alerts - Full Width */}
+      {/* Today's Attendance Summary */}
+      <AttendanceSummaryCard />
+
+      {/* ============================================ */}
+      {/* Documents Section */}
+      {/* ============================================ */}
+      
+      {/* Document Expiry Summary */}
+      <AlertSummaryCards documents={expiringDocs} />
+
+      {/* Document Expiry Details */}
       <div className="space-y-4">
         <div className="flex items-center justify-end gap-2">
           <Link href={`${basePath}/documents`}>

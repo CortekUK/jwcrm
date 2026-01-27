@@ -52,6 +52,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     navItems: [
       { path: "/admin", labelKey: "admin:dashboard", icon: LayoutDashboard },
       { path: "/admin/wills", labelKey: "admin:wills", icon: FileText },
+      { path: "/admin/wills/reports", labelKey: "admin:reports.title", icon: FileBarChart },
       { path: "/admin/manage-users", labelKey: "admin:manageUsers", icon: Users },
     ],
   },
@@ -201,6 +202,7 @@ const superadminNavItems: NavItem[] = [
 const adminNavItems: NavItem[] = [
   { path: "/admin", labelKey: "admin:dashboard", icon: LayoutDashboard },
   { path: "/admin/wills", labelKey: "admin:wills", icon: FileText },
+  { path: "/admin/wills/reports", labelKey: "admin:reports.title", icon: FileBarChart },
 ];
 
 // HR role nav items - all under /admin/hr

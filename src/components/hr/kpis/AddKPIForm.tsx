@@ -326,7 +326,7 @@ export function AddKPIForm({
             onClick={onCancel}
             className="border-[#E6E6E4] hover:bg-[#FAFAF8]"
           >
-            {t("hr:cancel")}
+            {t("hr:cancel", "Cancel")}
           </Button>
         )}
         <Button
@@ -335,7 +335,7 @@ export function AddKPIForm({
           className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
         >
           {loading && <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />}
-          {editData ? t("hr:saveChanges") : t("hr:addKPI")}
+          {editData ? t("hr:saveChanges", "Save Changes") : t("hr:addKPI", "Add KPI")}
         </Button>
       </div>
     </form>

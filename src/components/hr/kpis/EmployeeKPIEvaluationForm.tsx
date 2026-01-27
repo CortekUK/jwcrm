@@ -547,7 +547,7 @@ export function EmployeeKPIEvaluationForm({
                         <Textarea
                           value={evaluation?.notes || ""}
                           onChange={(e) => handleNotesChange(kpi.id, e.target.value)}
-                          placeholder={t("hr:optionalNotes")}
+                          placeholder={t("hr:kpiNotesPlaceholder")}
                           className="border-[#E6E6E4] min-h-[60px]"
                           dir={isRtl ? "rtl" : "ltr"}
                         />

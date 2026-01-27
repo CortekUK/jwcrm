@@ -8,9 +8,9 @@ import {
   FileBarChart,
   TrendingUp,
   TrendingDown,
-  Banknote,
+  BarChart3,
   Clock,
-  Receipt,
+  ClipboardList,
   FileText,
   FileSpreadsheet,
 } from "lucide-react";
@@ -18,12 +18,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { FinanceTransaction, Proposal } from "@/types/finance";
 import { TransactionExportButton } from "@/components/finance/TransactionExportButton";
 import { InvoiceExportButton } from "@/components/finance/InvoiceExportButton";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartConfig,
-} from "@/components/ui/chart";
 import {
   PieChart,
   Pie,
@@ -230,7 +224,6 @@ export default function FinanceReportsPage() {
     }).format(amount);
   };
 
-  const pieChartConfig = { value: { label: "Count" } } satisfies ChartConfig;
 
   return (
     <div className="space-y-8 pb-12">
@@ -253,7 +246,7 @@ export default function FinanceReportsPage() {
 
       {/* Overview Stats */}
       <div>
-        <h2 className="text-lg font-semibold text-[#222222] mb-4">
+        <h2 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))] mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
           {t("finance:reports.overview", "Overview")}
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -263,15 +256,15 @@ export default function FinanceReportsPage() {
               {loading ? (
                 <Skeleton className="h-16 w-full" />
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-green-50 flex items-center justify-center">
-                    <TrendingUp className="h-6 w-6 text-green-600" />
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[#6B6B6B]">{t("finance:reports.revenueThisMonth", "Revenue This Month")}</p>
+                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                      <TrendingUp className="h-5 w-5 text-[#0C5536]" />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#222222]">{formatCurrency(analytics.totalRevenue)}</p>
-                    <p className="text-sm text-[#777777]">{t("finance:reports.revenueThisMonth", "Revenue This Month")}</p>
-                  </div>
-                </div>
+                  <p className="text-2xl font-bold mt-2 text-[#222222]">{formatCurrency(analytics.totalRevenue)}</p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -282,15 +275,15 @@ export default function FinanceReportsPage() {
               {loading ? (
                 <Skeleton className="h-16 w-full" />
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-red-50 flex items-center justify-center">
-                    <TrendingDown className="h-6 w-6 text-red-600" />
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[#6B6B6B]">{t("finance:reports.expensesThisMonth", "Expenses This Month")}</p>
+                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                      <TrendingDown className="h-5 w-5 text-[#0C5536]" />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#222222]">{formatCurrency(analytics.totalExpenses)}</p>
-                    <p className="text-sm text-[#777777]">{t("finance:reports.expensesThisMonth", "Expenses This Month")}</p>
-                  </div>
-                </div>
+                  <p className="text-2xl font-bold mt-2 text-[#222222]">{formatCurrency(analytics.totalExpenses)}</p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -301,17 +294,17 @@ export default function FinanceReportsPage() {
               {loading ? (
                 <Skeleton className="h-16 w-full" />
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${analytics.netProfit >= 0 ? "bg-emerald-50" : "bg-red-50"}`}>
-                    <Banknote className={`h-6 w-6 ${analytics.netProfit >= 0 ? "text-emerald-600" : "text-red-600"}`} />
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[#6B6B6B]">{t("finance:reports.netProfit", "Net Profit")}</p>
+                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                      <BarChart3 className="h-5 w-5 text-[#0C5536]" />
+                    </div>
                   </div>
-                  <div>
-                    <p className={`text-2xl font-bold ${analytics.netProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                      {formatCurrency(analytics.netProfit)}
-                    </p>
-                    <p className="text-sm text-[#777777]">{t("finance:reports.netProfit", "Net Profit")}</p>
-                  </div>
-                </div>
+                  <p className={`text-2xl font-bold mt-2 ${analytics.netProfit >= 0 ? "text-[#0C5536]" : "text-[#C0392B]"}`}>
+                    {formatCurrency(analytics.netProfit)}
+                  </p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -322,15 +315,15 @@ export default function FinanceReportsPage() {
               {loading ? (
                 <Skeleton className="h-16 w-full" />
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-amber-50 flex items-center justify-center">
-                    <Clock className="h-6 w-6 text-amber-600" />
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[#6B6B6B]">{t("finance:reports.outstanding", "Outstanding")}</p>
+                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                      <Clock className="h-5 w-5 text-[#0C5536]" />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#222222]">{formatCurrency(analytics.outstandingInvoices)}</p>
-                    <p className="text-sm text-[#777777]">{t("finance:reports.outstanding", "Outstanding")}</p>
-                  </div>
-                </div>
+                  <p className="text-2xl font-bold mt-2 text-[#222222]">{formatCurrency(analytics.outstandingInvoices)}</p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -339,7 +332,7 @@ export default function FinanceReportsPage() {
 
       {/* Analytics Charts */}
       <div>
-        <h2 className="text-lg font-semibold text-[#222222] mb-4">
+        <h2 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))] mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
           {t("finance:reports.insights", "Insights")}
         </h2>
         <div className="grid md:grid-cols-2 gap-6">
@@ -410,24 +403,25 @@ export default function FinanceReportsPage() {
                 <Skeleton className="h-[200px] w-full" />
               ) : analytics.expensesByCategory.length > 0 ? (
                 <div className="h-[200px]">
-                  <ChartContainer config={pieChartConfig}>
-                    <PieChart>
-                      <Pie
-                        data={analytics.expensesByCategory}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {analytics.expensesByCategory.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ChartContainer>
+                  <div className="h-[140px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={analytics.expensesByCategory}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={65}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {analytics.expensesByCategory.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                   <div className="flex flex-wrap justify-center gap-3 mt-2">
                     {analytics.expensesByCategory.map((item) => (
                       <div key={item.name} className="flex items-center gap-1.5 text-xs">
@@ -457,24 +451,25 @@ export default function FinanceReportsPage() {
                 <Skeleton className="h-[200px] w-full" />
               ) : analytics.invoicesByStatus.length > 0 ? (
                 <div className="h-[200px]">
-                  <ChartContainer config={pieChartConfig}>
-                    <PieChart>
-                      <Pie
-                        data={analytics.invoicesByStatus}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {analytics.invoicesByStatus.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ChartContainer>
+                  <div className="h-[140px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={analytics.invoicesByStatus}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={65}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {analytics.invoicesByStatus.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                   <div className="flex flex-wrap justify-center gap-3 mt-2">
                     {analytics.invoicesByStatus.map((item) => (
                       <div key={item.name} className="flex items-center gap-1.5 text-xs">
@@ -496,7 +491,7 @@ export default function FinanceReportsPage() {
 
       {/* Data Exports */}
       <div>
-        <h2 className="text-lg font-semibold text-[#222222] mb-4">
+        <h2 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))] mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
           {t("finance:reports.dataExports", "Data Exports")}
         </h2>
         <div className="grid md:grid-cols-2 gap-4">
@@ -504,8 +499,8 @@ export default function FinanceReportsPage() {
           <Card className="border-[#E6E6E4] hover:border-[#C6A03B] transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
-                  <Receipt className="h-5 w-5" />
+                <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center flex-shrink-0">
+                  <ClipboardList className="h-5 w-5 text-[#0C5536]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium text-[#222222]">{t("finance:reports.transactions", "Transactions")}</h3>
@@ -523,8 +518,8 @@ export default function FinanceReportsPage() {
           <Card className="border-[#E6E6E4] hover:border-[#C6A03B] transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-                  <FileText className="h-5 w-5" />
+                <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center flex-shrink-0">
+                  <FileText className="h-5 w-5 text-[#0C5536]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium text-[#222222]">{t("finance:reports.invoices", "Invoices")}</h3>

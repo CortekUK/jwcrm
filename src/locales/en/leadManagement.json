@@ -585,18 +585,5 @@
     "conversionFunnel": "Conversion Funnel",
     "leads": "Leads",
     "noData": "No data available"
-  },
-
-  "status": {
-    "not_started": "Not Started",
-    "contacted": "Contacted",
-    "consultation": "Consultation",
-    "meeting": "Meeting",
-    "hold": "On Hold",
-    "qualified": "Qualified",
-    "negotiation": "Negotiation",
-    "pending": "Pending",
-    "won": "Won",
-    "lost": "Lost"
   }
 }

@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Loader2, User } from "lucide-react";
+import { ArrowLeft, Loader2, Edit, UserX, ClipboardList, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { EmployeeProfile } from "@/components/hr";
+import { DeactivateModal } from "@/components/hr/DeactivateModal";
 
 interface Employee {
   id: string;
@@ -48,6 +49,7 @@ export default function EmployeeProfilePage() {
 
   // Check if we should open documents tab (after creating employee)
   const defaultTab = searchParams.get("tab") === "documents" ? "documents" : "details";
+  const [showDeactivate, setShowDeactivate] = useState(false);
 
   const employeeId = params.id as string;
 
@@ -165,31 +167,94 @@ export default function EmployeeProfilePage() {
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Back Link */}
+      <div className="-mb-4">
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={() => router.push("/admin/hr/employees")}
+          className="text-[#777777] hover:text-[#222222] hover:bg-transparent px-0"
+        >
+          <ArrowLeft className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+          {t("hr:backToEmployees")}
+        </Button>
+      </div>
+
       {/* Hero Banner */}
-      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => router.push("/admin/hr/employees")}
-                className="h-8 w-8 hover:bg-[#F0F0EE]"
-              >
-                <ArrowLeft className="h-5 w-5 text-[#777777]" />
-              </Button>
-              <User className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border border-[#E6E6E4] rounded-xl px-6 py-6 shadow-sm">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          {/* Left: Avatar + Info */}
+          <div className="flex items-center gap-4">
+            {/* Polished Avatar with Ring */}
+            <div className="relative">
+              <div className="h-16 w-16 rounded-full bg-[hsl(var(--jw-primary-green))] flex items-center justify-center text-white text-2xl font-semibold ring-4 ring-[hsl(var(--jw-gold-accent))]/20 shadow-md">
+                {employee.full_name.charAt(0).toUpperCase()}
+              </div>
+              {/* Status Indicator Dot */}
+              {employee.employment_status === "active" && (
+                <div className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-green-500 border-2 border-white" />
+              )}
+            </div>
+            
+            {/* Name, Role, Badge */}
+            <div>
               <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
                 {employee.full_name}
               </h1>
-              {getStatusBadge(employee.employment_status)}
+              <p className="text-sm text-[#777777] mt-0.5">
+                {employee.job_role?.name || t("hr:noJobRole")}
+                {employee.department?.name && (
+                  <span className="text-[#C6A03B]"> · {employee.department.name}</span>
+                )}
+              </p>
+              <div className="mt-2">
+                {getStatusBadge(employee.employment_status)}
+              </div>
             </div>
-            <p className="text-sm text-[#777777] ltr:ml-[88px] rtl:mr-[88px]">
-              {employee.job_role?.name || t("hr:noJobRole")}
-              {employee.department?.name && (
-                <> · {employee.department.name}</>
-              )}
-            </p>
+          </div>
+
+          {/* Right: Action Buttons */}
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/admin/hr/attendance/employee/${employee.id}`)}
+              className="border-[#E6E6E4] text-[#222222] hover:border-[hsl(var(--jw-primary-green))] hover:text-[hsl(var(--jw-primary-green))]"
+            >
+              <ClipboardList className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+              {t("hr:viewAttendance")}
+            </Button>
+            {employee.job_role && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/admin/hr/kpis/evaluations/${employee.id}`)}
+                className="border-[#E6E6E4] text-[#222222] hover:border-[hsl(var(--jw-gold-accent))] hover:text-[hsl(var(--jw-gold-accent))]"
+              >
+                <Target className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+                {t("hr:viewKPIs")}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/admin/hr/employees/${employee.id}/edit`)}
+              className="border-[#E6E6E4] text-[#222222] hover:border-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-primary-green))]/5"
+            >
+              <Edit className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+              {t("hr:edit")}
+            </Button>
+            {employee.employment_status === "active" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDeactivate(true)}
+                className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+              >
+                <UserX className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+                {t("hr:deactivate")}
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -208,6 +273,14 @@ export default function EmployeeProfilePage() {
           {t("hr:legalNotice")}
         </p>
       </div>
+
+      {/* Deactivate Modal */}
+      <DeactivateModal
+        open={showDeactivate}
+        onOpenChange={setShowDeactivate}
+        employee={employee}
+        onSuccess={fetchData}
+      />
     </div>
   );
 }

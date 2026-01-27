@@ -175,10 +175,13 @@
     "invoiceStatus": "حالة الفواتير",
     "transactions": "المعاملات",
     "invoices": "الفواتير",
+    "profitLoss": "الأرباح والخسائر",
+    "financialSummary": "الملخص المالي",
     "noData": "لا توجد بيانات متاحة",
     "noExpenses": "لا توجد مصروفات مسجلة",
     "noInvoices": "لا توجد فواتير مسجلة"
   },
+  "export": "تصدير",
 
   "thisMonth": "هذا الشهر",
   "lastMonth": "الشهر الماضي",

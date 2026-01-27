@@ -235,6 +235,7 @@
   "errorAddingDepartment": "Error adding department",
   "errorDeletingDepartment": "Error deleting department",
   "departmentDeleteNote": "Departments can only be deleted if no employees are assigned to them",
+  "noEmployeesInDepartment": "No employees in this department",
 
   "requiredDocuments": "Required Documents",
   "mandatoryDocsNote": "Passport, Employment Visa, and Emirates ID are mandatory. Each must have an expiry date.",
@@ -769,6 +770,10 @@
   "evaluationStatus": "Status",
   "overallScore": "Overall Score",
   "weightedScore": "Weighted Score",
+  "historyPeriod": "Period",
+  "kpiNotesPlaceholder": "Optional notes about the evaluation...",
+  "leaveTypeLabel": "Leave Type",
+  "reasonLabel": "Reason",
 
   "sendReport": "Send Report",
   "sendKPIReport": "Send KPI Report",

@@ -361,10 +361,10 @@ export function EmployeeKPIHistory({
           <Table>
             <TableHeader>
               <TableRow className="bg-[#FAFAF8]">
-                <TableHead className="font-semibold text-[#222222]">{t("hr:period", "Period")}</TableHead>
+                <TableHead className="font-semibold text-[#222222]">{t("hr:historyPeriod")}</TableHead>
                 <TableHead className="font-semibold text-[#222222] text-center">{t("hr:score", "Score")}</TableHead>
                 <TableHead className="font-semibold text-[#222222] text-center">{t("hr:completed", "Completed")}</TableHead>
-                <TableHead className="font-semibold text-[#222222]">{t("hr:status")}</TableHead>
+                <TableHead className="font-semibold text-[#222222]">{t("hr:evaluationStatus")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -234,6 +234,7 @@
   "errorAddingDepartment": "خطأ في إضافة القسم",
   "errorDeletingDepartment": "خطأ في حذف القسم",
   "departmentDeleteNote": "يمكن حذف الأقسام فقط إذا لم يكن هناك موظفون معينون لها",
+  "noEmployeesInDepartment": "لا يوجد موظفون في هذا القسم",
 
   "requiredDocuments": "المستندات المطلوبة",
   "mandatoryDocsNote": "جواز السفر، تأشيرة العمل، والهوية الإماراتية إلزامية. يجب أن يكون لكل منها تاريخ انتهاء.",
@@ -768,6 +769,10 @@
   "evaluationStatus": "الحالة",
   "overallScore": "الدرجة الإجمالية",
   "weightedScore": "الدرجة المرجحة",
+  "historyPeriod": "الفترة",
+  "kpiNotesPlaceholder": "ملاحظات اختيارية حول التقييم...",
+  "leaveTypeLabel": "نوع الإجازة",
+  "reasonLabel": "السبب",
 
   "sendReport": "إرسال التقرير",
   "sendKPIReport": "إرسال تقرير مؤشرات الأداء",

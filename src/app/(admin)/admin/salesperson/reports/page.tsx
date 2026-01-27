@@ -8,19 +8,13 @@ import {
   FileBarChart,
   Users,
   Trophy,
-  Coins,
+  BarChart3,
   TrendingUp,
   Target,
   FileSpreadsheet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { LeadExportButton } from "@/components/lead-management/LeadExportButton";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartConfig,
-} from "@/components/ui/chart";
 import {
   PieChart,
   Pie,
@@ -231,7 +225,6 @@ export default function SalespersonReportsPage() {
     }).format(amount);
   };
 
-  const pieChartConfig = { value: { label: "Count" } } satisfies ChartConfig;
 
   return (
     <div className="space-y-8 pb-12">
@@ -254,7 +247,7 @@ export default function SalespersonReportsPage() {
 
       {/* Overview Stats */}
       <div>
-        <h2 className="text-lg font-semibold text-[#222222] mb-4">
+        <h2 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))] mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
           {t("salesperson:reports.myPerformance", "My Performance")}
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -264,15 +257,15 @@ export default function SalespersonReportsPage() {
               {loading ? (
                 <Skeleton className="h-16 w-full" />
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <Users className="h-6 w-6 text-blue-600" />
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[#6B6B6B]">{t("salesperson:reports.myLeadsThisMonth", "My Leads This Month")}</p>
+                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                      <Users className="h-5 w-5 text-[#0C5536]" />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#222222]">{analytics.myTotalLeads}</p>
-                    <p className="text-sm text-[#777777]">{t("salesperson:reports.myLeadsThisMonth", "My Leads This Month")}</p>
-                  </div>
-                </div>
+                  <p className="text-2xl font-bold mt-2 text-[#222222]">{analytics.myTotalLeads}</p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -283,15 +276,15 @@ export default function SalespersonReportsPage() {
               {loading ? (
                 <Skeleton className="h-16 w-full" />
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-green-50 flex items-center justify-center">
-                    <Trophy className="h-6 w-6 text-green-600" />
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[#6B6B6B]">{t("salesperson:reports.myDealsWon", "My Deals Won")}</p>
+                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                      <Trophy className="h-5 w-5 text-[#0C5536]" />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#222222]">{analytics.myDealsWon}</p>
-                    <p className="text-sm text-[#777777]">{t("salesperson:reports.myDealsWon", "My Deals Won")}</p>
-                  </div>
-                </div>
+                  <p className="text-2xl font-bold mt-2 text-[#222222]">{analytics.myDealsWon}</p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -302,15 +295,15 @@ export default function SalespersonReportsPage() {
               {loading ? (
                 <Skeleton className="h-16 w-full" />
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-emerald-50 flex items-center justify-center">
-                    <Coins className="h-6 w-6 text-emerald-600" />
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[#6B6B6B]">{t("salesperson:reports.myRevenue", "My Revenue")}</p>
+                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                      <BarChart3 className="h-5 w-5 text-[#0C5536]" />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#222222]">{formatCurrency(analytics.myRevenue)}</p>
-                    <p className="text-sm text-[#777777]">{t("salesperson:reports.myRevenue", "My Revenue")}</p>
-                  </div>
-                </div>
+                  <p className="text-2xl font-bold mt-2 text-[#222222]">{formatCurrency(analytics.myRevenue)}</p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -321,15 +314,15 @@ export default function SalespersonReportsPage() {
               {loading ? (
                 <Skeleton className="h-16 w-full" />
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-purple-50 flex items-center justify-center">
-                    <TrendingUp className="h-6 w-6 text-purple-600" />
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[#6B6B6B]">{t("salesperson:reports.myConversionRate", "My Conversion Rate")}</p>
+                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                      <TrendingUp className="h-5 w-5 text-[#0C5536]" />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#222222]">{analytics.myConversionRate}%</p>
-                    <p className="text-sm text-[#777777]">{t("salesperson:reports.myConversionRate", "My Conversion Rate")}</p>
-                  </div>
-                </div>
+                  <p className="text-2xl font-bold mt-2 text-[#222222]">{analytics.myConversionRate}%</p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -338,7 +331,7 @@ export default function SalespersonReportsPage() {
 
       {/* Analytics Charts */}
       <div>
-        <h2 className="text-lg font-semibold text-[#222222] mb-4">
+        <h2 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))] mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
           {t("salesperson:reports.insights", "Insights")}
         </h2>
         <div className="grid md:grid-cols-2 gap-6">
@@ -486,7 +479,7 @@ export default function SalespersonReportsPage() {
 
       {/* Data Exports */}
       <div>
-        <h2 className="text-lg font-semibold text-[#222222] mb-4">
+        <h2 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))] mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
           {t("salesperson:reports.dataExports", "Data Exports")}
         </h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -494,8 +487,8 @@ export default function SalespersonReportsPage() {
           <Card className="border-[#E6E6E4] hover:border-[#C6A03B] transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-                  <Target className="h-5 w-5" />
+                <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center flex-shrink-0">
+                  <Target className="h-5 w-5 text-[#0C5536]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium text-[#222222]">{t("salesperson:reports.myLeads", "My Leads")}</h3>

@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
-import { Building2, Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { Building2, Plus, Trash2, Loader2, AlertCircle, Users, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Department {
@@ -16,14 +23,28 @@ interface Department {
   employee_count?: number;
 }
 
+interface DepartmentEmployee {
+  id: string;
+  full_name: string;
+  email: string | null;
+  employment_status: string;
+  job_role: { name: string } | null;
+}
+
 export default function DepartmentsPage() {
   const { t } = useTranslation(["hr", "toast"]);
   const { toast } = useToast();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [newDeptName, setNewDeptName] = useState("");
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  
+  // Dialog state for viewing employees
+  const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+  const [departmentEmployees, setDepartmentEmployees] = useState<DepartmentEmployee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
   useEffect(() => {
     fetchDepartments();
@@ -64,6 +85,30 @@ export default function DepartmentsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchDepartmentEmployees = async (departmentId: string) => {
+    setLoadingEmployees(true);
+    try {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id, full_name, email, employment_status, job_role:job_roles(name)")
+        .eq("department_id", departmentId)
+        .order("full_name");
+
+      if (error) throw error;
+      setDepartmentEmployees(data || []);
+    } catch (error) {
+      console.error("Error fetching department employees:", error);
+      setDepartmentEmployees([]);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
+
+  const handleOpenDepartmentDialog = (dept: Department) => {
+    setSelectedDepartment(dept);
+    fetchDepartmentEmployees(dept.id);
   };
 
   const handleAddDepartment = async () => {
@@ -239,31 +284,45 @@ export default function DepartmentsPage() {
                   {departments.map((dept) => (
                     <div
                       key={dept.id}
-                      className="flex items-center justify-between p-4 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4] hover:border-[#C6A03B] transition-colors"
+                      className="flex items-center justify-between p-4 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4] hover:border-[#C6A03B] transition-colors group"
                     >
-                      <div>
-                        <p className="font-medium text-[#222222]">{dept.name}</p>
+                      <div 
+                        className="flex-1 cursor-pointer"
+                        onClick={() => handleOpenDepartmentDialog(dept)}
+                      >
+                        <p className="font-medium text-[#222222] group-hover:text-[hsl(var(--jw-primary-green))] transition-colors">{dept.name}</p>
                         <p className="text-xs text-[#6B6B6B]">
                           {getEmployeeText(dept.employee_count || 0)}
                         </p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteDepartment(dept)}
-                        disabled={deletingId === dept.id || (dept.employee_count && dept.employee_count > 0)}
-                        className={`${
-                          dept.employee_count && dept.employee_count > 0
-                            ? "text-gray-300 cursor-not-allowed"
-                            : "text-[#6B6B6B] hover:text-red-600 hover:bg-red-50"
-                        }`}
-                      >
-                        {deletingId === dept.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
+                      <div className="flex items-center gap-2">
+                        {dept.employee_count && dept.employee_count > 0 && (
+                          <ChevronRight 
+                            className="h-4 w-4 text-[#6B6B6B] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            onClick={() => handleOpenDepartmentDialog(dept)}
+                          />
                         )}
-                      </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteDepartment(dept);
+                          }}
+                          disabled={deletingId === dept.id || (dept.employee_count && dept.employee_count > 0)}
+                          className={`${
+                            dept.employee_count && dept.employee_count > 0
+                              ? "text-gray-300 cursor-not-allowed"
+                              : "text-[#6B6B6B] hover:text-red-600 hover:bg-red-50"
+                          }`}
+                        >
+                          {deletingId === dept.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -287,6 +346,73 @@ export default function DepartmentsPage() {
           {t("hr:legalNotice")}
         </p>
       </div>
+
+      {/* Department Employees Dialog */}
+      <Dialog 
+        open={!!selectedDepartment} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedDepartment(null);
+            setDepartmentEmployees([]);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+              <span>{selectedDepartment?.name}</span>
+            </DialogTitle>
+            <p className="text-sm text-[#6B6B6B]">
+              {selectedDepartment && getEmployeeText(selectedDepartment.employee_count || 0)}
+            </p>
+          </DialogHeader>
+          
+          <div className="mt-4">
+            {loadingEmployees ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--jw-primary-green))]" />
+              </div>
+            ) : departmentEmployees.length === 0 ? (
+              <div className="text-center py-8 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4]">
+                <Users className="h-8 w-8 text-[#C6A03B] mx-auto mb-2" />
+                <p className="text-[#6B6B6B]">{t("hr:noEmployeesInDepartment")}</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {departmentEmployees.map((employee) => (
+                  <div
+                    key={employee.id}
+                    onClick={() => router.push(`/hr/employees/${employee.id}`)}
+                    className="flex items-center justify-between p-3 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#F5F5F3] transition-colors cursor-pointer group"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-[#222222] group-hover:text-[hsl(var(--jw-primary-green))] transition-colors truncate">
+                        {employee.full_name}
+                      </p>
+                      <p className="text-xs text-[#6B6B6B] truncate">
+                        {employee.job_role?.name || t("hr:noJobRole")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 ltr:ml-3 rtl:mr-3">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        employee.employment_status === "active" 
+                          ? "bg-green-100 text-green-700"
+                          : employee.employment_status === "on_leave"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}>
+                        {t(`hr:status.${employee.employment_status}`)}
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-[#6B6B6B] opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

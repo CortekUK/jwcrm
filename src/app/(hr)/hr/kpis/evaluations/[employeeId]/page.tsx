@@ -7,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCurrentMonth, getCurrentYear } from "@/lib/kpi-validation";
 import { EmployeeKPIEvaluationForm, EmployeeKPIHistory, SendKPIReportButton, DownloadKPIReportButton } from "@/components/hr/kpis";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, ClipboardCheck, User } from "lucide-react";
 
@@ -103,14 +102,12 @@ export default function EmployeeEvaluationPage() {
   if (notFound || !employee) {
     return (
       <div className="max-w-4xl mx-auto space-y-6">
-        <Button
-          variant="ghost"
+        <button
           onClick={() => router.back()}
-          className={`text-[#6B6B6B] hover:text-[#222222] ${isRtl ? "flex-row-reverse" : ""}`}
+          className="flex items-center justify-center h-8 w-8 rounded-lg bg-white border border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-colors"
         >
-          <ArrowLeft className={`h-4 w-4 ${isRtl ? "ml-2 rotate-180" : "mr-2"}`} />
-          {t("hr:back")}
-        </Button>
+          <ArrowLeft className={`h-4 w-4 text-[#555555] ${isRtl ? "rotate-180" : ""}`} />
+        </button>
         <Card className="border-[#E6E6E4]">
           <CardContent className="py-12 text-center">
             <User className="h-12 w-12 text-[#E6E6E4] mx-auto mb-4" />
@@ -124,14 +121,12 @@ export default function EmployeeEvaluationPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Back Button */}
-      <Button
-        variant="ghost"
+      <button
         onClick={() => router.back()}
-        className={`text-[#6B6B6B] hover:text-[#222222] ${isRtl ? "flex-row-reverse" : ""}`}
+        className="flex items-center justify-center h-8 w-8 rounded-lg bg-white border border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-colors"
       >
-        <ArrowLeft className={`h-4 w-4 ${isRtl ? "ml-2 rotate-180" : "mr-2"}`} />
-        {t("hr:back")}
-      </Button>
+        <ArrowLeft className={`h-4 w-4 text-[#555555] ${isRtl ? "rotate-180" : ""}`} />
+      </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Evaluation Card - Takes 2 columns */}

@@ -175,10 +175,13 @@
     "invoiceStatus": "Invoice Status",
     "transactions": "Transactions",
     "invoices": "Invoices",
+    "profitLoss": "Profit & Loss",
+    "financialSummary": "Financial Summary",
     "noData": "No data available",
     "noExpenses": "No expenses recorded",
     "noInvoices": "No invoices recorded"
   },
+  "export": "Export",
 
   "thisMonth": "This Month",
   "lastMonth": "Last Month",

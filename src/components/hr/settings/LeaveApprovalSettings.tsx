@@ -520,11 +520,11 @@ export function LeaveApprovalSettings() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-[#FAFAF8]">
-                        <TableHead className="font-semibold text-[#222222]">{t("hr:leaveType", "Leave Type")}</TableHead>
+                        <TableHead className="font-semibold text-[#222222]">{t("hr:leaveTypeLabel")}</TableHead>
                         <TableHead className="font-semibold text-[#222222]">{t("hr:durationRange", "Duration")}</TableHead>
                         <TableHead className="font-semibold text-[#222222]">{t("hr:approvalChain", "Approval Chain")}</TableHead>
                         <TableHead className="font-semibold text-[#222222]">{t("hr:escalation", "Escalation")}</TableHead>
-                        <TableHead className="font-semibold text-[#222222]">{t("hr:status", "Status")}</TableHead>
+                        <TableHead className="font-semibold text-[#222222]">{t("hr:evaluationStatus")}</TableHead>
                         <TableHead className="font-semibold text-[#222222] text-right">{t("hr:actions", "Actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -662,9 +662,9 @@ export function LeaveApprovalSettings() {
                     <TableHeader>
                       <TableRow className="bg-[#FAFAF8]">
                         <TableHead className="font-semibold text-[#222222]">{t("hr:delegatedTo", "Delegated To")}</TableHead>
-                        <TableHead className="font-semibold text-[#222222]">{t("hr:period", "Period")}</TableHead>
+                        <TableHead className="font-semibold text-[#222222]">{t("hr:historyPeriod")}</TableHead>
                         <TableHead className="font-semibold text-[#222222]">{t("hr:scope", "Scope")}</TableHead>
-                        <TableHead className="font-semibold text-[#222222]">{t("hr:status", "Status")}</TableHead>
+                        <TableHead className="font-semibold text-[#222222]">{t("hr:evaluationStatus")}</TableHead>
                         <TableHead className="font-semibold text-[#222222] text-right">{t("hr:actions", "Actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -759,7 +759,7 @@ export function LeaveApprovalSettings() {
           <div className="grid gap-4 py-4">
             {/* Leave Type */}
             <div className="grid gap-2">
-              <Label className="text-[#555555]">{t("hr:leaveType", "Leave Type")}</Label>
+              <Label className="text-[#555555]">{t("hr:leaveTypeLabel")}</Label>
               <Select value={ruleForm.leave_type} onValueChange={(v) => setRuleForm({ ...ruleForm, leave_type: v })}>
                 <SelectTrigger className="border-[#E6E6E4]">
                   <SelectValue />
@@ -1014,7 +1014,7 @@ export function LeaveApprovalSettings() {
 
             {/* Reason */}
             <div className="grid gap-2">
-              <Label className="text-[#555555]">{t("hr:reason", "Reason")} ({t("hr:optional", "optional")})</Label>
+              <Label className="text-[#555555]">{t("hr:reasonLabel")} ({t("hr:optional", "optional")})</Label>
               <Textarea
                 placeholder={t("hr:delegationReasonPlaceholder", "e.g., Vacation, Business Trip")}
                 value={delegationForm.reason}

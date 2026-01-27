@@ -31,12 +31,6 @@ import { BatchDocumentExportButton } from "@/components/hr/documents/BatchDocume
 import { KPIExportButton } from "@/components/hr/kpis/KPIExportButton";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartConfig,
-} from "@/components/ui/chart";
-import {
   PieChart,
   Pie,
   Cell,
@@ -240,21 +234,9 @@ export default function ReportsPage() {
     }
   };
 
-  const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      employees: "bg-blue-50 text-blue-600",
-      attendance: "bg-green-50 text-green-600",
-      leave: "bg-purple-50 text-purple-600",
-      documents: "bg-amber-50 text-amber-600",
-      kpis: "bg-rose-50 text-rose-600",
-      reviews: "bg-cyan-50 text-cyan-600",
-    };
-    return colors[category] || "bg-gray-50 text-gray-600";
+  const getCategoryColor = () => {
+    return "bg-[rgba(198,160,59,0.15)] text-[#0C5536]";
   };
-
-  const pieChartConfig = {
-    value: { label: "Count" },
-  } satisfies ChartConfig;
 
   return (
     <div className="space-y-8 pb-12">
@@ -277,7 +259,7 @@ export default function ReportsPage() {
 
       {/* Overview Stats */}
       <div>
-        <h2 className="text-lg font-semibold text-[#222222] mb-4">
+        <h2 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))] mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
           {t("hr:analytics.overview", "Overview")}
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -287,15 +269,15 @@ export default function ReportsPage() {
               {loading ? (
                 <Skeleton className="h-16 w-full" />
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <Users className="h-6 w-6 text-blue-600" />
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[#6B6B6B]">{t("hr:analytics.activeEmployees", "Active Employees")}</p>
+                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                      <Users className="h-5 w-5 text-[#0C5536]" />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#222222]">{analytics.totalEmployees}</p>
-                    <p className="text-sm text-[#777777]">{t("hr:analytics.activeEmployees", "Active Employees")}</p>
-                  </div>
-                </div>
+                  <p className="text-2xl font-bold mt-2 text-[#222222]">{analytics.totalEmployees}</p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -306,24 +288,15 @@ export default function ReportsPage() {
               {loading ? (
                 <Skeleton className="h-16 w-full" />
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-green-50 flex items-center justify-center">
-                    <Calendar className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-2xl font-bold text-[#222222]">{analytics.attendanceRate}%</p>
-                      {analytics.attendanceRate >= 90 ? (
-                        <TrendingUp className="h-4 w-4 text-green-500" />
-                      ) : analytics.attendanceRate >= 75 ? (
-                        <TrendingUp className="h-4 w-4 text-amber-500" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4 text-red-500" />
-                      )}
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[#6B6B6B]">{t("hr:analytics.attendanceThisMonth", "Attendance This Month")}</p>
+                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                      <Calendar className="h-5 w-5 text-[#0C5536]" />
                     </div>
-                    <p className="text-sm text-[#777777]">{t("hr:analytics.attendanceThisMonth", "Attendance This Month")}</p>
                   </div>
-                </div>
+                  <p className="text-2xl font-bold mt-2 text-[#222222]">{analytics.attendanceRate}%</p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -334,15 +307,15 @@ export default function ReportsPage() {
               {loading ? (
                 <Skeleton className="h-16 w-full" />
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-purple-50 flex items-center justify-center">
-                    <Clock className="h-6 w-6 text-purple-600" />
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[#6B6B6B]">{t("hr:analytics.pendingLeaveRequests", "Pending Leave Requests")}</p>
+                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                      <Clock className="h-5 w-5 text-[#0C5536]" />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#222222]">{analytics.pendingLeave}</p>
-                    <p className="text-sm text-[#777777]">{t("hr:analytics.pendingLeaveRequests", "Pending Leave Requests")}</p>
-                  </div>
-                </div>
+                  <p className="text-2xl font-bold mt-2 text-[#222222]">{analytics.pendingLeave}</p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -353,22 +326,17 @@ export default function ReportsPage() {
               {loading ? (
                 <Skeleton className="h-16 w-full" />
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-rose-50 flex items-center justify-center">
-                    <Target className="h-6 w-6 text-rose-600" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-2xl font-bold text-[#222222]">
-                        {analytics.avgKpiScore !== null ? `${analytics.avgKpiScore}%` : "—"}
-                      </p>
-                      {analytics.avgKpiScore !== null && analytics.avgKpiScore >= 80 && (
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      )}
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[#6B6B6B]">{t("hr:analytics.avgKpiScore", "Avg. KPI Score")}</p>
+                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                      <Target className="h-5 w-5 text-[#0C5536]" />
                     </div>
-                    <p className="text-sm text-[#777777]">{t("hr:analytics.avgKpiScore", "Avg. KPI Score")}</p>
                   </div>
-                </div>
+                  <p className="text-2xl font-bold mt-2 text-[#222222]">
+                    {analytics.avgKpiScore !== null ? `${analytics.avgKpiScore}%` : "—"}
+                  </p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -377,7 +345,7 @@ export default function ReportsPage() {
 
       {/* Analytics Charts */}
       <div>
-        <h2 className="text-lg font-semibold text-[#222222] mb-4">
+        <h2 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))] mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
           {t("hr:analytics.insights", "Insights")}
         </h2>
         <div className="grid md:grid-cols-2 gap-6">
@@ -393,24 +361,25 @@ export default function ReportsPage() {
                 <Skeleton className="h-[200px] w-full" />
               ) : analytics.kpiDistribution.length > 0 ? (
                 <div className="h-[200px]">
-                  <ChartContainer config={pieChartConfig}>
-                    <PieChart>
-                      <Pie
-                        data={analytics.kpiDistribution}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {analytics.kpiDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ChartContainer>
+                  <div className="h-[140px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={analytics.kpiDistribution}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={65}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {analytics.kpiDistribution.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                   <div className="flex flex-wrap justify-center gap-3 mt-2">
                     {analytics.kpiDistribution.map((item) => (
                       <div key={item.name} className="flex items-center gap-1.5 text-xs">
@@ -547,7 +516,7 @@ export default function ReportsPage() {
 
       {/* Data Exports Section */}
       <div>
-        <h2 className="text-lg font-semibold text-[#222222] mb-4">
+        <h2 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))] mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
           {t("hr:reports.dataExports", "Data Exports")}
         </h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -555,7 +524,7 @@ export default function ReportsPage() {
           <Card className="border-[#E6E6E4] hover:border-[#C6A03B] transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getCategoryColor("employees")}`}>
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${getCategoryColor()}`}>
                   <Users className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -574,7 +543,7 @@ export default function ReportsPage() {
           <Card className="border-[#E6E6E4] hover:border-[#C6A03B] transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getCategoryColor("attendance")}`}>
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${getCategoryColor()}`}>
                   <Calendar className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -600,7 +569,7 @@ export default function ReportsPage() {
           <Card className="border-[#E6E6E4] hover:border-[#C6A03B] transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getCategoryColor("leave")}`}>
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${getCategoryColor()}`}>
                   <CalendarDays className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -626,7 +595,7 @@ export default function ReportsPage() {
           <Card className="border-[#E6E6E4] hover:border-[#C6A03B] transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getCategoryColor("documents")}`}>
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${getCategoryColor()}`}>
                   <FolderOpen className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -645,7 +614,7 @@ export default function ReportsPage() {
           <Card className="border-[#E6E6E4] hover:border-[#C6A03B] transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getCategoryColor("kpis")}`}>
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${getCategoryColor()}`}>
                   <Target className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -664,7 +633,7 @@ export default function ReportsPage() {
           <Card className="border-[#E6E6E4] hover:border-[#C6A03B] transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getCategoryColor("reviews")}`}>
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${getCategoryColor()}`}>
                   <ClipboardCheck className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
