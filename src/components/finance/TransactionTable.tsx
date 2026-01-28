@@ -50,6 +50,7 @@ import { toast } from "sonner";
 import { FinanceTransaction, TransactionType, EXPENSE_CATEGORIES, EARNING_CATEGORIES, TransactionCategory } from "@/types/finance";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 
 type SortField = "transaction_date" | "type" | "category" | "description" | "amount";
 type SortDirection = "asc" | "desc" | null;
@@ -103,7 +104,11 @@ export function TransactionTable({
   onAmountMaxChange,
 }: TransactionTableProps) {
   const { t } = useTranslation("finance");
-  
+  const { canPerform } = usePermissions();
+
+  // Check if user can delete transactions (head-only operation for Finance)
+  const canDeleteTransaction = canPerform("finance", "delete_transaction");
+
   // Search and local filters
   const [searchTerm, setSearchTerm] = useState("");
   const [localCategoryFilter, setLocalCategoryFilter] = useState<TransactionCategory[]>([]);
@@ -779,15 +784,17 @@ export function TransactionTable({
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-[#555555] hover:text-[#C0392B] hover:bg-[#FEECEC]"
-                          onClick={() => onDelete(transaction)}
-                          title={t("delete")}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canDeleteTransaction && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-[#555555] hover:text-[#C0392B] hover:bg-[#FEECEC]"
+                            onClick={() => onDelete(transaction)}
+                            title={t("delete")}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

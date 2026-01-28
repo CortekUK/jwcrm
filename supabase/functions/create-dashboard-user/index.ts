@@ -6,12 +6,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+type PermissionLevel = 'head' | 'employee';
+type AppRole = 'client' | 'admin' | 'hr' | 'finance' | 'lead_management' | 'salesperson';
+
+// Roles that support tiered permissions
+const TIERED_PERMISSION_ROLES: AppRole[] = ['hr', 'finance', 'lead_management', 'admin'];
+
+interface RoleWithPermission {
+  role: AppRole;
+  permissionLevel?: PermissionLevel;
+}
+
 interface CreateDashboardUserRequest {
   fullName: string;
   email: string;
   locale?: 'en' | 'ar';
-  role?: 'client' | 'admin' | 'hr' | 'finance' | 'lead_management' | 'salesperson';
-  roles?: ('client' | 'admin' | 'hr' | 'finance' | 'lead_management' | 'salesperson')[];
+  role?: AppRole;
+  roles?: AppRole[];
+  rolesWithPermissions?: RoleWithPermission[];
   sendWelcomeEmail?: boolean;
 }
 
@@ -45,6 +57,12 @@ const roleDisplayNames: Record<string, string> = {
   finance: 'Finance',
   lead_management: 'Lead Management',
   salesperson: 'Salesperson',
+};
+
+// Permission level display names
+const permissionDisplayNames: Record<string, string> = {
+  head: 'Head',
+  employee: 'Employee',
 };
 
 Deno.serve(async (req) => {
@@ -93,11 +111,33 @@ Deno.serve(async (req) => {
       locale = 'en',
       role,
       roles,
+      rolesWithPermissions,
       sendWelcomeEmail = true,
     }: CreateDashboardUserRequest = await req.json();
 
-    // Support both single role and multiple roles
-    const userRolesToAssign: string[] = roles && roles.length > 0 ? roles : (role ? [role] : ['client']);
+    // Build roles with permission levels
+    // Priority: rolesWithPermissions > roles > role
+    let rolesToInsert: RoleWithPermission[] = [];
+
+    if (rolesWithPermissions && rolesWithPermissions.length > 0) {
+      // Use the new format with explicit permission levels
+      rolesToInsert = rolesWithPermissions.map(rwp => ({
+        role: rwp.role,
+        permissionLevel: TIERED_PERMISSION_ROLES.includes(rwp.role)
+          ? (rwp.permissionLevel || 'head')
+          : 'head', // Non-tiered roles always get 'head'
+      }));
+    } else if (roles && roles.length > 0) {
+      // Legacy format: all roles default to 'head'
+      rolesToInsert = roles.map(r => ({ role: r, permissionLevel: 'head' as PermissionLevel }));
+    } else if (role) {
+      rolesToInsert = [{ role, permissionLevel: 'head' as PermissionLevel }];
+    } else {
+      rolesToInsert = [{ role: 'client' as AppRole, permissionLevel: 'head' as PermissionLevel }];
+    }
+
+    // Support both single role and multiple roles (for validation and logging)
+    const userRolesToAssign: string[] = rolesToInsert.map(r => r.role);
 
     // Validate required fields
     if (!fullName || !email) {
@@ -195,10 +235,11 @@ Deno.serve(async (req) => {
       // Don't throw - user is created, just log the error
     }
 
-    // Insert all roles
-    const roleInserts = userRolesToAssign.map(r => ({
+    // Insert all roles with permission levels
+    const roleInserts = rolesToInsert.map(r => ({
       user_id: authData.user.id,
-      role: r,
+      role: r.role,
+      permission_level: r.permissionLevel || 'head',
     }));
 
     const { error: roleError } = await supabase
@@ -293,7 +334,14 @@ Deno.serve(async (req) => {
     }
 
     // Log the user creation in activity log
-    const roleNames = userRolesToAssign.map(r => roleDisplayNames[r] || r).join(', ');
+    const roleNamesWithPermissions = rolesToInsert.map(r => {
+      const roleName = roleDisplayNames[r.role] || r.role;
+      if (TIERED_PERMISSION_ROLES.includes(r.role)) {
+        const permLevel = permissionDisplayNames[r.permissionLevel || 'head'] || r.permissionLevel;
+        return `${permLevel} ${roleName}`;
+      }
+      return roleName;
+    }).join(', ');
     await supabase
       .from('will_status_events')
       .insert({
@@ -301,7 +349,7 @@ Deno.serve(async (req) => {
         previous_status: null,
         new_status: null,
         actor_user_id: user.id,
-        notes: `Created new account: ${fullName} (${email}) with roles: ${roleNames}`,
+        notes: `Created new account: ${fullName} (${email}) with roles: ${roleNamesWithPermissions}`,
       });
 
     return new Response(

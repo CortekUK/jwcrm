@@ -1,5 +1,5 @@
 {
-  "salespersonDashboard": "Sales Dashboard",
+  "salespersonDashboard": "EA Dashboard",
   "dashboard": "Dashboard",
   "myLeads": "My Leads",
   "myLeadsDescription": "View and manage leads assigned to you.",
@@ -45,6 +45,11 @@
   "meetingCannotBeInPast": "Meeting time cannot be in the past",
   "meetingInPast": "This meeting time is in the past",
   "testModeIndicator": "Test Mode: Email will be sent to admin address",
+  "selectLead": "Select Lead",
+  "selectLeadPlaceholder": "Choose a lead to invite",
+  "loadingLeads": "Loading leads...",
+  "noLeadsWithEmail": "No leads with email addresses found",
+  "pleaseSelectLead": "Please select a lead first",
 
   "weekday": {
     "sun": "Sun",

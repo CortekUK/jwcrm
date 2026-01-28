@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export interface LeadSource {
   id: string;
@@ -70,7 +71,11 @@ export function SourcesTable({
   isLoading,
 }: SourcesTableProps) {
   const { t } = useTranslation("leadManagement");
-  
+  const { canPerform } = usePermissions();
+
+  // Check if user can delete sources (head-only operation for Lead Management)
+  const canDeleteSource = canPerform("lead_management", "delete_source");
+
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -471,15 +476,17 @@ export function SourcesTable({
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-[#999999] hover:text-[#C0392B] hover:bg-[#FEECEC]"
-                          onClick={() => onDelete(source)}
-                          title={t("deleteSource")}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canDeleteSource && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-[#999999] hover:text-[#C0392B] hover:bg-[#FEECEC]"
+                            onClick={() => onDelete(source)}
+                            title={t("deleteSource")}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

@@ -25,6 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Edit, Trash2, Briefcase, AlertTriangle, Loader2, Target, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { usePermissions } from "@/hooks/usePermissions";
 
 type JobRole = {
   id: string;
@@ -55,10 +56,14 @@ export function JobRoleTable({
   const isRtl = i18n.language === "ar";
   const router = useRouter();
   const { toast } = useToast();
+  const { canPerform } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<JobRole | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Check if user can delete job roles (head-only operation for HR)
+  const canDeleteJobRole = canPerform("hr", "delete_job_role");
 
   // Filter job roles based on search
   const filteredRoles = jobRoles.filter((role) =>
@@ -214,16 +219,18 @@ export function JobRoleTable({
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteClick(role)}
-                        className="text-[#6B6B6B] hover:text-red-600"
-                        disabled={role.employee_count > 0}
-                        title={t("hr:delete", "Delete")}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canDeleteJobRole && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteClick(role)}
+                          className="text-[#6B6B6B] hover:text-red-600"
+                          disabled={role.employee_count > 0}
+                          title={t("hr:delete", "Delete")}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

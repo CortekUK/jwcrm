@@ -43,8 +43,8 @@
     "admin": "Admin",
     "hr": "HR",
     "finance": "Finance",
-    "lead_management": "Lead Management",
-    "salesperson": "Salesperson",
+    "lead_management": "Managing Director",
+    "salesperson": "Executive Assistant",
     "client": "Client"
   },
   "languagePreference": "Language Preference",

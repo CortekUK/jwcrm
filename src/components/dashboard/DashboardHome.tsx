@@ -28,11 +28,12 @@ const formatRoleName = (role: string): string => {
     hr: "HR",
     finance_manager: "Finance Manager",
     finance: "Finance",
-    salesperson: "Salesperson",
+    salesperson: "Executive Assistant",
     client: "Client",
-    lead_manager: "Lead Manager",
+    lead_manager: "Managing Director",
+    lead_management: "Managing Director",
   };
-  return roleLabels[role] || role.split("_").map(word => 
+  return roleLabels[role] || role.split("_").map(word =>
     word.charAt(0).toUpperCase() + word.slice(1)
   ).join(" ");
 };

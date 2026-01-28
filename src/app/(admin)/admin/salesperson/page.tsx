@@ -145,9 +145,9 @@ export default function SalespersonDashboard() {
           *,
           lead:leads(full_name, email)
         `)
-        .eq("created_by", user.id)
-        .eq("is_completed", false)
-        .order("due_date", { ascending: true })
+        .eq("salesperson_id", user.id)
+        .in("status", ["pending", "triggered"])
+        .order("remind_at", { ascending: true })
         .limit(10);
 
       if (error) throw error;
@@ -177,7 +177,7 @@ export default function SalespersonDashboard() {
       const ids = leadIds.map(l => l.id);
 
       const { data, error } = await supabase
-        .from("lead_history")
+        .from("lead_communications")
         .select(`
           *,
           lead:leads(full_name)

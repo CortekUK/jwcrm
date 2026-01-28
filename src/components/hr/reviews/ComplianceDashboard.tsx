@@ -139,7 +139,7 @@ export function ComplianceDashboard() {
               full_name,
               department:departments(id, name)
             ),
-            reviewer:auth.users(email)
+            reviewer:profiles!quarterly_reviews_reviewer_profile_fkey(full_name)
           `)
           .eq("quarter", Number(selectedQuarter))
           .eq("year", Number(selectedYear));

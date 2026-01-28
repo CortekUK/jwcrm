@@ -7,12 +7,19 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 
 export type UserRole = "client" | "admin" | "superadmin" | "hr" | "finance" | "lead_management" | "salesperson";
+export type PermissionLevel = "head" | "employee";
+
+export interface RoleWithPermission {
+  role: UserRole;
+  permissionLevel: PermissionLevel;
+}
 
 export interface UserProfile {
   user_id: string;
   full_name: string | null;
   locale: string;
   roles?: UserRole[];
+  rolesWithPermissions?: RoleWithPermission[];
 }
 
 export function useAuth() {
@@ -179,7 +186,7 @@ export function useAuth() {
       // Fetch user roles from user_roles table (users can have multiple roles)
       const { data: rolesData, error: roleError } = await supabase
         .from("user_roles")
-        .select("role")
+        .select("role, permission_level")
         .eq("user_id", userId);
 
       if (roleError) throw roleError;
@@ -196,8 +203,13 @@ export function useAuth() {
         return;
       }
 
-      // Get all roles and determine primary role (prefer admin > other roles > client)
+      // Get all roles with their permission levels
       const roles = rolesData.map(r => r.role as UserRole);
+      const rolesWithPermissions: RoleWithPermission[] = rolesData.map(r => ({
+        role: r.role as UserRole,
+        permissionLevel: (r.permission_level as PermissionLevel) || 'head',
+      }));
+
       const rolePriority: UserRole[] = ['superadmin', 'admin', 'hr', 'finance', 'lead_management', 'salesperson', 'client'];
       const primaryRole = rolePriority.find(r => roles.includes(r)) || 'client';
 
@@ -205,6 +217,7 @@ export function useAuth() {
         ...profileData,
         role: primaryRole,
         roles: roles, // Store all roles for future use
+        rolesWithPermissions, // Store roles with their permission levels
       });
       profileLoadedRef.current = true;
     } catch (error: any) {

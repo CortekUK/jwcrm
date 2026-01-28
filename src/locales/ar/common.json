@@ -43,8 +43,8 @@
     "admin": "المسؤول",
     "hr": "الموارد البشرية",
     "finance": "المالية",
-    "lead_management": "إدارة العملاء المحتملين",
-    "salesperson": "مندوب المبيعات",
+    "lead_management": "المدير الإداري",
+    "salesperson": "مساعد تنفيذي",
     "client": "العميل"
   },
   "languagePreference": "تفضيل اللغة",

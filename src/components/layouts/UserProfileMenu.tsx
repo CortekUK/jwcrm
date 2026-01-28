@@ -110,35 +110,35 @@ export function UserProfileMenu({
   // Expanded mode
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <button 
-          className={cn(
-            "flex items-center gap-3 w-full rounded-lg bg-sidebar-accent/30 p-3 hover:bg-sidebar-accent/50 transition-colors cursor-pointer text-left",
-            isRtl && "flex-row-reverse text-right"
-          )}
-        >
-          <Avatar className="h-9 w-9 shrink-0 border-2 border-sidebar-primary/20">
-            <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
-              {profile?.full_name ? getInitials(profile.full_name) : "U"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground leading-tight truncate">
-              {profile?.full_name?.split(" ")[0] || "User"}
-            </p>
-            <p className="text-[11px] text-sidebar-foreground/70 leading-tight mt-0.5">
-              {roleLabel}
-            </p>
-          </div>
-          <div className={cn("flex items-center gap-1 shrink-0", isRtl && "flex-row-reverse")}>
-            {showReminderBadge && selectedRole === "salesperson" && <ReminderNotificationBadge />}
+      <div className={cn("flex items-center gap-1", isRtl && "flex-row-reverse")}>
+        {showReminderBadge && selectedRole === "salesperson" && <ReminderNotificationBadge />}
+        <PopoverTrigger asChild>
+          <button
+            className={cn(
+              "flex items-center gap-3 flex-1 rounded-lg bg-sidebar-accent/30 p-3 hover:bg-sidebar-accent/50 transition-colors cursor-pointer text-left",
+              isRtl && "flex-row-reverse text-right"
+            )}
+          >
+            <Avatar className="h-9 w-9 shrink-0 border-2 border-sidebar-primary/20">
+              <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
+                {profile?.full_name ? getInitials(profile.full_name) : "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-sidebar-foreground leading-tight truncate">
+                {profile?.full_name?.split(" ")[0] || "User"}
+              </p>
+              <p className="text-[11px] text-sidebar-foreground/70 leading-tight mt-0.5">
+                {roleLabel}
+              </p>
+            </div>
             <ChevronDown className={cn(
-              "h-4 w-4 text-sidebar-foreground/50 transition-transform",
+              "h-4 w-4 text-sidebar-foreground/50 transition-transform shrink-0",
               isOpen && "rotate-180"
             )} />
-          </div>
-        </button>
-      </PopoverTrigger>
+          </button>
+        </PopoverTrigger>
+      </div>
       <PopoverContent 
         side="top" 
         align={isRtl ? "end" : "start"}

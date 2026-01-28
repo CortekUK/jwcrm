@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { Building2, Plus, Trash2, Loader2, AlertCircle, Users, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface Department {
   id: string;
@@ -35,6 +36,7 @@ export default function DepartmentsPage() {
   const { t } = useTranslation(["hr", "toast"]);
   const { toast } = useToast();
   const router = useRouter();
+  const { canPerform } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [newDeptName, setNewDeptName] = useState("");
@@ -45,6 +47,9 @@ export default function DepartmentsPage() {
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [departmentEmployees, setDepartmentEmployees] = useState<DepartmentEmployee[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+
+  // Check if user can delete departments (head-only operation for HR)
+  const canDeleteDepartment = canPerform("hr", "delete_department");
 
   useEffect(() => {
     fetchDepartments();

@@ -1034,18 +1034,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          permission_level: Database["public"]["Enums"]["permission_level"]
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          permission_level?: Database["public"]["Enums"]["permission_level"]
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          permission_level?: Database["public"]["Enums"]["permission_level"]
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -1169,6 +1172,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_permission_level: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: Database["public"]["Enums"]["permission_level"]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1178,9 +1188,17 @@ export type Database = {
       }
       invoke_kpi_monthly_notifications: { Args: never; Returns: undefined }
       invoke_kpi_quarterly_notifications: { Args: never; Returns: undefined }
+      is_head_for_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_locale: "en" | "ar"
+      permission_level: "head" | "employee"
       app_role:
         | "client"
         | "admin"
@@ -1355,6 +1373,7 @@ export const Constants = {
   public: {
     Enums: {
       app_locale: ["en", "ar"],
+      permission_level: ["head", "employee"],
       app_role: [
         "client",
         "admin",

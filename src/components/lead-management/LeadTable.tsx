@@ -67,6 +67,7 @@ import { format, parseISO, subDays, startOfMonth, endOfMonth, subMonths, startOf
 import { cn } from "@/lib/utils";
 import { LeadHealthIndicator } from "./LeadHealthIndicator";
 import { ExportLeadsDialog } from "./ExportLeadsDialog";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export interface Lead {
   id: string;
@@ -200,7 +201,11 @@ export function LeadTable({
     return <IconComponent className="h-4 w-4" />;
   };
   const { t } = useTranslation("leadManagement");
-  
+  const { canPerform } = usePermissions();
+
+  // Check if user can delete leads (head-only operation for Lead Management)
+  const canDeleteLead = canPerform("lead_management", "delete_lead");
+
   // Local state for filters when props not provided
   const [localSourceFilter, setLocalSourceFilter] = useState<string[]>([]);
   const [localAssignedToFilter, setLocalAssignedToFilter] = useState<string>("all");
@@ -1124,15 +1129,17 @@ export function LeadTable({
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-[#999999] hover:text-[#C0392B] hover:bg-[#FEECEC]"
-                          onClick={() => onDelete(lead)}
-                          title={t("deleteLead")}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canDeleteLead && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-[#999999] hover:text-[#C0392B] hover:bg-[#FEECEC]"
+                            onClick={() => onDelete(lead)}
+                            title={t("deleteLead")}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

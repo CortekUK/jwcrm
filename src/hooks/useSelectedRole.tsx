@@ -15,8 +15,8 @@ export const ROLE_DISPLAY_NAMES: Record<UserRole, string> = {
   admin: "Wills Dashboard",
   hr: "HR Dashboard",
   finance: "Finance Dashboard",
-  lead_management: "Lead Management",
-  salesperson: "Salesperson Dashboard",
+  lead_management: "MD (Managing Director) Dashboard",
+  salesperson: "EA (Executive Assistant) Dashboard",
   client: "Client Portal",
 };
 

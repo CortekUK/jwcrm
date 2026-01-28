@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Copy, Check, Mail, User, AlertCircle, Shield, Users, Target, UserCheck, Banknote } from "lucide-react";
+import { Loader2, Copy, Check, Mail, User, AlertCircle, Shield, Users, Target, UserCheck, Banknote, Crown, UserCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, PermissionLevel } from "@/hooks/useAuth";
+import { TIERED_PERMISSION_ROLES } from "@/hooks/usePermissions";
 
 interface CreateClientModalProps {
   open: boolean;
@@ -37,6 +38,8 @@ export function CreateClientModal({ open, onOpenChange, onUserCreated }: CreateC
   const [locale, setLocale] = useState<"en" | "ar">("en");
   const [userRoles, setUserRoles] = useState<string[]>(["client"]);
   const [sendEmail, setSendEmail] = useState(true);
+  // Permission levels for tiered roles (hr, finance, lead_management, admin)
+  const [permissionLevels, setPermissionLevels] = useState<Record<string, PermissionLevel>>({});
 
   // Check if current user is superadmin
   const isSuperadmin = profile?.roles?.includes("superadmin");
@@ -50,10 +53,29 @@ export function CreateClientModal({ open, onOpenChange, onUserCreated }: CreateC
     { value: "lead_management", label: "admin:leadManagement", icon: Target, bgColor: "bg-[rgba(245,158,11,0.1)]", textColor: "text-[#D97706]", borderColor: "border-[#D97706]/20" },
   ];
 
-  // Salesperson role only available when created by superadmin
+  // Executive Assistant (salesperson) role only available when created by superadmin
   const availableRoles = isSuperadmin
     ? [...baseRoles, { value: "salesperson", label: "admin:salesperson", icon: UserCheck, bgColor: "bg-[rgba(59,130,246,0.1)]", textColor: "text-[#2563EB]", borderColor: "border-[#2563EB]/20" }]
     : baseRoles;
+
+  // Check if any selected role supports tiered permissions
+  const selectedTieredRoles = useMemo(() => {
+    return userRoles.filter(role =>
+      TIERED_PERMISSION_ROLES.includes(role as any)
+    );
+  }, [userRoles]);
+
+  const hasTieredRolesSelected = selectedTieredRoles.length > 0;
+
+  // Get permission level for a role (default to 'head')
+  const getPermissionLevel = (role: string): PermissionLevel => {
+    return permissionLevels[role] || 'head';
+  };
+
+  // Set permission level for a role
+  const setPermissionLevel = (role: string, level: PermissionLevel) => {
+    setPermissionLevels(prev => ({ ...prev, [role]: level }));
+  };
 
   const [credentials, setCredentials] = useState<ClientCredentials | null>(null);
   const [copied, setCopied] = useState(false);
@@ -78,6 +100,14 @@ export function CreateClientModal({ open, onOpenChange, onUserCreated }: CreateC
         throw new Error('No session found');
       }
 
+      // Build roles with permission levels
+      const rolesWithPermissions = userRoles.map(role => ({
+        role,
+        permissionLevel: TIERED_PERMISSION_ROLES.includes(role as any)
+          ? getPermissionLevel(role)
+          : 'head',
+      }));
+
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://gyikimtqsasryewwawgs.supabase.co';
       const response = await fetch(
         `${supabaseUrl}/functions/v1/create-dashboard-user`,
@@ -91,7 +121,7 @@ export function CreateClientModal({ open, onOpenChange, onUserCreated }: CreateC
             fullName,
             email,
             locale,
-            roles: userRoles,
+            rolesWithPermissions,
             sendWelcomeEmail: sendEmail,
           }),
         }
@@ -165,6 +195,7 @@ Just Wills Team`;
     setLocale("en");
     setUserRoles(["client"]);
     setSendEmail(true);
+    setPermissionLevels({});
     setCredentials(null);
     setCopied(false);
     onOpenChange(false);
@@ -266,7 +297,69 @@ Just Wills Team`;
               </p>
             </div>
 
-
+            {/* Permission Level Toggle - Only show for tiered roles */}
+            {hasTieredRolesSelected && (
+              <div className="space-y-3">
+                <Label className="text-[#555555] text-sm font-medium flex items-center gap-2">
+                  <Crown className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
+                  {t('admin:createClientModal.permissionLevel', 'Permission Level')}
+                </Label>
+                <div className="space-y-2">
+                  {selectedTieredRoles.map(role => {
+                    const roleConfig = availableRoles.find(r => r.value === role);
+                    const currentLevel = getPermissionLevel(role);
+                    return (
+                      <div
+                        key={role}
+                        className="flex items-center justify-between p-3 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4]"
+                      >
+                        <div className="flex items-center gap-2">
+                          {roleConfig && (
+                            <div className={`h-6 w-6 rounded-full flex items-center justify-center ${roleConfig.bgColor}`}>
+                              <roleConfig.icon className={`h-3.5 w-3.5 ${roleConfig.textColor}`} />
+                            </div>
+                          )}
+                          <span className="text-sm font-medium text-[#555555]">
+                            {t(roleConfig?.label || role)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-white rounded-lg border border-[#E6E6E4] p-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setPermissionLevel(role, 'head')}
+                            disabled={loading}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                              currentLevel === 'head'
+                                ? 'bg-[hsl(var(--jw-primary-green))] text-white shadow-sm'
+                                : 'text-[#777777] hover:bg-[#F5F5F3]'
+                            } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <Crown className="h-3 w-3" />
+                            {t('admin:createClientModal.head', 'Head')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPermissionLevel(role, 'employee')}
+                            disabled={loading}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                              currentLevel === 'employee'
+                                ? 'bg-[#6B6B6B] text-white shadow-sm'
+                                : 'text-[#777777] hover:bg-[#F5F5F3]'
+                            } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <UserCircle className="h-3 w-3" />
+                            {t('admin:createClientModal.employee', 'Employee')}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-[#999999]">
+                  {t('admin:createClientModal.permissionLevelHelp', 'Head users have full access. Employee users have restricted access to critical operations.')}
+                </p>
+              </div>
+            )}
 
             <div className="flex justify-end gap-3 pt-5 border-t border-[#E6E6E4] mt-6">
               <Button

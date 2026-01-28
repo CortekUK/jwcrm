@@ -90,8 +90,8 @@ export default function QuarterlyReviewDetailPage() {
           .select(`
             *,
             employee:employees(id, full_name, job_title, department:departments(id, name)),
-            reviewer:auth.users!quarterly_reviews_reviewer_id_fkey(email),
-            approver:auth.users!quarterly_reviews_approved_by_fkey(email)
+            reviewer:profiles!quarterly_reviews_reviewer_profile_fkey(full_name),
+            approver:profiles!quarterly_reviews_approver_profile_fkey(full_name)
           `)
           .eq("id", reviewId)
           .single();
@@ -288,8 +288,8 @@ export default function QuarterlyReviewDetailPage() {
     );
   }
 
-  const reviewerName = review.reviewer?.email?.split("@")[0] || null;
-  const approverName = review.approver?.email?.split("@")[0] || null;
+  const reviewerName = review.reviewer?.full_name || null;
+  const approverName = review.approver?.full_name || null;
 
   return (
     <div className="space-y-6">

@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { Search, Eye, Edit, UserX, Plus, Users, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
 import { ExportEmployeesButton } from "./ExportEmployeesButton";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // Helper function to get initials
 function getInitials(name: string): string {
@@ -64,7 +65,11 @@ export function EmployeeTable({
 }: EmployeeTableProps) {
   const { t } = useTranslation(["hr"]);
   const router = useRouter();
+  const { canPerform } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Check if user can deactivate employees (head-only operation for HR)
+  const canDeactivateEmployee = canPerform("hr", "deactivate_employee");
   const [statusFilter, setStatusFilter] = useState<string>(defaultStatusFilter);
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   
@@ -330,7 +335,7 @@ export function EmployeeTable({
                             <Edit className="h-4 w-4 mr-2" />
                             {t("hr:edit")}
                           </DropdownMenuItem>
-                          {employee.employment_status === "active" && (
+                          {employee.employment_status === "active" && canDeactivateEmployee && (
                             <DropdownMenuItem
                               onClick={() => onDeactivate(employee)}
                               className="cursor-pointer text-red-600 focus:text-red-700"

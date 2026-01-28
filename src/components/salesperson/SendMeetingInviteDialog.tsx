@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -47,10 +47,12 @@ import {
   Mail,
   MapPin,
   FileText,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SendMeetingInviteDialogProps {
   open: boolean;
@@ -94,6 +96,50 @@ export function SendMeetingInviteDialog({
   const { t } = useTranslation("salesperson");
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Lead selection state (when no lead is pre-selected)
+  const [availableLeads, setAvailableLeads] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
+  const [selectedLead, setSelectedLead] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [loadingLeads, setLoadingLeads] = useState(false);
+
+  // Determine if we need to show lead selector
+  const needsLeadSelection = !leadEmail;
+
+  // Effective lead data (from props or selected)
+  const effectiveLeadId = leadId || selectedLead?.id || "";
+  const effectiveLeadName = leadName || selectedLead?.name || "";
+  const effectiveLeadEmail = leadEmail || selectedLead?.email || "";
+
+  // Fetch available leads when dialog opens and no lead is pre-selected
+  const fetchLeads = useCallback(async () => {
+    if (!user?.id || !needsLeadSelection) return;
+
+    setLoadingLeads(true);
+    try {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, full_name, email")
+        .eq("assigned_to", user.id)
+        .not("email", "is", null)
+        .order("full_name", { ascending: true });
+
+      if (error) throw error;
+      setAvailableLeads(data || []);
+    } catch (error) {
+      console.error("Error fetching leads:", error);
+    } finally {
+      setLoadingLeads(false);
+    }
+  }, [user?.id, needsLeadSelection]);
+
+  useEffect(() => {
+    if (open && needsLeadSelection) {
+      fetchLeads();
+    }
+    if (!open) {
+      setSelectedLead(null);
+    }
+  }, [open, needsLeadSelection, fetchLeads]);
 
   // Generate hours array (00-23)
   const hours = useMemo(
@@ -162,7 +208,7 @@ export function SendMeetingInviteDialog({
       const roundedMinute = Math.ceil(initialDate.getMinutes() / 15) * 15;
 
       form.reset({
-        title: `Meeting with ${leadName}`,
+        title: effectiveLeadName ? `Meeting with ${effectiveLeadName}` : "Meeting with",
         date: initialDate,
         hour: roundedHour.toString().padStart(2, "0"),
         minute: (roundedMinute % 60).toString().padStart(2, "0"),
@@ -171,7 +217,14 @@ export function SendMeetingInviteDialog({
         description: "",
       });
     }
-  }, [open, form, leadName, defaultDate]);
+  }, [open, form, effectiveLeadName, defaultDate]);
+
+  // Update title when lead is selected
+  useEffect(() => {
+    if (selectedLead) {
+      form.setValue("title", `Meeting with ${selectedLead.name}`);
+    }
+  }, [selectedLead, form]);
 
   const handleSubmit = async (data: MeetingFormValues) => {
     if (!meetingTimes) return;
@@ -181,13 +234,18 @@ export function SendMeetingInviteDialog({
       return;
     }
 
+    if (!effectiveLeadId || !effectiveLeadEmail) {
+      toast.error(t("pleaseSelectLead"));
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const response = await fetch("/api/lead-management/meeting-invitations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          leadId,
+          leadId: effectiveLeadId,
           title: data.title,
           startTime: meetingTimes.startTime.toISOString(),
           endTime: meetingTimes.endTime.toISOString(),
@@ -226,15 +284,52 @@ export function SendMeetingInviteDialog({
           <DialogDescription className="ltr:ml-7 rtl:mr-7 text-[#777777]">{t("sendMeetingInviteDescription")}</DialogDescription>
         </DialogHeader>
 
-        {/* Recipient Display */}
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-[#FAFAF8] border border-[#E6E6E4]">
-          <Mail className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
-          <span className="text-sm text-[#555555]">{t("recipient")}:</span>
-          <span className="text-sm font-medium text-[#222222]">{leadEmail}</span>
-          <Badge variant="secondary" className="ml-auto bg-[#FFF9E6] text-[#C6A03B] border-0">
-            {leadName}
-          </Badge>
-        </div>
+        {/* Recipient Display or Selector */}
+        {needsLeadSelection ? (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-[#555555] flex items-center gap-1">
+              <User className="h-4 w-4 text-[#C6A03B]" />
+              {t("selectLead")} <span className="text-[#C0392B]">*</span>
+            </label>
+            <Select
+              value={selectedLead?.id || ""}
+              onValueChange={(value) => {
+                const lead = availableLeads.find((l) => l.id === value);
+                if (lead) {
+                  setSelectedLead({ id: lead.id, name: lead.full_name, email: lead.email });
+                }
+              }}
+            >
+              <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
+                <SelectValue placeholder={loadingLeads ? t("loadingLeads") : t("selectLeadPlaceholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                {availableLeads.map((lead) => (
+                  <SelectItem key={lead.id} value={lead.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{lead.full_name}</span>
+                      <span className="text-xs text-[#777777]">{lead.email}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+                {availableLeads.length === 0 && !loadingLeads && (
+                  <div className="px-2 py-4 text-sm text-center text-[#777777]">
+                    {t("noLeadsWithEmail")}
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-[#FAFAF8] border border-[#E6E6E4]">
+            <Mail className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+            <span className="text-sm text-[#555555]">{t("recipient")}:</span>
+            <span className="text-sm font-medium text-[#222222]">{effectiveLeadEmail}</span>
+            <Badge variant="secondary" className="ml-auto bg-[#FFF9E6] text-[#C6A03B] border-0">
+              {effectiveLeadName}
+            </Badge>
+          </div>
+        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -467,9 +562,9 @@ export function SendMeetingInviteDialog({
               >
                 {t("cancel")}
               </Button>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting || isPastTime}
+              <Button
+                type="submit"
+                disabled={isSubmitting || isPastTime || (needsLeadSelection && !selectedLead)}
                 className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
               >
                 {isSubmitting && (

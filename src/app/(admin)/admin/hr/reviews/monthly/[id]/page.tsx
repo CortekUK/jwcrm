@@ -90,8 +90,8 @@ export default function AdminMonthlyReviewDetailPage() {
           .select(`
             *,
             employee:employees(id, full_name, job_title, department:departments(id, name)),
-            reviewer:auth.users!monthly_reviews_reviewer_id_fkey(email),
-            approver:auth.users!monthly_reviews_approved_by_fkey(email)
+            reviewer:profiles!monthly_reviews_reviewer_profile_fkey(full_name),
+            approver:profiles!monthly_reviews_approver_profile_fkey(full_name)
           `)
           .eq("id", reviewId)
           .single();

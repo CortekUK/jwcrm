@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { SelectedRoleProvider } from "@/hooks/useSelectedRole";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -24,7 +25,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <Toaster />
           <Sonner />
           <LanguageProvider>
-            {children}
+            <SelectedRoleProvider>
+              {children}
+            </SelectedRoleProvider>
           </LanguageProvider>
         </TooltipProvider>
       </ThemeProvider>

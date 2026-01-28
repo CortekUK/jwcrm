@@ -34,6 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Edit, Archive, ArchiveRestore, Target, AlertTriangle, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { usePermissions } from "@/hooks/usePermissions";
 
 type KPI = {
   id: string;
@@ -81,9 +82,13 @@ export function KPITable({
   const isRtl = i18n.language === "ar";
   const router = useRouter();
   const { toast } = useToast();
+  const { canPerform } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [jobRoleFilter, setJobRoleFilter] = useState<string>(initialRoleFilter || "all");
   const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+
+  // Check if user can archive KPIs (head-only operation for HR)
+  const canArchiveKPI = canPerform("hr", "archive_kpi");
   
   // Sorting state
   type SortColumn = "name" | "job_role" | "target" | "unit" | "weighting";
@@ -428,29 +433,31 @@ export function KPITable({
                           <Edit className="h-4 w-4" />
                         </Button>
                       )}
-                      {kpi.is_archived ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRestore(kpi)}
-                          disabled={restoring}
-                          className="text-[#6B6B6B] hover:text-[hsl(var(--jw-primary-green))]"
-                        >
-                          {restoring ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <ArchiveRestore className="h-4 w-4" />
-                          )}
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleArchiveClick(kpi)}
-                          className="text-[#6B6B6B] hover:text-amber-600"
-                        >
-                          <Archive className="h-4 w-4" />
-                        </Button>
+                      {canArchiveKPI && (
+                        kpi.is_archived ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRestore(kpi)}
+                            disabled={restoring}
+                            className="text-[#6B6B6B] hover:text-[hsl(var(--jw-primary-green))]"
+                          >
+                            {restoring ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <ArchiveRestore className="h-4 w-4" />
+                            )}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleArchiveClick(kpi)}
+                            className="text-[#6B6B6B] hover:text-amber-600"
+                          >
+                            <Archive className="h-4 w-4" />
+                          </Button>
+                        )
                       )}
                     </div>
                   </TableCell>

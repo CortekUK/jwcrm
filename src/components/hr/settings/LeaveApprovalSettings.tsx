@@ -56,6 +56,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { format, isAfter, isBefore, isToday, parseISO } from "date-fns";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface ApprovalRule {
   id: string;
@@ -102,6 +103,10 @@ const leaveTypeConfig: Record<string, { icon: any; color: string; label: string 
 export function LeaveApprovalSettings() {
   const { t } = useTranslation(["hr", "common"]);
   const { toast } = useToast();
+  const { canPerform } = usePermissions();
+
+  // Check if user can manage leave rules (head-only operation for HR)
+  const canManageLeaveRules = canPerform("hr", "manage_leave_rules");
 
   // State
   const [rules, setRules] = useState<ApprovalRule[]>([]);
@@ -167,9 +172,9 @@ export function LeaveApprovalSettings() {
       // Get user profiles for delegation names
       const { data: profilesData } = await supabase
         .from("profiles")
-        .select("id, full_name, email");
+        .select("user_id, full_name");
 
-      const profileMap = new Map((profilesData || []).map(p => [p.id, p]));
+      const profileMap = new Map((profilesData || []).map(p => [p.user_id, p]));
 
       const delegationsWithNames = (delegationsData || []).map(d => ({
         ...d,
@@ -181,9 +186,9 @@ export function LeaveApprovalSettings() {
 
       // Fetch users for dropdown
       setUsers((profilesData || []).map(p => ({
-        id: p.id,
+        id: p.user_id,
         full_name: p.full_name || "Unknown",
-        email: p.email || "",
+        email: "",
       })));
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -499,13 +504,15 @@ export function LeaveApprovalSettings() {
                     {t("hr:approvalChainRulesDesc", "Configure multi-level approval workflows based on leave type and duration")}
                   </CardDescription>
                 </div>
-                <Button
-                  onClick={() => openRuleDialog()}
-                  className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
-                >
-                  <Plus className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-                  {t("hr:addRule", "Add Rule")}
-                </Button>
+                {canManageLeaveRules && (
+                  <Button
+                    onClick={() => openRuleDialog()}
+                    className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+                  >
+                    <Plus className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+                    {t("hr:addRule", "Add Rule")}
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -576,24 +583,26 @@ export function LeaveApprovalSettings() {
                               />
                             </TableCell>
                             <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openRuleDialog(rule)}
-                                  className="text-[#555555] hover:text-[#0C5536]"
-                                >
-                                  <Edit2 className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteRule(rule.id)}
-                                  className="text-[#C0392B] hover:text-[#C0392B] hover:bg-[#FEECEC]"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
+                              {canManageLeaveRules && (
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openRuleDialog(rule)}
+                                    className="text-[#555555] hover:text-[#0C5536]"
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteRule(rule.id)}
+                                    className="text-[#C0392B] hover:text-[#C0392B] hover:bg-[#FEECEC]"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
                             </TableCell>
                           </TableRow>
                         );

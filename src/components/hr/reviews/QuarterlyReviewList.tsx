@@ -82,7 +82,7 @@ type QuarterlyReview = {
     } | null;
   };
   reviewer: {
-    email: string;
+    full_name: string;
   } | null;
 };
 
@@ -157,7 +157,7 @@ export function QuarterlyReviewList({
           .select(`
             *,
             employee:employees(id, full_name, job_title, department:departments(id, name)),
-            reviewer:auth.users(email)
+            reviewer:profiles!quarterly_reviews_reviewer_profile_fkey(full_name)
           `)
           .order("created_at", { ascending: false });
 

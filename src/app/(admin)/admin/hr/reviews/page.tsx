@@ -173,17 +173,17 @@ export default function AdminQuarterlyReviewsPage() {
         .select(`
           *,
           employee:employees(id, full_name, job_title, department:departments(id, name)),
-          reviewer:auth.users!quarterly_reviews_reviewer_id_fkey(email),
-          approver:auth.users!quarterly_reviews_approved_by_fkey(email)
+          reviewer:profiles!quarterly_reviews_reviewer_profile_fkey(full_name),
+          approver:profiles!quarterly_reviews_approver_profile_fkey(full_name)
         `)
         .eq("id", review.id)
         .single();
 
       if (error) throw error;
 
-      // Get reviewer and approver names (from email)
-      const reviewerName = reviewData.reviewer?.email?.split("@")[0] || null;
-      const approverName = reviewData.approver?.email?.split("@")[0] || null;
+      // Get reviewer and approver names
+      const reviewerName = reviewData.reviewer?.full_name || null;
+      const approverName = reviewData.approver?.full_name || null;
 
       setPdfData({
         review: reviewData as ReviewForPDF,

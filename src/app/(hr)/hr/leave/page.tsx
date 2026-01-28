@@ -957,14 +957,14 @@ export default function LeavePage() {
                           )}
                         </div>
                         <div className="text-sm text-[#6B6B6B] space-y-1 ltr:ml-11 rtl:mr-11">
-                          <p>
+                          <div>
                             <span className="font-medium text-[#555555]">{t("leavePage.dates")}:</span>{" "}
                             {format(new Date(request.start_date), "MMM d")} -{" "}
                             {format(new Date(request.end_date), "MMM d, yyyy")}
                             <Badge variant="outline" className="ml-2 text-[#222222] border-[#E6E6E4]">
                               {request.total_days} {t("days")}
                             </Badge>
-                          </p>
+                          </div>
                           {request.reason && (
                             <p>
                               <span className="font-medium text-[#555555]">{t("common.reason")}:</span> {request.reason}
