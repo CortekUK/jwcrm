@@ -38,7 +38,9 @@ function SidebarContent() {
     const isDashboardLink =
       itemPath === "/admin" ||
       itemPath === "/admin/hr" ||
-      itemPath === "/admin/finance";
+      itemPath === "/admin/finance" ||
+      itemPath === "/admin/lead-management" ||
+      itemPath === "/admin/salesperson";
 
     if (isDashboardLink) {
       return pathname === itemPath;
@@ -208,7 +210,9 @@ function MobileSidebar() {
     const isDashboardLink =
       itemPath === "/admin" ||
       itemPath === "/admin/hr" ||
-      itemPath === "/admin/finance";
+      itemPath === "/admin/finance" ||
+      itemPath === "/admin/lead-management" ||
+      itemPath === "/admin/salesperson";
 
     if (isDashboardLink) {
       return pathname === itemPath;
