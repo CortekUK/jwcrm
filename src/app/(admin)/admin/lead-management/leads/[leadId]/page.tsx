@@ -31,6 +31,7 @@ import {
   CheckCircle2,
   Save,
   Send,
+  PhoneOff,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,10 +44,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AddCommunicationDialog } from "@/components/lead-management/AddCommunicationDialog";
+import { EditCommunicationDialog } from "@/components/lead-management/EditCommunicationDialog";
 import { AddReminderDialog } from "@/components/lead-management/reminders/AddReminderDialog";
 import { LeadDocuments } from "@/components/lead-management/LeadDocuments";
+import { LeadNotes } from "@/components/lead-management/LeadNotes";
 import { QuickProposalDialog } from "@/components/lead-management/QuickProposalDialog";
 import { Lead } from "@/components/lead-management/LeadTable";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface LeadData {
   id: string;
@@ -91,6 +105,7 @@ interface Communication {
   notes: string | null;
   created_by: string | null;
   created_by_name: string | null;
+  call_outcome: string | null;
   communication_method: {
     id: string;
     name: string;
@@ -116,6 +131,16 @@ export default function LeadHistoryPage({
   const resolvedParams = use(params);
   const { t } = useTranslation("leadManagement");
   const router = useRouter();
+  const { profile } = useAuth();
+
+  // Role-based edit permission
+  const canEdit = profile?.roles?.some(r => ["lead_management", "admin", "superadmin"].includes(r)) ?? false;
+
+  // Edit/delete communication state
+  const [editingCommunicationId, setEditingCommunicationId] = useState<string | null>(null);
+  const [showEditCommunicationDialog, setShowEditCommunicationDialog] = useState(false);
+  const [deletingCommunicationId, setDeletingCommunicationId] = useState<string | null>(null);
+  const [isDeletingCommunication, setIsDeletingCommunication] = useState(false);
 
   const [lead, setLead] = useState<LeadData | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -196,6 +221,8 @@ export default function LeadHistoryPage({
         return "bg-[#FFF4E6] text-[#D97706] border-0";
       case "contacted":
         return "bg-[#E6F7F1] text-[#0C5536] border-0";
+      case "unreachable":
+        return "bg-[#FEF2F2] text-[#991B1B] border-0";
       case "not_started":
       default:
         return "bg-[#F5F5F5] text-[#6B6B6B] border-0";
@@ -214,9 +241,30 @@ export default function LeadHistoryPage({
       pending: t("pending"),
       won: t("won"),
       lost: t("lost"),
+      unreachable: t("unreachable", "Unreachable"),
     };
     return statusMap[status] || status;
   };
+
+  // Compute failed attempt count for cadence indicator
+  const failedAttemptCount = (() => {
+    try {
+      const cadenceRaw = typeof window !== "undefined" ? localStorage.getItem("leadManagement_cadence") : null;
+      const cadence = cadenceRaw ? JSON.parse(cadenceRaw) : { failedOutcomes: ["no_answer", "voicemail", "busy", "wrong_number"], maxAttempts: 3 };
+      let consecutiveFails = 0;
+      const sorted = [...communications].sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime());
+      for (const comm of sorted) {
+        if (comm.call_outcome && cadence.failedOutcomes.includes(comm.call_outcome)) {
+          consecutiveFails++;
+        } else if (comm.call_outcome) {
+          break;
+        }
+      }
+      return { count: consecutiveFails, max: cadence.maxAttempts || 3 };
+    } catch {
+      return { count: 0, max: 3 };
+    }
+  })();
 
   const timelineEvents = lead
     ? buildTimelineEvents(
@@ -291,6 +339,52 @@ export default function LeadHistoryPage({
       }
     };
     refetchData();
+  };
+
+  const refetchAll = async () => {
+    try {
+      const response = await fetch(
+        `/api/lead-management/leads/${resolvedParams.leadId}/history`
+      );
+      if (response.ok) {
+        const { data } = await response.json();
+        setLead(data.lead);
+        setProposals(data.proposals);
+        setCommunications(data.communications || []);
+        setReminders(data.reminders || []);
+      }
+    } catch (error) {
+      console.error("Error refetching data:", error);
+    }
+  };
+
+  const handleEditCommunication = (communicationId: string) => {
+    setEditingCommunicationId(communicationId);
+    setShowEditCommunicationDialog(true);
+  };
+
+  const handleDeleteCommunication = (communicationId: string) => {
+    setDeletingCommunicationId(communicationId);
+  };
+
+  const confirmDeleteCommunication = async () => {
+    if (!deletingCommunicationId || !lead) return;
+    setIsDeletingCommunication(true);
+    try {
+      const response = await fetch(
+        `/api/lead-management/leads/${lead.id}/communications/${deletingCommunicationId}`,
+        { method: "DELETE" }
+      );
+      if (!response.ok) throw new Error("Failed to delete communication");
+      toast.success(t("communicationDeleted", "Communication deleted"));
+      setDeletingCommunicationId(null);
+      refetchAll();
+    } catch (error) {
+      console.error("Error deleting communication:", error);
+      toast.error(t("failedToDeleteCommunication", "Failed to delete communication"));
+    } finally {
+      setIsDeletingCommunication(false);
+    }
   };
 
   // Convert LeadData to Lead type for QuickProposalDialog
@@ -423,6 +517,12 @@ export default function LeadHistoryPage({
                 <Badge className={getStatusColor(lead.status)}>
                   {getStatusLabel(lead.status)}
                 </Badge>
+                {failedAttemptCount.count > 0 && (
+                  <Badge variant="outline" className="border-[#E6E6E4] text-[#777777] gap-1">
+                    <PhoneOff className="h-3 w-3" />
+                    {t("attempts", "Attempts")}: {failedAttemptCount.count}/{failedAttemptCount.max}
+                  </Badge>
+                )}
                 {lead.is_paid && (
                   <Badge className="bg-[#E6F7F1] text-[#0C5536] border-0">
                     {t("paid")}
@@ -706,9 +806,20 @@ export default function LeadHistoryPage({
             <CardDescription className="ltr:ml-7 rtl:mr-7">{t("timelineDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
-            <LeadHistoryTimeline events={timelineEvents} isLoading={false} />
+            <LeadHistoryTimeline
+              events={timelineEvents}
+              isLoading={false}
+              canEdit={canEdit}
+              onEditCommunication={handleEditCommunication}
+              onDeleteCommunication={handleDeleteCommunication}
+            />
           </CardContent>
         </Card>
+      </div>
+
+      {/* Notes Section */}
+      <div className="mt-6">
+        <LeadNotes leadId={lead.id} />
       </div>
 
       {/* Documents Section */}
@@ -738,6 +849,36 @@ export default function LeadHistoryPage({
         onOpenChange={setShowQuickProposalDialog}
         onSuccess={handleProposalSent}
       />
+
+      <EditCommunicationDialog
+        leadId={lead.id}
+        communicationId={editingCommunicationId}
+        open={showEditCommunicationDialog}
+        onOpenChange={setShowEditCommunicationDialog}
+        onSuccess={refetchAll}
+      />
+
+      <AlertDialog open={!!deletingCommunicationId} onOpenChange={(open) => { if (!open) setDeletingCommunicationId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("deleteCommunication", "Delete Communication")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("deleteCommunicationConfirm", "Are you sure you want to delete this communication entry? This action cannot be undone.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingCommunication}>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteCommunication}
+              disabled={isDeletingCommunication}
+              className="bg-[#C0392B] hover:bg-[#A93226] text-white"
+            >
+              {isDeletingCommunication && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t("delete", "Delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Footer */}
       <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">

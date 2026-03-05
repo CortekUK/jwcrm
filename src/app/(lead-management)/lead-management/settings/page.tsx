@@ -18,11 +18,17 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { 
-  Settings, 
-  Bell, 
-  Mail, 
-  Users, 
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Settings,
+  Bell,
+  Mail,
+  Users,
   Zap,
   Save,
   Loader2,
@@ -33,6 +39,8 @@ import {
   Trash2,
   AlertCircle,
   CheckCircle2,
+  PhoneOff,
+  Info,
 } from "lucide-react";
 
 interface NotificationSettings {
@@ -68,6 +76,27 @@ interface TeamSettings {
   autoAssignNewLeads: boolean;
   notifyOnAssignment: boolean;
 }
+
+interface CadenceSettings {
+  maxAttempts: number;
+  intervalDays: number;
+  autoMarkUnreachable: boolean;
+  failedOutcomes: string[];
+}
+
+const DEFAULT_CADENCE_SETTINGS: CadenceSettings = {
+  maxAttempts: 3,
+  intervalDays: 2,
+  autoMarkUnreachable: true,
+  failedOutcomes: ["no_answer", "voicemail", "busy", "wrong_number"],
+};
+
+const ALL_FAILED_OUTCOMES = [
+  { value: "no_answer", label: "No Answer" },
+  { value: "voicemail", label: "Voicemail" },
+  { value: "busy", label: "Busy" },
+  { value: "wrong_number", label: "Wrong Number" },
+];
 
 const DEFAULT_TEMPLATES: EmailTemplate[] = [
   {
@@ -167,6 +196,9 @@ export default function LeadManagementSettings() {
     notifyOnAssignment: true,
   });
 
+  // Cadence settings state
+  const [cadenceSettings, setCadenceSettings] = useState<CadenceSettings>(DEFAULT_CADENCE_SETTINGS);
+
   // Load settings from localStorage
   useEffect(() => {
     const loadSettings = () => {
@@ -175,11 +207,13 @@ export default function LeadManagementSettings() {
         const savedTemplates = localStorage.getItem("leadManagement_templates");
         const savedRules = localStorage.getItem("leadManagement_rules");
         const savedTeam = localStorage.getItem("leadManagement_team");
+        const savedCadence = localStorage.getItem("leadManagement_cadence");
 
         if (savedNotifications) setNotificationSettings(JSON.parse(savedNotifications));
         if (savedTemplates) setEmailTemplates(JSON.parse(savedTemplates));
         if (savedRules) setAutomationRules(JSON.parse(savedRules));
         if (savedTeam) setTeamSettings(JSON.parse(savedTeam));
+        if (savedCadence) setCadenceSettings(JSON.parse(savedCadence));
       } catch (error) {
         console.error("Error loading settings:", error);
       }
@@ -195,6 +229,7 @@ export default function LeadManagementSettings() {
       localStorage.setItem("leadManagement_templates", JSON.stringify(emailTemplates));
       localStorage.setItem("leadManagement_rules", JSON.stringify(automationRules));
       localStorage.setItem("leadManagement_team", JSON.stringify(teamSettings));
+      localStorage.setItem("leadManagement_cadence", JSON.stringify(cadenceSettings));
       
       toast.success(t("settingsSaved", "Settings saved successfully"));
     } catch (error) {
@@ -203,7 +238,7 @@ export default function LeadManagementSettings() {
     } finally {
       setIsSaving(false);
     }
-  }, [notificationSettings, emailTemplates, automationRules, teamSettings, t]);
+  }, [notificationSettings, emailTemplates, automationRules, teamSettings, cadenceSettings, t]);
 
   // Toggle automation rule
   const toggleAutomationRule = (ruleId: string) => {
@@ -590,6 +625,98 @@ export default function LeadManagementSettings() {
                   </div>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+
+          {/* Contact Cadence Settings */}
+          <Card className="border-[#E6E6E4]">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                <PhoneOff className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+                <CardTitle className="text-lg font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                  {t("contactCadence", "Contact Cadence")}
+                </CardTitle>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger>
+                    <span className="inline-flex items-center justify-center cursor-help">
+                      <Info className="h-4 w-4 text-[#999999]" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-[280px] text-xs leading-relaxed">
+                    {t("contactCadenceTooltip", "When a call results in a failed outcome (e.g. no answer, busy), the system counts consecutive failures. Once the count reaches the maximum attempts, the lead is automatically marked as unreachable.")}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <CardDescription className="text-[#777777]">
+                {t("contactCadenceDescription", "Configure automatic handling of failed contact attempts")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-[#222222]">{t("maxContactAttempts", "Maximum Contact Attempts")}</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={cadenceSettings.maxAttempts}
+                    onChange={(e) => setCadenceSettings(prev => ({ ...prev, maxAttempts: parseInt(e.target.value) || 3 }))}
+                    className="border-[#E6E6E4]"
+                  />
+                  <p className="text-xs text-[#6B6B6B]">{t("maxAttemptsHint", "Number of failed attempts before marking unreachable")}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[#222222]">{t("daysBetweenAttempts", "Days Between Attempts")}</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={cadenceSettings.intervalDays}
+                    onChange={(e) => setCadenceSettings(prev => ({ ...prev, intervalDays: parseInt(e.target.value) || 2 }))}
+                    className="border-[#E6E6E4]"
+                  />
+                  <p className="text-xs text-[#6B6B6B]">{t("intervalDaysHint", "Recommended gap between contact attempts")}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between py-3 border-t border-[#E6E6E4]">
+                <div>
+                  <Label className="text-[#222222] font-medium">{t("autoMarkUnreachable", "Auto-mark as unreachable")}</Label>
+                  <p className="text-sm text-[#6B6B6B]">{t("autoMarkUnreachableDesc", "Automatically change lead status to unreachable after max attempts")}</p>
+                </div>
+                <Switch
+                  checked={cadenceSettings.autoMarkUnreachable}
+                  onCheckedChange={(checked) => setCadenceSettings(prev => ({ ...prev, autoMarkUnreachable: checked }))}
+                />
+              </div>
+
+              <div className="border-t border-[#E6E6E4] pt-4">
+                <Label className="text-[#222222] font-medium mb-3 block">{t("failedOutcomes", "Call outcomes counted as failed")}</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {ALL_FAILED_OUTCOMES.map((outcome) => (
+                    <div key={outcome.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`outcome_${outcome.value}`}
+                        checked={cadenceSettings.failedOutcomes.includes(outcome.value)}
+                        onCheckedChange={(checked) => {
+                          setCadenceSettings(prev => ({
+                            ...prev,
+                            failedOutcomes: checked
+                              ? [...prev.failedOutcomes, outcome.value]
+                              : prev.failedOutcomes.filter(o => o !== outcome.value),
+                          }));
+                        }}
+                      />
+                      <label
+                        htmlFor={`outcome_${outcome.value}`}
+                        className="text-sm text-[#555555] cursor-pointer"
+                      >
+                        {t(`callOutcome_${outcome.value}`, outcome.label)}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </CardContent>
           </Card>
 

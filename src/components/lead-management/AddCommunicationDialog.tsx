@@ -166,6 +166,46 @@ export function AddCommunicationDialog({
       toast.success(t("communicationAdded"));
       onOpenChange(false);
       onSuccess?.();
+
+      // Check cadence enforcement for failed call outcomes
+      const callOutcome = isPhoneCall ? data.call_outcome : null;
+      if (callOutcome) {
+        try {
+          const cadenceRaw = localStorage.getItem("leadManagement_cadence");
+          if (cadenceRaw) {
+            const cadence = JSON.parse(cadenceRaw);
+            if (cadence.autoMarkUnreachable && cadence.failedOutcomes?.includes(callOutcome)) {
+              // Fetch communications to count consecutive failures
+              const commResponse = await fetch(`/api/lead-management/leads/${leadId}/communications`);
+              if (commResponse.ok) {
+                const { data: comms } = await commResponse.json();
+                // Count consecutive failed attempts from newest
+                let consecutiveFails = 0;
+                for (const comm of comms) {
+                  if (comm.call_outcome && cadence.failedOutcomes.includes(comm.call_outcome)) {
+                    consecutiveFails++;
+                  } else {
+                    break;
+                  }
+                }
+                if (consecutiveFails >= (cadence.maxAttempts || 3)) {
+                  await fetch(`/api/lead-management/leads/${leadId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: "unreachable" }),
+                  });
+                  toast.info(
+                    t("leadMarkedUnreachable", `Lead marked as unreachable after ${consecutiveFails} failed contact attempts`),
+                  );
+                  onSuccess?.();
+                }
+              }
+            }
+          }
+        } catch (cadenceError) {
+          console.error("Error checking cadence enforcement:", cadenceError);
+        }
+      }
     } catch (error) {
       console.error("Error adding communication:", error);
       toast.error(error instanceof Error ? error.message : t("failedToAddCommunication"));

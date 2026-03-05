@@ -14,7 +14,10 @@ import {
   Mail,
   Video,
   Users,
+  Pencil,
+  Trash2,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export interface TimelineEvent {
   id: string;
@@ -36,9 +39,12 @@ export interface TimelineEvent {
 interface LeadHistoryTimelineProps {
   events: TimelineEvent[];
   isLoading?: boolean;
+  canEdit?: boolean;
+  onEditCommunication?: (communicationId: string) => void;
+  onDeleteCommunication?: (communicationId: string) => void;
 }
 
-export function LeadHistoryTimeline({ events, isLoading }: LeadHistoryTimelineProps) {
+export function LeadHistoryTimeline({ events, isLoading, canEdit, onEditCommunication, onDeleteCommunication }: LeadHistoryTimelineProps) {
   const { t } = useTranslation("leadManagement");
 
   const getCommunicationIcon = (iconName?: string) => {
@@ -165,11 +171,33 @@ export function LeadHistoryTimeline({ events, isLoading }: LeadHistoryTimelinePr
                     </p>
                   )}
                 </div>
-                <time className="text-xs text-[#999999] whitespace-nowrap ltr:ml-4 rtl:mr-4">
-                  {format(new Date(event.timestamp), "MMM d, yyyy")}
-                  <br />
-                  {format(new Date(event.timestamp), "h:mm a")}
-                </time>
+                <div className="flex items-start gap-2 ltr:ml-4 rtl:mr-4">
+                  {canEdit && event.type === "communication" && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-[#999999] hover:text-[#0C5536]"
+                        onClick={() => onEditCommunication?.(event.id.replace("communication_", ""))}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-[#999999] hover:text-[#C0392B]"
+                        onClick={() => onDeleteCommunication?.(event.id.replace("communication_", ""))}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                  <time className="text-xs text-[#999999] whitespace-nowrap">
+                    {format(new Date(event.timestamp), "MMM d, yyyy")}
+                    <br />
+                    {format(new Date(event.timestamp), "h:mm a")}
+                  </time>
+                </div>
               </div>
             </div>
           </div>

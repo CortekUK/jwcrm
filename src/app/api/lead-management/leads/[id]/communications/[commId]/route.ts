@@ -14,7 +14,7 @@ export async function PATCH(
   try {
     const { id: leadId, commId } = await params;
     const body = await request.json();
-    const { communication_method_id, scheduled_at, notes } = body;
+    const { communication_method_id, scheduled_at, notes, call_outcome } = body;
 
     const updateData: Record<string, unknown> = {};
     if (communication_method_id !== undefined) {
@@ -22,6 +22,7 @@ export async function PATCH(
     }
     if (scheduled_at !== undefined) updateData.scheduled_at = scheduled_at;
     if (notes !== undefined) updateData.notes = notes;
+    if (call_outcome !== undefined) updateData.call_outcome = call_outcome;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(

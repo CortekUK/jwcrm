@@ -109,6 +109,36 @@ export async function GET(
       })
     );
 
+    // Fetch notes for this lead
+    const { data: notes, error: notesError } = await supabaseAdmin
+      .from("lead_notes")
+      .select("*")
+      .eq("lead_id", leadId)
+      .order("created_at", { ascending: false });
+
+    if (notesError) {
+      console.error("Error fetching notes:", notesError);
+    }
+
+    // Fetch creator names for notes
+    const notesWithCreator = await Promise.all(
+      (notes || []).map(async (note) => {
+        let createdByName = null;
+        if (note.created_by) {
+          const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("full_name")
+            .eq("user_id", note.created_by)
+            .single();
+          createdByName = profile?.full_name;
+        }
+        return {
+          ...note,
+          created_by_name: createdByName,
+        };
+      })
+    );
+
     // Fetch reminders for this lead
     const { data: reminders, error: remindersError } = await supabaseAdmin
       .from("lead_reminders")
@@ -136,6 +166,7 @@ export async function GET(
         },
         proposals: proposals || [],
         communications: communicationsWithCreator || [],
+        notes: notesWithCreator || [],
         reminders: reminders || [],
       },
     });
