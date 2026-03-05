@@ -271,7 +271,7 @@ export function PendingApprovalsWidget() {
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <div className="h-8 w-8 rounded-full bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center flex-shrink-0">
                           <span className="text-xs font-semibold text-[hsl(var(--jw-primary-green))]">
-                            {request.employee_name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                            {(request.employee_name || "?").split(" ").map(n => n[0]).join("").slice(0, 2)}
                           </span>
                         </div>
                         <div className="min-w-0">

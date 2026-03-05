@@ -402,7 +402,7 @@ export function DepartmentKPISummary({
                                       <div className="flex items-center gap-2">
                                         <div className="h-8 w-8 rounded-full bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
                                           <span className="text-xs font-semibold text-[hsl(var(--jw-primary-green))]">
-                                            {emp.employee_name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                                            {(emp.employee_name || "?").split(" ").map(n => n[0]).join("").slice(0, 2)}
                                           </span>
                                         </div>
                                         <span className="text-sm text-[#222222]">{emp.employee_name}</span>
