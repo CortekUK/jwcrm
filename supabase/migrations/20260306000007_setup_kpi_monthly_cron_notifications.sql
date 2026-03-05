@@ -140,6 +140,15 @@ COMMENT ON FUNCTION invoke_kpi_monthly_notifications() IS
 
 -- Schedule the cron job to run every hour at minute 0
 -- The function internally checks if it's the configured time and within the notification window
+DO $$
+BEGIN
+  -- Unschedule if it already exists to avoid duplicate error
+  PERFORM cron.unschedule('kpi-monthly-notifications');
+EXCEPTION WHEN OTHERS THEN
+  -- Job doesn't exist yet, that's fine
+  NULL;
+END $$;
+
 SELECT cron.schedule(
   'kpi-monthly-notifications',  -- job name
   '0 * * * *',                  -- run at minute 0 of every hour

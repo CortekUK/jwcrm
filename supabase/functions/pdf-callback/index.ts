@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { PDFDocument, rgb, degrees } from 'https://cdn.skypack.dev/pdf-lib@1.17.1';
+import { PDFDocument, rgb, degrees } from 'https://esm.sh/pdf-lib@1.17.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
