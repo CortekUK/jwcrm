@@ -49,7 +49,7 @@ export function DashboardAuthLayout({
           <Image
             src={JustWillsLogo}
             alt="Just Wills"
-            className="h-20 w-auto mx-auto -translate-x-4 mb-2.5 animate-fade-in dark:brightness-200"
+            className="h-20 w-auto mx-auto -translate-x-4 mb-2.5 animate-fade-in dark:brightness-110"
             width={200}
             height={80}
           />
