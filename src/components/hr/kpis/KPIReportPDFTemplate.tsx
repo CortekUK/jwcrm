@@ -17,6 +17,21 @@ type KPIEvaluation = {
   status: string | null;
 };
 
+type CustomKPIEvaluation = {
+  customKpi: {
+    id: string;
+    name: string;
+    description: string | null;
+    target_value: number;
+    unit: string;
+    weighting: number;
+    deadline: string | null;
+  };
+  achieved_value: number | null;
+  score: number | null;
+  status: string | null;
+};
+
 type KPIReportPDFTemplateProps = {
   employeeName: string;
   jobRoleName: string | null;
@@ -26,10 +41,12 @@ type KPIReportPDFTemplateProps = {
   overallScore: number | null;
   periodLabel?: string;
   isQuarterly?: boolean;
+  customEvaluations?: CustomKPIEvaluation[];
+  customOverallScore?: number | null;
 };
 
 export const KPIReportPDFTemplate = forwardRef<HTMLDivElement, KPIReportPDFTemplateProps>(
-  ({ employeeName, jobRoleName, year, month, evaluations, overallScore, periodLabel, isQuarterly = false }, ref) => {
+  ({ employeeName, jobRoleName, year, month, evaluations, overallScore, periodLabel, isQuarterly = false, customEvaluations = [], customOverallScore }, ref) => {
     const { t, i18n } = useTranslation(["hr", "common"]);
     const isRtl = i18n.language === "ar";
 
@@ -267,6 +284,136 @@ export const KPIReportPDFTemplate = forwardRef<HTMLDivElement, KPIReportPDFTempl
               ))}
             </tbody>
           </table>
+
+          {/* Custom / Individual Goals Section */}
+          {customEvaluations.length > 0 && (
+            <>
+              <div
+                style={{
+                  borderTop: "2px solid #E6E6E4",
+                  marginTop: "30px",
+                  paddingTop: "20px",
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: "bold",
+                    color: "#7C3AED",
+                    margin: "0 0 15px 0",
+                    textAlign: isRtl ? "right" : "left",
+                  }}
+                >
+                  {t("hr:individualGoals")}
+                </h3>
+              </div>
+
+              {/* Custom KPI Score */}
+              {customOverallScore !== null && customOverallScore !== undefined && (
+                <div
+                  style={{
+                    backgroundColor: "#F5F3FF",
+                    padding: "15px",
+                    borderRadius: "8px",
+                    margin: "10px 0 20px 0",
+                    textAlign: "center",
+                    border: "1px solid #DDD6FE",
+                  }}
+                >
+                  <p style={{ margin: 0, color: "#7C3AED", fontSize: "14px" }}>
+                    {t("hr:customScore")}
+                  </p>
+                  <h3
+                    style={{
+                      margin: "8px 0",
+                      color: getScoreColor(customOverallScore),
+                      fontSize: "28px",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {customOverallScore}%
+                  </h3>
+                </div>
+              )}
+
+              {/* Custom KPI Table */}
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  margin: "10px 0 20px 0",
+                }}
+              >
+                <thead>
+                  <tr style={{ backgroundColor: "#F5F3FF" }}>
+                    {(isRtl
+                      ? [
+                          { key: "deadline", label: t("hr:deadline") },
+                          { key: "score", label: t("hr:score") },
+                          { key: "weight", label: t("hr:weighting") },
+                          { key: "achieved", label: t("hr:achievedValue") },
+                          { key: "target", label: t("hr:targetValue") },
+                          { key: "kpi", label: t("hr:kpi") },
+                        ]
+                      : [
+                          { key: "kpi", label: t("hr:kpi") },
+                          { key: "target", label: t("hr:targetValue") },
+                          { key: "achieved", label: t("hr:achievedValue") },
+                          { key: "weight", label: t("hr:weighting") },
+                          { key: "score", label: t("hr:score") },
+                          { key: "deadline", label: t("hr:deadline") },
+                        ]
+                    ).map((header) => (
+                      <th
+                        key={header.key}
+                        style={{
+                          padding: "12px",
+                          textAlign: header.key === "kpi" ? (isRtl ? "right" : "left") : "center",
+                          borderBottom: "2px solid #DDD6FE",
+                          fontSize: "14px",
+                          fontWeight: "bold",
+                          color: "#222222",
+                        }}
+                      >
+                        {header.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {customEvaluations.map((evaluation) => (
+                    <tr key={evaluation.customKpi.id}>
+                      {(isRtl
+                        ? ["deadline", "score", "weight", "achieved", "target", "kpi"]
+                        : ["kpi", "target", "achieved", "weight", "score", "deadline"]
+                      ).map((key) => (
+                        <td
+                          key={key}
+                          style={{
+                            padding: "12px",
+                            borderBottom: "1px solid #E6E6E4",
+                            textAlign: key === "kpi" ? (isRtl ? "right" : "left") : "center",
+                            fontSize: "14px",
+                            color: key === "score" ? getScoreColor(evaluation.score) : "#222222",
+                            fontWeight: key === "score" ? "bold" : "normal",
+                          }}
+                        >
+                          {key === "kpi" && evaluation.customKpi.name}
+                          {key === "target" && `${evaluation.customKpi.target_value} ${evaluation.customKpi.unit}`}
+                          {key === "achieved" && (evaluation.achieved_value !== null ? `${evaluation.achieved_value} ${evaluation.customKpi.unit}` : "-")}
+                          {key === "weight" && `${evaluation.customKpi.weighting}%`}
+                          {key === "score" && (evaluation.score !== null ? `${evaluation.score}%` : "-")}
+                          {key === "deadline" && (evaluation.customKpi.deadline
+                            ? new Date(evaluation.customKpi.deadline).toLocaleDateString(isRtl ? "ar-EG" : "en-US", { month: "short", day: "numeric", year: "numeric" })
+                            : "-")}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
 
           {/* Footer Message */}
           <p

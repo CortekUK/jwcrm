@@ -219,26 +219,26 @@ export function KPITable({
 
   const getWeightingBadgeColor = (roleId: string) => {
     const total = weightingByRole[roleId] || 0;
-    if (total === 100) return "bg-[#E6F7F1] text-[#0C5536]";
-    if (total < 100) return "bg-[#FFF9E6] text-[#C6A03B]";
-    return "bg-red-50 text-red-600";
+    if (total === 100) return "bg-[#E6F7F1] dark:bg-green-950/30 text-[#0C5536] dark:text-green-400";
+    if (total < 100) return "bg-[#FFF9E6] dark:bg-yellow-950/30 text-[#C6A03B] dark:text-yellow-400";
+    return "bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400";
   };
 
   // Color palette for job role badges
   const roleColorPalette = [
-    { bg: "bg-[rgba(12,85,54,0.1)]", text: "text-[#0C5536]" },       // Green
-    { bg: "bg-[rgba(139,92,246,0.1)]", text: "text-[#7C3AED]" },     // Purple
-    { bg: "bg-[rgba(20,184,166,0.1)]", text: "text-[#0D9488]" },     // Teal
-    { bg: "bg-[rgba(234,179,8,0.1)]", text: "text-[#CA8A04]" },      // Yellow
-    { bg: "bg-[rgba(59,130,246,0.1)]", text: "text-[#2563EB]" },     // Blue
-    { bg: "bg-[rgba(245,158,11,0.1)]", text: "text-[#D97706]" },     // Orange
-    { bg: "bg-[rgba(236,72,153,0.1)]", text: "text-[#DB2777]" },     // Pink
-    { bg: "bg-[rgba(99,102,241,0.1)]", text: "text-[#4F46E5]" },     // Indigo
+    { bg: "bg-[rgba(12,85,54,0.1)] dark:bg-green-950/40", text: "text-[#0C5536] dark:text-green-400" },       // Green
+    { bg: "bg-[rgba(139,92,246,0.1)] dark:bg-purple-950/40", text: "text-[#7C3AED] dark:text-purple-400" },     // Purple
+    { bg: "bg-[rgba(20,184,166,0.1)] dark:bg-teal-950/40", text: "text-[#0D9488] dark:text-teal-400" },     // Teal
+    { bg: "bg-[rgba(234,179,8,0.1)] dark:bg-yellow-950/40", text: "text-[#CA8A04] dark:text-yellow-400" },      // Yellow
+    { bg: "bg-[rgba(59,130,246,0.1)] dark:bg-blue-950/40", text: "text-[#2563EB] dark:text-blue-400" },     // Blue
+    { bg: "bg-[rgba(245,158,11,0.1)] dark:bg-orange-950/40", text: "text-[#D97706] dark:text-orange-400" },     // Orange
+    { bg: "bg-[rgba(236,72,153,0.1)] dark:bg-pink-950/40", text: "text-[#DB2777] dark:text-pink-400" },     // Pink
+    { bg: "bg-[rgba(99,102,241,0.1)] dark:bg-indigo-950/40", text: "text-[#4F46E5] dark:text-indigo-400" },     // Indigo
   ];
 
   // Get consistent color for a job role based on its ID
   const getJobRoleColor = (roleId: string) => {
-    if (!roleId) return { bg: "bg-[#F5F5F5]", text: "text-[#6B6B6B]" };
+    if (!roleId) return { bg: "bg-[#F5F5F5] dark:bg-muted", text: "text-[#6B6B6B] dark:text-muted-foreground" };
     // Use a simple hash of the role ID to get a consistent color index
     let hash = 0;
     for (let i = 0; i < roleId.length; i++) {
@@ -321,12 +321,12 @@ export function KPITable({
       )}
 
       {/* Table */}
-      <div className="border border-[#E6E6E4] rounded-lg overflow-hidden">
+      <div className="border border-[#E6E6E4] dark:border-border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-[#FAFAF8] hover:bg-[#FAFAF8]">
-              <TableHead 
-                className="font-semibold text-[#222222] cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+            <TableRow className="bg-[#FAFAF8] dark:bg-muted/50 hover:bg-[#FAFAF8] dark:hover:bg-muted/50">
+              <TableHead
+                className="font-semibold text-[#222222] dark:text-foreground cursor-pointer hover:bg-[#F0F0EE] dark:hover:bg-muted transition-colors"
                 onClick={() => handleSort("name")}
               >
                 <div className="flex items-center gap-1">
@@ -334,8 +334,8 @@ export function KPITable({
                   {getSortIcon("name")}
                 </div>
               </TableHead>
-              <TableHead 
-                className="font-semibold text-[#222222] cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+              <TableHead
+                className="font-semibold text-[#222222] dark:text-foreground cursor-pointer hover:bg-[#F0F0EE] dark:hover:bg-muted transition-colors"
                 onClick={() => handleSort("job_role")}
               >
                 <div className="flex items-center gap-1">
@@ -343,8 +343,8 @@ export function KPITable({
                   {getSortIcon("job_role")}
                 </div>
               </TableHead>
-              <TableHead 
-                className="font-semibold text-[#222222] text-center cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+              <TableHead
+                className="font-semibold text-[#222222] dark:text-foreground text-center cursor-pointer hover:bg-[#F0F0EE] dark:hover:bg-muted transition-colors"
                 onClick={() => handleSort("target")}
               >
                 <div className="flex items-center justify-center gap-1">
@@ -352,8 +352,8 @@ export function KPITable({
                   {getSortIcon("target")}
                 </div>
               </TableHead>
-              <TableHead 
-                className="font-semibold text-[#222222] text-center cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+              <TableHead
+                className="font-semibold text-[#222222] dark:text-foreground text-center cursor-pointer hover:bg-[#F0F0EE] dark:hover:bg-muted transition-colors"
                 onClick={() => handleSort("unit")}
               >
                 <div className="flex items-center justify-center gap-1">
@@ -361,8 +361,8 @@ export function KPITable({
                   {getSortIcon("unit")}
                 </div>
               </TableHead>
-              <TableHead 
-                className="font-semibold text-[#222222] text-center cursor-pointer hover:bg-[#F0F0EE] transition-colors"
+              <TableHead
+                className="font-semibold text-[#222222] dark:text-foreground text-center cursor-pointer hover:bg-[#F0F0EE] dark:hover:bg-muted transition-colors"
                 onClick={() => handleSort("weighting")}
               >
                 <div className="flex items-center justify-center gap-1">
@@ -370,7 +370,7 @@ export function KPITable({
                   {getSortIcon("weighting")}
                 </div>
               </TableHead>
-              <TableHead className={`font-semibold text-[#222222] ${isRtl ? "text-left" : "text-right"}`}>{t("hr:actions")}</TableHead>
+              <TableHead className={`font-semibold text-[#222222] dark:text-foreground ${isRtl ? "text-left" : "text-right"}`}>{t("hr:actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -378,24 +378,24 @@ export function KPITable({
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-12">
                   <Target className="h-10 w-10 text-[#C6A03B] mx-auto mb-3" />
-                  <p className="text-[#6B6B6B]">{t("hr:noKPIs")}</p>
+                  <p className="text-[#6B6B6B] dark:text-muted-foreground">{t("hr:noKPIs")}</p>
                 </TableCell>
               </TableRow>
             ) : (
               sortedKPIs.map((kpi) => (
-                <TableRow key={kpi.id} className={`hover:bg-[#FAFAF8] ${kpi.is_archived ? "opacity-60" : ""}`}>
+                <TableRow key={kpi.id} className={`hover:bg-[#FAFAF8] dark:hover:bg-muted/50 ${kpi.is_archived ? "opacity-60" : ""}`}>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div>
-                        <p className="font-medium text-[#222222]">{kpi.name}</p>
+                        <p className="font-medium text-[#222222] dark:text-foreground">{kpi.name}</p>
                         {kpi.description && (
-                          <p className="text-sm text-[#6B6B6B] truncate max-w-[200px]">
+                          <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground truncate max-w-[200px]">
                             {kpi.description}
                           </p>
                         )}
                       </div>
                       {kpi.is_archived && (
-                        <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
+                        <Badge variant="outline" className="border-amber-300 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
                           {t("hr:archived")}
                         </Badge>
                       )}
@@ -407,14 +407,14 @@ export function KPITable({
                         {kpi.job_role.name}
                       </Badge>
                     ) : (
-                      <span className="text-[#6B6B6B]">-</span>
+                      <span className="text-[#6B6B6B] dark:text-muted-foreground">-</span>
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <span className="font-medium">{kpi.target_value}</span>
+                    <span className="font-medium dark:text-foreground">{kpi.target_value}</span>
                   </TableCell>
                   <TableCell className="text-center">
-                    <span className="text-[#6B6B6B]">{kpi.unit}</span>
+                    <span className="text-[#6B6B6B] dark:text-muted-foreground">{kpi.unit}</span>
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge className={getWeightingBadgeColor(kpi.job_role_id)}>
@@ -469,7 +469,7 @@ export function KPITable({
       </div>
 
       {/* Results Count */}
-      <div className="text-sm text-[#6B6B6B]">
+      <div className="text-sm text-[#6B6B6B] dark:text-muted-foreground">
         {t("hr:showingResults", {
           count: sortedKPIs.length,
           total: kpis.length,

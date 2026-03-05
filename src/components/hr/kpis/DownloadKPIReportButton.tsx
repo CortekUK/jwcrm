@@ -33,6 +33,21 @@ type KPIEvaluation = {
   status: string | null;
 };
 
+type CustomKPIEvaluation = {
+  customKpi: {
+    id: string;
+    name: string;
+    description: string | null;
+    target_value: number;
+    unit: string;
+    weighting: number;
+    deadline: string | null;
+  };
+  achieved_value: number | null;
+  score: number | null;
+  status: string | null;
+};
+
 type DownloadKPIReportButtonProps = {
   employeeId: string;
   employeeName: string;
@@ -69,7 +84,9 @@ export function DownloadKPIReportButton({
   const [reportType, setReportType] = useState<"monthly" | "quarterly">("monthly");
   const [generating, setGenerating] = useState(false);
   const [evaluations, setEvaluations] = useState<KPIEvaluation[]>([]);
+  const [customEvaluations, setCustomEvaluations] = useState<CustomKPIEvaluation[]>([]);
   const [overallScore, setOverallScore] = useState<number | null>(null);
+  const [customOverallScore, setCustomOverallScore] = useState<number | null>(null);
   const [showTemplate, setShowTemplate] = useState(false);
   const [templateData, setTemplateData] = useState<{
     periodLabel: string;
@@ -156,6 +173,41 @@ export function DownloadKPIReportButton({
     }));
   };
 
+  const fetchCustomEvaluations = async (targetMonth: number): Promise<CustomKPIEvaluation[]> => {
+    // Fetch active custom KPIs for this employee
+    const { data: customKpis, error: kpiError } = await supabase
+      .from("employee_custom_kpis")
+      .select("id, name, description, target_value, unit, weighting, deadline")
+      .eq("employee_id", employeeId)
+      .eq("is_archived", false);
+
+    if (kpiError) throw kpiError;
+    if (!customKpis || customKpis.length === 0) return [];
+
+    // Fetch evaluations for the period
+    const { data: evals, error: evalError } = await supabase
+      .from("custom_kpi_evaluations")
+      .select("custom_kpi_id, achieved_value, score, status")
+      .eq("employee_id", employeeId)
+      .eq("year", year)
+      .eq("month", targetMonth);
+
+    if (evalError) throw evalError;
+
+    const evalMap = new Map<string, any>();
+    (evals || []).forEach((e: any) => evalMap.set(e.custom_kpi_id, e));
+
+    return customKpis.map((kpi: any) => {
+      const eval_ = evalMap.get(kpi.id);
+      return {
+        customKpi: kpi,
+        achieved_value: eval_?.achieved_value ?? null,
+        score: eval_?.score ?? null,
+        status: eval_?.status ?? null,
+      };
+    }).filter((e: CustomKPIEvaluation) => e.status === "completed");
+  };
+
   const handleDownload = async () => {
     setGenerating(true);
 
@@ -174,7 +226,10 @@ export function DownloadKPIReportButton({
         periodLabel = `${getQuarterLabel(currentQuarter)} ${year}`;
       }
 
-      if (fetchedEvaluations.length === 0) {
+      // Fetch custom KPI evaluations
+      const fetchedCustomEvals = await fetchCustomEvaluations(month);
+
+      if (fetchedEvaluations.length === 0 && fetchedCustomEvals.length === 0) {
         toast({
           variant: "destructive",
           description: t("hr:noKPIsAssignedForPeriod"),
@@ -183,7 +238,7 @@ export function DownloadKPIReportButton({
         return;
       }
 
-      // Calculate overall weighted score
+      // Calculate overall weighted score for role-based KPIs
       let weightedScore = 0;
       let totalWeight = 0;
 
@@ -196,8 +251,23 @@ export function DownloadKPIReportButton({
 
       const calculatedScore = totalWeight > 0 ? Math.round(weightedScore * 100) / 100 : null;
 
+      // Calculate custom KPI score
+      let customWeightedScore = 0;
+      let customTotalWeight = 0;
+
+      fetchedCustomEvals.forEach((evaluation) => {
+        if (evaluation.score !== null && evaluation.status === "completed") {
+          customWeightedScore += (evaluation.score * evaluation.customKpi.weighting) / 100;
+          customTotalWeight += evaluation.customKpi.weighting;
+        }
+      });
+
+      const calculatedCustomScore = customTotalWeight > 0 ? Math.round(customWeightedScore * 100) / 100 : null;
+
       setEvaluations(fetchedEvaluations);
+      setCustomEvaluations(fetchedCustomEvals);
       setOverallScore(calculatedScore);
+      setCustomOverallScore(calculatedCustomScore);
       setTemplateData({ periodLabel, periodType: reportType });
       setShowTemplate(true);
 
@@ -356,6 +426,8 @@ export function DownloadKPIReportButton({
             overallScore={overallScore}
             periodLabel={templateData.periodLabel}
             isQuarterly={templateData.periodType === "quarterly"}
+            customEvaluations={customEvaluations}
+            customOverallScore={customOverallScore}
           />
         </div>
       )}

@@ -416,7 +416,6 @@ export function KPIEvaluationTable({
                         variant="outline"
                         size="sm"
                         onClick={() => onEvaluate(employee.id)}
-                        disabled={!employee.job_role?.id}
                         className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
                       >
                         <ClipboardCheck className="h-4 w-4 ltr:mr-1.5 rtl:ml-1.5" />

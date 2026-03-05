@@ -11,12 +11,16 @@ export { AddKPIForm } from "./AddKPIForm";
 export { EmployeeKPIEvaluationForm } from "./EmployeeKPIEvaluationForm";
 export { EmployeeKPIHistory } from "./EmployeeKPIHistory";
 export { KPIEvaluationTable } from "./KPIEvaluationTable";
-export { SendKPIReportButton } from "./SendKPIReportButton";
 export { DownloadKPIReportButton } from "./DownloadKPIReportButton";
 export { BulkDownloadKPIReportsButton } from "./BulkDownloadKPIReportsButton";
 export { KPIExportButton } from "./KPIExportButton";
 export { KPIReportPDFTemplate } from "./KPIReportPDFTemplate";
 export { BulkKPIReportPDFTemplate } from "./BulkKPIReportPDFTemplate";
+
+// Custom KPI Components
+export { AddCustomKPIForm } from "./AddCustomKPIForm";
+export { CustomKPIList } from "./CustomKPIList";
+export { CustomKPIEvaluationSection } from "./CustomKPIEvaluationSection";
 
 // Dashboard Components
 export { KPIEvaluationAlertCard } from "./KPIEvaluationAlertCard";

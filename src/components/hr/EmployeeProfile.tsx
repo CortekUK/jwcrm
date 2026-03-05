@@ -28,10 +28,13 @@ import {
   FileCheck,
   Plane,
   Award,
+  UserX,
+  Target,
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { EmployeeDocumentUpload } from "./EmployeeDocumentUpload";
+import { CustomKPIList } from "./kpis/CustomKPIList";
 
 interface Employee {
   id: string;
@@ -65,7 +68,7 @@ interface EmployeeProfileProps {
   documents: Document[];
   archivedDocuments?: Document[];
   onRefresh: () => void;
-  defaultTab?: "details" | "documents";
+  defaultTab?: "details" | "documents" | "custom-kpis";
 }
 
 export function EmployeeProfile({ employee, documents, archivedDocuments = [], onRefresh, defaultTab = "details" }: EmployeeProfileProps) {
@@ -123,7 +126,7 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
           >
             {t("hr:details")}
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="documents"
             className="px-6 py-2.5 text-sm font-medium rounded-md data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"
           >
@@ -131,6 +134,12 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
             {documents.some((d) => d.expiry_date && differenceInDays(new Date(d.expiry_date), new Date()) <= 30) && (
               <span className="ltr:ml-2 rtl:mr-2 h-5 w-5 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center">!</span>
             )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="custom-kpis"
+            className="px-6 py-2.5 text-sm font-medium rounded-md data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"
+          >
+            {t("hr:customKpis")}
           </TabsTrigger>
         </TabsList>
 
@@ -507,6 +516,23 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
               )}
             </Card>
           )}
+        </TabsContent>
+
+        {/* Custom KPIs Tab */}
+        <TabsContent value="custom-kpis" className="mt-6">
+          <Card className="border-[#E6E6E4] shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+                <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <Target className="h-4 w-4 text-purple-600" />
+                </div>
+                {t("hr:individualGoals")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <CustomKPIList employeeId={employee.id} employeeName={employee.full_name} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

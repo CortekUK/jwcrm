@@ -333,6 +333,35 @@ export type Database = {
           },
         ]
       }
+      finance_roles: {
+        Row: {
+          id: string
+          user_id: string
+          role: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          role: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          role?: string
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_roles: {
         Row: {
           created_at: string | null
@@ -358,6 +387,125 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_kpi_evaluations: {
+        Row: {
+          achieved_value: number | null
+          created_at: string | null
+          custom_kpi_id: string
+          employee_id: string
+          evaluated_at: string | null
+          evaluated_by: string | null
+          id: string
+          month: number
+          notes: string | null
+          score: number | null
+          status: string | null
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          achieved_value?: number | null
+          created_at?: string | null
+          custom_kpi_id: string
+          employee_id: string
+          evaluated_at?: string | null
+          evaluated_by?: string | null
+          id?: string
+          month: number
+          notes?: string | null
+          score?: number | null
+          status?: string | null
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          achieved_value?: number | null
+          created_at?: string | null
+          custom_kpi_id?: string
+          employee_id?: string
+          evaluated_at?: string | null
+          evaluated_by?: string | null
+          id?: string
+          month?: number
+          notes?: string | null
+          score?: number | null
+          status?: string | null
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_kpi_evaluations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_kpi_evaluations_custom_kpi_id_fkey"
+            columns: ["custom_kpi_id"]
+            isOneToOne: false
+            referencedRelation: "employee_custom_kpis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_custom_kpis: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          deadline: string | null
+          description: string | null
+          employee_id: string
+          id: string
+          is_archived: boolean
+          name: string
+          target_value: number
+          unit: string
+          updated_at: string | null
+          updated_by: string | null
+          weighting: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          deadline?: string | null
+          description?: string | null
+          employee_id: string
+          id?: string
+          is_archived?: boolean
+          name: string
+          target_value?: number
+          unit?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          weighting?: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          deadline?: string | null
+          description?: string | null
+          employee_id?: string
+          id?: string
+          is_archived?: boolean
+          name?: string
+          target_value?: number
+          unit?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          weighting?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_custom_kpis_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -782,7 +930,7 @@ export type Database = {
           employee_id: string
           end_date: string
           id: string
-          leave_type: Database["public"]["Enums"]["leave_type"]
+          leave_type: string
           reason: string | null
           start_date: string
           status: Database["public"]["Enums"]["leave_request_status"] | null
@@ -798,7 +946,7 @@ export type Database = {
           employee_id: string
           end_date: string
           id?: string
-          leave_type: Database["public"]["Enums"]["leave_type"]
+          leave_type: string
           reason?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["leave_request_status"] | null
@@ -814,7 +962,7 @@ export type Database = {
           employee_id?: string
           end_date?: string
           id?: string
-          leave_type?: Database["public"]["Enums"]["leave_type"]
+          leave_type?: string
           reason?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["leave_request_status"] | null
@@ -830,6 +978,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      leave_types: {
+        Row: {
+          id: string
+          slug: string
+          name: string
+          icon_name: string
+          color_class: string
+          bg_color_class: string
+          tracks_balance: boolean
+          balance_field_prefix: string | null
+          is_active: boolean
+          sort_order: number
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          slug: string
+          name: string
+          icon_name?: string
+          color_class?: string
+          bg_color_class?: string
+          tracks_balance?: boolean
+          balance_field_prefix?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          slug?: string
+          name?: string
+          icon_name?: string
+          color_class?: string
+          bg_color_class?: string
+          tracks_balance?: boolean
+          balance_field_prefix?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -1226,7 +1419,6 @@ export type Database = {
         | "qualified"
         | "negotiation"
       leave_request_status: "pending" | "approved" | "denied"
-      leave_type: "annual" | "sick" | "emergency" | "unpaid"
       notification_status: "sent" | "failed" | "skipped"
       notification_type:
         | "document_expiry_digest"
@@ -1404,7 +1596,6 @@ export const Constants = {
         "negotiation",
       ],
       leave_request_status: ["pending", "approved", "denied"],
-      leave_type: ["annual", "sick", "emergency", "unpaid"],
       notification_status: ["sent", "failed", "skipped"],
       notification_type: [
         "document_expiry_digest",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Target, AlertCircle, CheckCircle2, Plus } from "lucide-react";
+import { CustomKPIEvaluationSection, type CustomKPIEvaluationSectionHandle } from "./CustomKPIEvaluationSection";
 
 type KPI = {
   id: string;
@@ -72,14 +73,32 @@ export function EmployeeKPIEvaluationForm({
 
   const [selectedYear, setSelectedYear] = useState(initialYear ?? getCurrentYear());
   const [selectedMonth, setSelectedMonth] = useState(initialMonth ?? getCurrentMonth());
-  const [allKpis, setAllKpis] = useState<KPI[]>([]); // All KPIs for the job role
-  const [assignedKpiIds, setAssignedKpiIds] = useState<Set<string>>(new Set()); // KPIs assigned to this employee
+  const [allKpis, setAllKpis] = useState<KPI[]>([]);
+  const [assignedKpiIds, setAssignedKpiIds] = useState<Set<string>>(new Set());
   const [evaluations, setEvaluations] = useState<Record<string, Evaluation>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [assigning, setAssigning] = useState<string | null>(null);
+  const [hasCustomKpis, setHasCustomKpis] = useState(false);
+  const [customScore, setCustomScore] = useState<number | null>(null);
 
+  const customSectionRef = useRef<CustomKPIEvaluationSectionHandle>(null);
   const yearOptions = getYearOptions();
+
+  // Check if employee has custom KPIs
+  useEffect(() => {
+    const checkCustomKpis = async () => {
+      const { count, error } = await supabase
+        .from("employee_custom_kpis")
+        .select("id", { count: "exact", head: true })
+        .eq("employee_id", employee.id)
+        .eq("is_archived", false);
+      if (!error) {
+        setHasCustomKpis((count || 0) > 0);
+      }
+    };
+    checkCustomKpis();
+  }, [employee.id]);
 
   // Fetch KPIs and existing assignments
   useEffect(() => {
@@ -92,7 +111,6 @@ export function EmployeeKPIEvaluationForm({
 
       setLoading(true);
       try {
-        // Fetch all KPIs for the job role (exclude archived)
         const { data: kpiData, error: kpiError } = await supabase
           .from("kpis")
           .select("id, name, description, target_value, unit, weighting")
@@ -103,7 +121,6 @@ export function EmployeeKPIEvaluationForm({
         if (kpiError) throw kpiError;
         setAllKpis(kpiData || []);
 
-        // Fetch existing evaluations for this employee/year/month
         const { data: evalData, error: evalError } = await supabase
           .from("kpi_evaluations")
           .select("id, kpi_id, achieved_value, score, notes, status")
@@ -113,7 +130,6 @@ export function EmployeeKPIEvaluationForm({
 
         if (evalError) throw evalError;
 
-        // Map evaluations by kpi_id and track assigned KPIs
         const evalMap: Record<string, Evaluation> = {};
         const assigned = new Set<string>();
 
@@ -138,7 +154,6 @@ export function EmployeeKPIEvaluationForm({
     fetchData();
   }, [employee.id, employee.job_role_id, selectedYear, selectedMonth, toast]);
 
-  // Assign a KPI to the employee
   const handleAssignKpi = async (kpiId: string) => {
     setAssigning(kpiId);
     try {
@@ -159,7 +174,6 @@ export function EmployeeKPIEvaluationForm({
 
       if (error) throw error;
 
-      // Update local state
       setAssignedKpiIds((prev) => new Set([...prev, kpiId]));
       setEvaluations((prev) => ({
         ...prev,
@@ -188,11 +202,9 @@ export function EmployeeKPIEvaluationForm({
     }
   };
 
-  // Unassign a KPI from the employee
   const handleUnassignKpi = async (kpiId: string) => {
     const evaluation = evaluations[kpiId];
 
-    // Don't allow unassigning if there's already data entered
     if (evaluation?.achieved_value !== null) {
       toast({
         variant: "destructive",
@@ -212,7 +224,6 @@ export function EmployeeKPIEvaluationForm({
         if (error) throw error;
       }
 
-      // Update local state
       setAssignedKpiIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(kpiId);
@@ -269,6 +280,7 @@ export function EmployeeKPIEvaluationForm({
   const handleSaveAll = async () => {
     setSaving(true);
     try {
+      // Save role-based evaluations
       for (const kpiId of assignedKpiIds) {
         const evaluation = evaluations[kpiId];
         if (!evaluation) continue;
@@ -290,6 +302,11 @@ export function EmployeeKPIEvaluationForm({
             .eq("id", evaluation.id);
           if (error) throw error;
         }
+      }
+
+      // Save custom KPI evaluations
+      if (customSectionRef.current) {
+        await customSectionRef.current.save();
       }
 
       toast({
@@ -331,7 +348,11 @@ export function EmployeeKPIEvaluationForm({
   const unassignedKpis = allKpis.filter((kpi) => !assignedKpiIds.has(kpi.id));
   const completedCount = Object.values(evaluations).filter((e) => e.status === "completed").length;
 
-  if (!employee.job_role_id) {
+  const hasRoleKpis = employee.job_role_id !== null;
+  const showContent = hasRoleKpis || hasCustomKpis;
+
+  // If no role and no custom KPIs, show message
+  if (!showContent) {
     return (
       <div className="p-6 text-center">
         <AlertCircle className="h-12 w-12 text-[#C6A03B] mx-auto mb-4" />
@@ -404,223 +425,251 @@ export function EmployeeKPIEvaluationForm({
           </Select>
         </div>
 
-        {/* Progress & Overall Score */}
-        <div className="flex-1 flex items-end justify-end gap-4">
+        {/* Dual Score Badges */}
+        <div className="flex-1 flex items-end justify-end gap-3 flex-wrap">
           {assignedKpis.length > 0 && (
             <div className="text-sm text-[#6B6B6B]">
               {completedCount}/{assignedKpis.length} {t("hr:completed")}
             </div>
           )}
           {overallScore !== null && (
-            <Badge className={`text-lg px-4 py-1 ${
+            <Badge className={`text-sm px-3 py-0.5 ${
               overallScore >= 80
                 ? "bg-[#E6F7F1] text-[#0C5536]"
                 : overallScore >= 60
                 ? "bg-[#FFF9E6] text-[#C6A03B]"
                 : "bg-red-50 text-red-600"
             }`}>
-              {t("hr:overallScore")}: {overallScore}%
+              {t("hr:roleScore")}: {overallScore}%
+            </Badge>
+          )}
+          {customScore !== null && (
+            <Badge className={`text-sm px-3 py-0.5 ${
+              customScore >= 80
+                ? "bg-purple-100 text-purple-700"
+                : customScore >= 60
+                ? "bg-[#FFF9E6] text-[#C6A03B]"
+                : "bg-red-50 text-red-600"
+            }`}>
+              {t("hr:customScore")}: {customScore}%
             </Badge>
           )}
         </div>
       </div>
 
-      {/* KPI Role Info */}
-      <div className="p-3 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4]">
-        <p className="text-sm text-[#6B6B6B]">
-          {t("hr:kpisForRole", { role: employee.job_role?.name || "" })}
-        </p>
-      </div>
-
-      {/* No KPIs for role */}
-      {allKpis.length === 0 ? (
-        <div className="p-6 text-center">
-          <Target className="h-12 w-12 text-[#E6E6E4] mx-auto mb-4" />
-          <p className="text-[#6B6B6B]">{t("hr:noKPIsForRole")}</p>
-        </div>
-      ) : (
+      {/* Role-Based KPIs Section */}
+      {hasRoleKpis && (
         <>
-          {/* Assigned KPIs Section */}
-          {assignedKpis.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-[#222222] flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-[#0C5536]" />
-                {t("hr:assignedKPIs")} ({assignedKpis.length})
-              </h3>
+          {/* Section Header */}
+          <div className="p-3 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4]">
+            <p className="text-sm font-medium text-[#555555]">
+              {t("hr:roleBasedKpis", { role: employee.job_role?.name || "" })}
+            </p>
+          </div>
 
-              {assignedKpis.map((kpi) => {
-                const evaluation = evaluations[kpi.id];
-                const isCompleted = evaluation?.status === "completed";
-
-                return (
-                  <Card
-                    key={kpi.id}
-                    className={`border-[#E6E6E4] ${isCompleted ? "bg-[#FAFAF8]" : ""}`}
-                  >
-                    <CardHeader className="pb-2">
-                      <div className={`flex items-start justify-between ${isRtl ? "flex-row-reverse" : ""}`}>
-                        <div className="flex items-start gap-3">
-                          <Checkbox
-                            checked={true}
-                            onCheckedChange={() => handleUnassignKpi(kpi.id)}
-                            disabled={assigning === kpi.id || evaluation?.achieved_value !== null}
-                            className="mt-1"
-                          />
-                          <div className={isRtl ? "text-right" : ""}>
-                            <CardTitle className="text-base flex items-center gap-2">
-                              {isCompleted && (
-                                <CheckCircle2 className="h-4 w-4 text-[#0C5536]" />
-                              )}
-                              {kpi.name}
-                            </CardTitle>
-                            {kpi.description && (
-                              <p className="text-sm text-[#6B6B6B] mt-1">
-                                {kpi.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <Badge variant="outline" className="border-[#E6E6E4]">
-                          {kpi.weighting}%
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Target */}
-                        <div className="space-y-1">
-                          <Label className="text-xs text-[#6B6B6B]">
-                            {t("hr:monthlyTarget")}
-                          </Label>
-                          <div className="h-10 px-3 flex items-center bg-gray-50 rounded-md border border-[#E6E6E4]">
-                            <span className="font-medium">
-                              {kpi.target_value} {kpi.unit}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Achieved Value */}
-                        <div className="space-y-1">
-                          <Label className="text-xs text-[#6B6B6B]">
-                            {t("hr:achievedValue")}
-                          </Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={evaluation?.achieved_value ?? ""}
-                            onChange={(e) =>
-                              handleAchievedValueChange(kpi.id, e.target.value)
-                            }
-                            placeholder={t("hr:enterAchievedValue")}
-                            className="border-[#E6E6E4]"
-                          />
-                        </div>
-
-                        {/* Score */}
-                        <div className="space-y-1">
-                          <Label className="text-xs text-[#6B6B6B]">
-                            {t("hr:score")}
-                          </Label>
-                          <div className={`h-10 px-3 flex items-center rounded-md border ${
-                            evaluation?.score != null
-                              ? evaluation.score >= 80
-                                ? "bg-[#E6F7F1] border-[#0C5536]/20 text-[#0C5536]"
-                                : evaluation.score >= 60
-                                ? "bg-[#FFF9E6] border-[#C6A03B]/20 text-[#C6A03B]"
-                                : "bg-red-50 border-red-200 text-red-600"
-                              : "bg-gray-50 border-[#E6E6E4]"
-                          }`}>
-                            <span className="font-medium">
-                              {evaluation?.score != null
-                                ? `${evaluation.score}%`
-                                : "-"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Notes */}
-                      <div className="mt-4 space-y-1">
-                        <Label className="text-xs text-[#6B6B6B]">
-                          {t("hr:notes")}
-                        </Label>
-                        <Textarea
-                          value={evaluation?.notes || ""}
-                          onChange={(e) => handleNotesChange(kpi.id, e.target.value)}
-                          placeholder={t("hr:kpiNotesPlaceholder")}
-                          className="border-[#E6E6E4] min-h-[60px]"
-                          dir={isRtl ? "rtl" : "ltr"}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+          {/* No KPIs for role */}
+          {allKpis.length === 0 ? (
+            <div className="p-6 text-center">
+              <Target className="h-12 w-12 text-[#E6E6E4] mx-auto mb-4" />
+              <p className="text-[#6B6B6B]">{t("hr:noKPIsForRole")}</p>
             </div>
-          )}
+          ) : (
+            <>
+              {/* Assigned KPIs Section */}
+              {assignedKpis.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-[#222222] flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-[#0C5536]" />
+                    {t("hr:assignedKPIs")} ({assignedKpis.length})
+                  </h3>
 
-          {/* Available KPIs to Assign */}
-          {unassignedKpis.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-[#6B6B6B] flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                {t("hr:availableKPIs")} ({unassignedKpis.length})
-              </h3>
+                  {assignedKpis.map((kpi) => {
+                    const evaluation = evaluations[kpi.id];
+                    const isCompleted = evaluation?.status === "completed";
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {unassignedKpis.map((kpi) => (
-                  <Card
-                    key={kpi.id}
-                    className="border-[#E6E6E4] border-dashed bg-gray-50/50"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={false}
-                          onCheckedChange={() => handleAssignKpi(kpi.id)}
-                          disabled={assigning === kpi.id}
-                          className="mt-1"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium text-[#222222]">{kpi.name}</p>
-                            <Badge variant="outline" className="border-[#E6E6E4] text-xs">
+                    return (
+                      <Card
+                        key={kpi.id}
+                        className={`border-[#E6E6E4] ${isCompleted ? "bg-[#FAFAF8]" : ""}`}
+                      >
+                        <CardHeader className="pb-2">
+                          <div className={`flex items-start justify-between ${isRtl ? "flex-row-reverse" : ""}`}>
+                            <div className="flex items-start gap-3">
+                              <Checkbox
+                                checked={true}
+                                onCheckedChange={() => handleUnassignKpi(kpi.id)}
+                                disabled={assigning === kpi.id || evaluation?.achieved_value !== null}
+                                className="mt-1"
+                              />
+                              <div className={isRtl ? "text-right" : ""}>
+                                <CardTitle className="text-base flex items-center gap-2">
+                                  {isCompleted && (
+                                    <CheckCircle2 className="h-4 w-4 text-[#0C5536]" />
+                                  )}
+                                  {kpi.name}
+                                </CardTitle>
+                                {kpi.description && (
+                                  <p className="text-sm text-[#6B6B6B] mt-1">
+                                    {kpi.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="border-[#E6E6E4]">
                               {kpi.weighting}%
                             </Badge>
                           </div>
-                          {kpi.description && (
-                            <p className="text-xs text-[#6B6B6B] mt-1">
-                              {kpi.description}
-                            </p>
-                          )}
-                          <p className="text-xs text-[#6B6B6B] mt-2">
-                            {t("hr:target")}: {kpi.target_value} {kpi.unit}
-                          </p>
-                        </div>
-                        {assigning === kpi.id && (
-                          <Loader2 className="h-4 w-4 animate-spin text-[#6B6B6B]" />
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-[#6B6B6B]">
+                                {t("hr:monthlyTarget")}
+                              </Label>
+                              <div className="h-10 px-3 flex items-center bg-gray-50 rounded-md border border-[#E6E6E4]">
+                                <span className="font-medium">
+                                  {kpi.target_value} {kpi.unit}
+                                </span>
+                              </div>
+                            </div>
 
-          {/* No KPIs assigned message */}
-          {assignedKpis.length === 0 && unassignedKpis.length > 0 && (
-            <div className="p-6 text-center border border-dashed border-[#E6E6E4] rounded-lg">
-              <Target className="h-8 w-8 text-[#C6A03B] mx-auto mb-2" />
-              <p className="text-[#6B6B6B]">{t("hr:noKPIsAssigned")}</p>
-              <p className="text-sm text-[#6B6B6B] mt-1">{t("hr:selectKPIsToAssign")}</p>
-            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-[#6B6B6B]">
+                                {t("hr:achievedValue")}
+                              </Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={evaluation?.achieved_value ?? ""}
+                                onChange={(e) =>
+                                  handleAchievedValueChange(kpi.id, e.target.value)
+                                }
+                                placeholder={t("hr:enterAchievedValue")}
+                                className="border-[#E6E6E4]"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="text-xs text-[#6B6B6B]">
+                                {t("hr:score")}
+                              </Label>
+                              <div className={`h-10 px-3 flex items-center rounded-md border ${
+                                evaluation?.score != null
+                                  ? evaluation.score >= 80
+                                    ? "bg-[#E6F7F1] border-[#0C5536]/20 text-[#0C5536]"
+                                    : evaluation.score >= 60
+                                    ? "bg-[#FFF9E6] border-[#C6A03B]/20 text-[#C6A03B]"
+                                    : "bg-red-50 border-red-200 text-red-600"
+                                  : "bg-gray-50 border-[#E6E6E4]"
+                              }`}>
+                                <span className="font-medium">
+                                  {evaluation?.score != null
+                                    ? `${evaluation.score}%`
+                                    : "-"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 space-y-1">
+                            <Label className="text-xs text-[#6B6B6B]">
+                              {t("hr:notes")}
+                            </Label>
+                            <Textarea
+                              value={evaluation?.notes || ""}
+                              onChange={(e) => handleNotesChange(kpi.id, e.target.value)}
+                              placeholder={t("hr:kpiNotesPlaceholder")}
+                              className="border-[#E6E6E4] min-h-[60px]"
+                              dir={isRtl ? "rtl" : "ltr"}
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Available KPIs to Assign */}
+              {unassignedKpis.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-[#6B6B6B] flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    {t("hr:availableKPIs")} ({unassignedKpis.length})
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {unassignedKpis.map((kpi) => (
+                      <Card
+                        key={kpi.id}
+                        className="border-[#E6E6E4] border-dashed bg-gray-50/50"
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              checked={false}
+                              onCheckedChange={() => handleAssignKpi(kpi.id)}
+                              disabled={assigning === kpi.id}
+                              className="mt-1"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <p className="font-medium text-[#222222]">{kpi.name}</p>
+                                <Badge variant="outline" className="border-[#E6E6E4] text-xs">
+                                  {kpi.weighting}%
+                                </Badge>
+                              </div>
+                              {kpi.description && (
+                                <p className="text-xs text-[#6B6B6B] mt-1">
+                                  {kpi.description}
+                                </p>
+                              )}
+                              <p className="text-xs text-[#6B6B6B] mt-2">
+                                {t("hr:target")}: {kpi.target_value} {kpi.unit}
+                              </p>
+                            </div>
+                            {assigning === kpi.id && (
+                              <Loader2 className="h-4 w-4 animate-spin text-[#6B6B6B]" />
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No KPIs assigned message */}
+              {assignedKpis.length === 0 && unassignedKpis.length > 0 && (
+                <div className="p-6 text-center border border-dashed border-[#E6E6E4] rounded-lg">
+                  <Target className="h-8 w-8 text-[#C6A03B] mx-auto mb-2" />
+                  <p className="text-[#6B6B6B]">{t("hr:noKPIsAssigned")}</p>
+                  <p className="text-sm text-[#6B6B6B] mt-1">{t("hr:selectKPIsToAssign")}</p>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
 
+      {/* Divider between role and custom sections */}
+      {hasRoleKpis && hasCustomKpis && (
+        <div className="border-t-2 border-purple-200/50 pt-2" />
+      )}
+
+      {/* Custom / Individual Goals Section */}
+      {hasCustomKpis && (
+        <CustomKPIEvaluationSection
+          ref={customSectionRef}
+          employeeId={employee.id}
+          employeeName={employee.full_name}
+          year={selectedYear}
+          month={selectedMonth}
+        />
+      )}
+
       {/* Save Button */}
-      {assignedKpis.length > 0 && (
+      {(assignedKpis.length > 0 || hasCustomKpis) && (
         <div className={`flex justify-end pt-4 ${isRtl ? "flex-row-reverse" : ""}`}>
           <Button
             onClick={handleSaveAll}

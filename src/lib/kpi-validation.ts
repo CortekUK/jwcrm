@@ -48,6 +48,44 @@ export const bulkKpiEvaluationSchema = z.object({
   })),
 });
 
+// Custom KPI schema (per-employee, no job_role_id)
+export const customKpiSchema = z.object({
+  employee_id: z.string().uuid("employeeRequired"),
+  name: z.string().trim().min(2, "nameTooShort").nonempty("nameRequired"),
+  description: z.string().trim().optional().or(z.literal("")),
+  target_value: z.string().min(1, "targetValueRequired"),
+  unit: z.string().trim().min(1, "unitRequired"),
+  weighting: z.string().min(1, "weightingRequired"),
+  deadline: z.string().optional().or(z.literal("")),
+});
+
+// Custom KPI edit schema
+export const customKpiEditSchema = customKpiSchema.extend({
+  id: z.string().uuid(),
+});
+
+// Custom KPI Evaluation schema
+export const customKpiEvaluationSchema = z.object({
+  employee_id: z.string().uuid(),
+  custom_kpi_id: z.string().uuid(),
+  year: z.number().int().min(2020).max(2100),
+  month: z.number().int().min(1).max(12),
+  achieved_value: z.string().optional().or(z.literal("")),
+  notes: z.string().trim().optional().or(z.literal("")),
+});
+
+// Bulk custom KPI evaluation schema
+export const bulkCustomKpiEvaluationSchema = z.object({
+  employee_id: z.string().uuid(),
+  year: z.number().int().min(2020).max(2100),
+  month: z.number().int().min(1).max(12),
+  evaluations: z.array(z.object({
+    custom_kpi_id: z.string().uuid(),
+    achieved_value: z.string().optional().or(z.literal("")),
+    notes: z.string().trim().optional().or(z.literal("")),
+  })),
+});
+
 // Types
 export type JobRoleFormData = z.infer<typeof jobRoleSchema>;
 export type JobRoleEditFormData = z.infer<typeof jobRoleEditSchema>;
@@ -55,6 +93,10 @@ export type KPIFormData = z.infer<typeof kpiSchema>;
 export type KPIEditFormData = z.infer<typeof kpiEditSchema>;
 export type KPIEvaluationFormData = z.infer<typeof kpiEvaluationSchema>;
 export type BulkKPIEvaluationFormData = z.infer<typeof bulkKpiEvaluationSchema>;
+export type CustomKPIFormData = z.infer<typeof customKpiSchema>;
+export type CustomKPIEditFormData = z.infer<typeof customKpiEditSchema>;
+export type CustomKPIEvaluationFormData = z.infer<typeof customKpiEvaluationSchema>;
+export type BulkCustomKPIEvaluationFormData = z.infer<typeof bulkCustomKpiEvaluationSchema>;
 
 // Unit suggestions for KPI input
 export const kpiUnitSuggestions = [

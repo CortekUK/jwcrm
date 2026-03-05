@@ -118,9 +118,19 @@ export function KPIOverviewCard() {
         kpisByRole[kpi.job_role_id].push({ id: kpi.id, weighting: kpi.weighting || 0 });
       });
 
-      // Count employees with KPIs
+      // Also check for employees with custom KPIs
+      const { data: customKpiEmployees } = await supabase
+        .from("employee_custom_kpis")
+        .select("employee_id")
+        .eq("is_archived", false);
+
+      const employeesWithCustomKpis = new Set(
+        (customKpiEmployees || []).map((c: any) => c.employee_id)
+      );
+
+      // Count employees with KPIs (role-based OR custom)
       const employeesWithKPIs = employees.filter(
-        (emp: any) => kpisByRole[emp.job_role_id]?.length > 0
+        (emp: any) => kpisByRole[emp.job_role_id]?.length > 0 || employeesWithCustomKpis.has(emp.id)
       );
       const totalEmployeesWithKPIs = employeesWithKPIs.length;
 
@@ -341,7 +351,7 @@ export function KPIOverviewCard() {
 
   if (loading) {
     return (
-      <Card className="border-[#E6E6E4]">
+      <Card className="border-[#E6E6E4] dark:border-border">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <Skeleton className="h-8 w-8 rounded-lg" />
@@ -362,9 +372,9 @@ export function KPIOverviewCard() {
 
   if (stats.totalEmployeesWithKPIs === 0) {
     return (
-      <Card className="border-[#E6E6E4]">
+      <Card className="border-[#E6E6E4] dark:border-border">
         <CardHeader className="pb-3">
-          <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+          <CardTitle className="text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
             <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
               <Target className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
             </div>
@@ -374,7 +384,7 @@ export function KPIOverviewCard() {
         <CardContent>
           <div className="text-center py-8">
             <Target className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-            <p className="text-[#6B6B6B]">{t("hr:kpiOverview.noKPIsConfigured")}</p>
+            <p className="text-[#6B6B6B] dark:text-muted-foreground">{t("hr:kpiOverview.noKPIsConfigured")}</p>
             <Button
               variant="outline"
               className="mt-4"
@@ -389,17 +399,17 @@ export function KPIOverviewCard() {
   }
 
   return (
-    <Card className="border-[#E6E6E4]">
+    <Card className="border-[#E6E6E4] dark:border-border">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+          <CardTitle className="text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
             <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
               <Target className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
             </div>
             {t("hr:kpiOverview.title")}
           </CardTitle>
           {stats.overdueCount > 0 && (
-            <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
+            <Badge variant="outline" className="bg-red-50 dark:bg-red-950/30 text-red-600 border-red-200 dark:border-red-800">
               <AlertTriangle className="h-3 w-3 mr-1" />
               {stats.overdueCount} {t("hr:kpiOverview.overdue")}
             </Badge>
@@ -409,28 +419,28 @@ export function KPIOverviewCard() {
       <CardContent className="space-y-5">
         {/* Quick Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="p-3 rounded-lg bg-[#FAFAF8] border border-[#E6E6E4]">
+          <div className="p-3 rounded-lg bg-[#FAFAF8] dark:bg-card border border-[#E6E6E4] dark:border-border">
             <div className="flex items-center gap-2 mb-1">
-              <Users className="h-4 w-4 text-[#6B6B6B]" />
-              <span className="text-xs text-[#6B6B6B]">{t("hr:kpiOverview.employeesWithKPIs")}</span>
+              <Users className="h-4 w-4 text-[#6B6B6B] dark:text-muted-foreground" />
+              <span className="text-xs text-[#6B6B6B] dark:text-muted-foreground">{t("hr:kpiOverview.employeesWithKPIs")}</span>
             </div>
-            <p className="text-xl font-bold text-[#222222]">{stats.totalEmployeesWithKPIs}</p>
+            <p className="text-xl font-bold text-[#222222] dark:text-foreground">{stats.totalEmployeesWithKPIs}</p>
           </div>
 
-          <div className="p-3 rounded-lg bg-[#FAFAF8] border border-[#E6E6E4]">
+          <div className="p-3 rounded-lg bg-[#FAFAF8] dark:bg-card border border-[#E6E6E4] dark:border-border">
             <div className="flex items-center gap-2 mb-1">
-              <CheckCircle2 className="h-4 w-4 text-[#6B6B6B]" />
-              <span className="text-xs text-[#6B6B6B]">{t("hr:kpiOverview.completionRate")}</span>
+              <CheckCircle2 className="h-4 w-4 text-[#6B6B6B] dark:text-muted-foreground" />
+              <span className="text-xs text-[#6B6B6B] dark:text-muted-foreground">{t("hr:kpiOverview.completionRate")}</span>
             </div>
             <p className={cn("text-xl font-bold", stats.completionRate >= 80 ? "text-green-600" : stats.completionRate >= 50 ? "text-amber-600" : "text-red-600")}>
               {stats.completionRate}%
             </p>
           </div>
 
-          <div className="p-3 rounded-lg bg-[#FAFAF8] border border-[#E6E6E4]">
+          <div className="p-3 rounded-lg bg-[#FAFAF8] dark:bg-card border border-[#E6E6E4] dark:border-border">
             <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-4 w-4 text-[#6B6B6B]" />
-              <span className="text-xs text-[#6B6B6B]">{t("hr:kpiOverview.averageScore")}</span>
+              <TrendingUp className="h-4 w-4 text-[#6B6B6B] dark:text-muted-foreground" />
+              <span className="text-xs text-[#6B6B6B] dark:text-muted-foreground">{t("hr:kpiOverview.averageScore")}</span>
             </div>
             <p className={cn("text-xl font-bold", getScoreColor(stats.averageScore))}>
               {stats.averageScore !== null ? `${stats.averageScore}%` : "-"}
@@ -439,7 +449,7 @@ export function KPIOverviewCard() {
 
           <div className={cn(
             "p-3 rounded-lg border",
-            stats.pendingCount > 0 ? "bg-amber-50 border-amber-200" : "bg-green-50 border-green-200"
+            stats.pendingCount > 0 ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800" : "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
           )}>
             <div className="flex items-center gap-2 mb-1">
               <ClipboardList className={cn("h-4 w-4", stats.pendingCount > 0 ? "text-amber-600" : "text-green-600")} />
@@ -455,8 +465,8 @@ export function KPIOverviewCard() {
 
         {/* Performance Distribution Bar */}
         <div className="space-y-2">
-          <p className="text-sm font-medium text-[#222222]">{t("hr:kpiOverview.performanceDistribution")}</p>
-          <div className="h-4 rounded-full overflow-hidden flex bg-gray-100">
+          <p className="text-sm font-medium text-[#222222] dark:text-foreground">{t("hr:kpiOverview.performanceDistribution")}</p>
+          <div className="h-4 rounded-full overflow-hidden flex bg-gray-100 dark:bg-gray-800">
             {stats.performanceBands.map((band, i) => (
               band.percentage > 0 && (
                 <div
@@ -472,7 +482,7 @@ export function KPIOverviewCard() {
             {stats.performanceBands.map((band, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <div className={cn("h-2.5 w-2.5 rounded-full", band.bgColor)} />
-                <span className="text-[#6B6B6B]">{band.label}: {band.count}</span>
+                <span className="text-[#6B6B6B] dark:text-muted-foreground">{band.label}: {band.count}</span>
               </div>
             ))}
           </div>
@@ -485,13 +495,13 @@ export function KPIOverviewCard() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Award className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-[#222222]">{t("hr:kpiOverview.topPerformers")}</span>
+                <span className="text-sm font-medium text-[#222222] dark:text-foreground">{t("hr:kpiOverview.topPerformers")}</span>
               </div>
               <div className="space-y-1.5">
                 {stats.topPerformers.map((performer, i) => (
                   <div
                     key={performer.id}
-                    className="flex items-center justify-between p-2 rounded-lg bg-green-50 border border-green-200 cursor-pointer hover:bg-green-100 transition-colors"
+                    className="flex items-center justify-between p-2 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 cursor-pointer hover:bg-green-100 dark:hover:bg-green-950/50 transition-colors"
                     onClick={() => router.push(`${basePath}/kpis/evaluations/${performer.id}`)}
                   >
                     <div className="flex items-center gap-2">
@@ -499,8 +509,8 @@ export function KPIOverviewCard() {
                         {i + 1}
                       </span>
                       <div>
-                        <p className="text-sm font-medium text-[#222222]">{performer.name}</p>
-                        <p className="text-xs text-[#6B6B6B]">{performer.jobRole}</p>
+                        <p className="text-sm font-medium text-[#222222] dark:text-foreground">{performer.name}</p>
+                        <p className="text-xs text-[#6B6B6B] dark:text-muted-foreground">{performer.jobRole}</p>
                       </div>
                     </div>
                     <span className="text-sm font-bold text-green-600">{performer.score}%</span>
@@ -515,20 +525,20 @@ export function KPIOverviewCard() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-red-600" />
-                <span className="text-sm font-medium text-[#222222]">{t("hr:kpiOverview.needsAttention")}</span>
+                <span className="text-sm font-medium text-[#222222] dark:text-foreground">{t("hr:kpiOverview.needsAttention")}</span>
               </div>
               <div className="space-y-1.5">
                 {stats.lowPerformers.map((performer) => (
                   <div
                     key={performer.id}
-                    className="flex items-center justify-between p-2 rounded-lg bg-red-50 border border-red-200 cursor-pointer hover:bg-red-100 transition-colors"
+                    className="flex items-center justify-between p-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 cursor-pointer hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
                     onClick={() => router.push(`${basePath}/kpis/evaluations/${performer.id}`)}
                   >
                     <div className="flex items-center gap-2">
                       <AlertCircle className="h-4 w-4 text-red-500" />
                       <div>
-                        <p className="text-sm font-medium text-[#222222]">{performer.name}</p>
-                        <p className="text-xs text-[#6B6B6B]">{performer.jobRole}</p>
+                        <p className="text-sm font-medium text-[#222222] dark:text-foreground">{performer.name}</p>
+                        <p className="text-xs text-[#6B6B6B] dark:text-muted-foreground">{performer.jobRole}</p>
                       </div>
                     </div>
                     <span className="text-sm font-bold text-red-600">{performer.score}%</span>
@@ -543,7 +553,7 @@ export function KPIOverviewCard() {
         <div className={cn("flex gap-2 pt-2", isRtl && "flex-row-reverse")}>
           <Button
             variant="outline"
-            className="flex-1 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+            className="flex-1 border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] dark:hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent dark:bg-card"
             onClick={() => router.push(`${basePath}/kpis`)}
           >
             <Target className={cn("h-4 w-4", isRtl ? "ml-2" : "mr-2")} />

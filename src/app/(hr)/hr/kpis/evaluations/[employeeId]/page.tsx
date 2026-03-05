@@ -5,10 +5,17 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentMonth, getCurrentYear } from "@/lib/kpi-validation";
-import { EmployeeKPIEvaluationForm, EmployeeKPIHistory, SendKPIReportButton, DownloadKPIReportButton } from "@/components/hr/kpis";
+import { EmployeeKPIEvaluationForm, EmployeeKPIHistory, DownloadKPIReportButton, AddCustomKPIForm } from "@/components/hr/kpis";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, ClipboardCheck, User } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, User, Plus, Target } from "lucide-react";
 
 type Employee = {
   id: string;
@@ -37,6 +44,7 @@ export default function EmployeeEvaluationPage() {
   const [notFound, setNotFound] = useState(false);
   const [currentYear, setCurrentYear] = useState(initialYear);
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
+  const [showAddCustomKpi, setShowAddCustomKpi] = useState(false);
 
   const handlePeriodChange = (year: number, month: number) => {
     setCurrentYear(year);
@@ -147,19 +155,21 @@ export default function EmployeeEvaluationPage() {
                   </CardDescription>
                 </div>
 
-                {/* Report Buttons */}
+                {/* Report & Action Buttons */}
                 <div className={`flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddCustomKpi(true)}
+                    className="border-purple-200 text-purple-600 hover:bg-purple-50"
+                  >
+                    <Plus className="h-4 w-4 ltr:mr-1 rtl:ml-1" />
+                    {t("hr:addCustomKpi")}
+                  </Button>
                   <DownloadKPIReportButton
                     employeeId={employee.id}
                     employeeName={employee.full_name}
                     jobRoleName={employee.job_role?.name || null}
-                    year={currentYear}
-                    month={currentMonth}
-                  />
-                  <SendKPIReportButton
-                    employeeId={employee.id}
-                    employeeName={employee.full_name}
-                    employeeEmail={employee.email}
                     year={currentYear}
                     month={currentMonth}
                   />
@@ -196,6 +206,29 @@ export default function EmployeeEvaluationPage() {
           />
         </div>
       </div>
+
+      {/* Quick Add Custom KPI Dialog */}
+      {employee && (
+        <Dialog open={showAddCustomKpi} onOpenChange={setShowAddCustomKpi}>
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-purple-600" />
+                {t("hr:addCustomKpi")}
+              </DialogTitle>
+            </DialogHeader>
+            <AddCustomKPIForm
+              employeeId={employee.id}
+              employeeName={employee.full_name}
+              onSuccess={() => {
+                setShowAddCustomKpi(false);
+                window.location.reload();
+              }}
+              onCancel={() => setShowAddCustomKpi(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
