@@ -48,7 +48,8 @@ export default function EmployeeProfilePage() {
   const [archivedDocuments, setArchivedDocuments] = useState<Document[]>([]);
 
   // Check if we should open documents tab (after creating employee)
-  const defaultTab = searchParams.get("tab") === "documents" ? "documents" : "details";
+  const tabParam = searchParams.get("tab");
+  const defaultTab = tabParam === "documents" ? "documents" : tabParam === "custom-kpis" ? "custom-kpis" : "details";
   const [showDeactivate, setShowDeactivate] = useState(false);
 
   const employeeId = params.id as string;
@@ -224,17 +225,15 @@ export default function EmployeeProfilePage() {
               <ClipboardList className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
               {t("hr:viewAttendance")}
             </Button>
-            {employee.job_role && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push(`/admin/hr/kpis/evaluations/${employee.id}`)}
-                className="border-[#E6E6E4] text-[#222222] hover:border-[hsl(var(--jw-gold-accent))] hover:text-[hsl(var(--jw-gold-accent))]"
-              >
-                <Target className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-                {t("hr:viewKPIs")}
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/admin/hr/kpis/evaluations/${employee.id}`)}
+              className="border-[#E6E6E4] text-[#222222] hover:border-[hsl(var(--jw-gold-accent))] hover:text-[hsl(var(--jw-gold-accent))]"
+            >
+              <Target className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+              {t("hr:viewKPIs")}
+            </Button>
             <Button
               variant="outline"
               size="sm"

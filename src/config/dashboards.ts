@@ -14,7 +14,7 @@ import {
   Briefcase,
   Target,
   UserCog,
-  ArrowLeftRight,
+
   ClipboardCheck,
   FileBarChart,
 } from "lucide-react";
@@ -223,7 +223,6 @@ const hrNavItems: NavItem[] = [
 // Finance role nav items - all under /admin/finance
 const financeNavItems: NavItem[] = [
   { path: "/admin/finance", labelKey: "finance:dashboard", icon: LayoutDashboard },
-  { path: "/admin/finance/transactions", labelKey: "finance:transactions", icon: ArrowLeftRight },
   { path: "/admin/finance/reports", labelKey: "finance:reports.title", icon: FileBarChart },
   { path: "/admin/finance/settings", labelKey: "common:settings", icon: Settings },
 ];

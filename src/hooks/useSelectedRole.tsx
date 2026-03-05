@@ -95,3 +95,8 @@ export function useSelectedRole() {
   }
   return context;
 }
+
+/** Safe version that returns null when used outside a SelectedRoleProvider */
+export function useSelectedRoleOptional() {
+  return useContext(SelectedRoleContext) ?? null;
+}

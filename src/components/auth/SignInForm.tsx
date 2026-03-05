@@ -148,17 +148,17 @@ export function SignInForm({ dashboardType }: SignInFormProps) {
   return (
     <div className="space-y-6">
       <div className="space-y-2 text-center mb-[30px]">
-        <h1 className="text-[22px] font-serif font-semibold tracking-tight text-[#121212] mb-2">
+        <h1 className="text-[22px] font-serif font-semibold tracking-tight text-[#121212] dark:text-foreground mb-2">
           {t("welcomeBack")}
         </h1>
-        <p className="text-[14px] text-[#555555]">{t("signInSubtitle")}</p>
+        <p className="text-[14px] text-[#555555] dark:text-muted-foreground">{t("signInSubtitle")}</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-2">
           <Label
             htmlFor="email"
-            className="text-[13px] font-semibold text-[#333333]"
+            className="text-[13px] font-semibold text-[#333333] dark:text-foreground"
           >
             {t("email")}
           </Label>
@@ -168,7 +168,7 @@ export function SignInForm({ dashboardType }: SignInFormProps) {
             placeholder={t("emailPlaceholder")}
             className={cn(
               "h-[44px] border rounded-md px-[14px] placeholder:text-[#A0A0A0]",
-              errors.email ? "border-[#C0392B]" : "border-[#E6E6E4]",
+              errors.email ? "border-[#C0392B]" : "border-[#E6E6E4] dark:border-border",
               "focus:border-[#C6A03B] focus:ring-2 focus:ring-[rgba(198,160,59,0.35)]",
               "transition-all duration-200"
             )}
@@ -188,7 +188,7 @@ export function SignInForm({ dashboardType }: SignInFormProps) {
         <div className="space-y-2">
           <Label
             htmlFor="password"
-            className="text-[13px] font-semibold text-[#333333]"
+            className="text-[13px] font-semibold text-[#333333] dark:text-foreground"
           >
             {t("password")}
           </Label>
@@ -212,7 +212,7 @@ export function SignInForm({ dashboardType }: SignInFormProps) {
         <div className="text-right rtl:text-left">
           <Link
             href={`${dashboardConfig.authPath}/reset`}
-            className="text-[12px] text-[#0C5536] hover:underline"
+            className="text-[12px] text-[#0C5536] dark:text-[#C6A03B] hover:underline"
           >
             {t("forgotPassword")}
           </Link>
@@ -222,11 +222,11 @@ export function SignInForm({ dashboardType }: SignInFormProps) {
           type="submit"
           disabled={loading}
           className={cn(
-            "w-full h-[46px] bg-[#0C5536] text-white rounded-md",
+            "w-full h-[46px] bg-[#0C5536] dark:bg-[#C6A03B] text-white dark:text-[#1A1A19] rounded-md",
             "font-semibold text-[15px]",
-            "hover:bg-[#09422A] hover:shadow-[0_0_6px_rgba(198,160,59,0.45)]",
-            "focus:ring-2 focus:ring-[#C6A03B] focus:ring-offset-2",
-            "disabled:bg-[#94B2A2] disabled:text-white/60 disabled:cursor-not-allowed",
+            "hover:bg-[#09422A] dark:hover:bg-[#B8922F] hover:shadow-[0_0_6px_rgba(198,160,59,0.45)]",
+            "focus:ring-2 focus:ring-[#C6A03B] focus:ring-offset-2 dark:focus:ring-offset-background",
+            "disabled:bg-[#94B2A2] dark:disabled:bg-[#C6A03B]/50 disabled:text-white/60 disabled:cursor-not-allowed",
             "transition-all duration-200 transform hover:-translate-y-0.5"
           )}
         >
@@ -244,11 +244,11 @@ export function SignInForm({ dashboardType }: SignInFormProps) {
       {/* Only show signup link for client dashboard */}
       {dashboardType === "client" && (
         <div className="text-center">
-          <p className="text-[13px] text-[#555555]">
+          <p className="text-[13px] text-[#555555] dark:text-muted-foreground">
             {t("noAccount")}{" "}
             <Link
               href={`${dashboardConfig.authPath}/signup`}
-              className="text-[#0C5536] hover:underline font-medium"
+              className="text-[#0C5536] dark:text-[#C6A03B] hover:underline font-medium"
             >
               {t("signUp")}
             </Link>

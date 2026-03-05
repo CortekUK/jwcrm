@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useSelectedRole } from "@/hooks/useSelectedRole";
+import { useSelectedRoleOptional } from "@/hooks/useSelectedRole";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { LogOut, ChevronDown, Languages, Sun, Moon, Monitor } from "lucide-react";
 import { ReminderNotificationBadge } from "@/components/lead-management/reminders/ReminderNotificationBadge";
+import { HRNotificationBadge } from "@/components/hr/notifications/HRNotificationBadge";
 import { cn } from "@/lib/utils";
 
 interface UserProfileMenuProps {
@@ -29,7 +30,8 @@ export function UserProfileMenu({
   portalLabel 
 }: UserProfileMenuProps) {
   const { profile, signOut } = useAuth();
-  const { selectedRole } = useSelectedRole();
+  const selectedRoleCtx = useSelectedRoleOptional();
+  const selectedRole = selectedRoleCtx?.selectedRole ?? null;
   const { locale, changeLanguage, isLoading: isChangingLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
   const { t, i18n } = useTranslation("common");
@@ -112,6 +114,7 @@ export function UserProfileMenu({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <div className={cn("flex items-center gap-1", isRtl && "flex-row-reverse")}>
         {showReminderBadge && selectedRole === "salesperson" && <ReminderNotificationBadge />}
+        {showReminderBadge && selectedRole === "hr" && <HRNotificationBadge />}
         <PopoverTrigger asChild>
           <button
             className={cn(

@@ -184,7 +184,7 @@ function SidebarContent() {
         )}>
           <UserProfileMenu 
             compact={isCollapsed} 
-            showReminderBadge={selectedRole === "salesperson"}
+            showReminderBadge={selectedRole === "salesperson" || selectedRole === "hr"}
           />
         </div>
       </div>
@@ -288,7 +288,7 @@ function MobileSidebar() {
 
             {/* User Profile Menu (consolidated: profile, language, sign out) */}
             <div className="border-t border-sidebar-border p-3">
-              <UserProfileMenu showReminderBadge={selectedRole === "salesperson"} />
+              <UserProfileMenu showReminderBadge={selectedRole === "salesperson" || selectedRole === "hr"} />
             </div>
           </div>
         </SheetContent>

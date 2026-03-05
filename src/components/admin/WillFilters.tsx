@@ -6,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
 
@@ -83,22 +83,42 @@ export function WillFilters({
         </div>
 
         <div className="flex-1 space-y-2">
-          <Label htmlFor="date-from">From Date</Label>
-          <Input
-            id="date-from"
-            type="date"
-            value={dateFromFilter}
-            onChange={(e) => onDateFromFilterChange(e.target.value)}
+          <Label>From Date</Label>
+          <DatePicker
+            date={dateFromFilter ? new Date(dateFromFilter + "T00:00:00") : undefined}
+            onDateChange={(date) => {
+              if (date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, "0");
+                const day = String(date.getDate()).padStart(2, "0");
+                onDateFromFilterChange(`${year}-${month}-${day}`);
+              } else {
+                onDateFromFilterChange("");
+              }
+            }}
+            placeholder="From date"
+            className="w-full"
+            clearable={true}
           />
         </div>
 
         <div className="flex-1 space-y-2">
-          <Label htmlFor="date-to">To Date</Label>
-          <Input
-            id="date-to"
-            type="date"
-            value={dateToFilter}
-            onChange={(e) => onDateToFilterChange(e.target.value)}
+          <Label>To Date</Label>
+          <DatePicker
+            date={dateToFilter ? new Date(dateToFilter + "T00:00:00") : undefined}
+            onDateChange={(date) => {
+              if (date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, "0");
+                const day = String(date.getDate()).padStart(2, "0");
+                onDateToFilterChange(`${year}-${month}-${day}`);
+              } else {
+                onDateToFilterChange("");
+              }
+            }}
+            placeholder="To date"
+            className="w-full"
+            clearable={true}
           />
         </div>
 
