@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -149,12 +149,22 @@ export function DeactivateModal({ open, onOpenChange, employee, onSuccess }: Dea
             <Label htmlFor="last_working_day" className="text-[#555555]">
               {t("hr:lastWorkingDay")} <span className="text-red-500">*</span>
             </Label>
-            <Input
-              id="last_working_day"
-              type="date"
-              {...register("last_working_day")}
-              className="border-[#E6E6E4]"
+            <DatePicker
+              date={watch("last_working_day") ? new Date(watch("last_working_day") + "T00:00:00") : undefined}
+              onDateChange={(date) => {
+                if (date) {
+                  const year = date.getFullYear();
+                  const month = String(date.getMonth() + 1).padStart(2, "0");
+                  const day = String(date.getDate()).padStart(2, "0");
+                  setValue("last_working_day", `${year}-${month}-${day}`);
+                } else {
+                  setValue("last_working_day", "");
+                }
+              }}
+              placeholder={t("hr:lastWorkingDay")}
+              className="w-full border-[#E6E6E4]"
               disabled={loading}
+              clearable={false}
             />
             {errors.last_working_day && (
               <p className="text-[12px] text-[#C0392B]">

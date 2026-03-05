@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -425,27 +426,41 @@ export function EmailLogsTable() {
             </Select>
 
             {/* Date From */}
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => {
-                setDateFrom(e.target.value);
+            <DatePicker
+              date={dateFrom ? new Date(dateFrom + "T00:00:00") : undefined}
+              onDateChange={(date) => {
+                if (date) {
+                  const year = date.getFullYear();
+                  const month = String(date.getMonth() + 1).padStart(2, "0");
+                  const day = String(date.getDate()).padStart(2, "0");
+                  setDateFrom(`${year}-${month}-${day}`);
+                } else {
+                  setDateFrom("");
+                }
                 setPage(1);
               }}
-              className="border-[#E6E6E4] focus:border-[#C6A03B]"
               placeholder={t("hr:from", "From")}
+              className="w-full"
+              clearable={true}
             />
 
             {/* Date To */}
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => {
-                setDateTo(e.target.value);
+            <DatePicker
+              date={dateTo ? new Date(dateTo + "T00:00:00") : undefined}
+              onDateChange={(date) => {
+                if (date) {
+                  const year = date.getFullYear();
+                  const month = String(date.getMonth() + 1).padStart(2, "0");
+                  const day = String(date.getDate()).padStart(2, "0");
+                  setDateTo(`${year}-${month}-${day}`);
+                } else {
+                  setDateTo("");
+                }
                 setPage(1);
               }}
-              className="border-[#E6E6E4] focus:border-[#C6A03B]"
               placeholder={t("hr:to", "To")}
+              className="w-full"
+              clearable={true}
             />
           </div>
         </CardContent>

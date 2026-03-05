@@ -4,9 +4,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardHome } from "@/components/dashboard/DashboardHome";
 import { NotificationSettings } from "@/components/hr/settings/NotificationSettings";
 import { LeaveApprovalSettings } from "@/components/hr/settings/LeaveApprovalSettings";
+import { LeaveTypesSettings } from "@/components/hr/settings/LeaveTypesSettings";
 import { ReviewTemplateManager } from "@/components/hr/reviews";
 import { useTranslation } from "react-i18next";
-import { User, Bell, Settings, GitBranch, FileText } from "lucide-react";
+import { User, Bell, Settings, GitBranch, FileText, List } from "lucide-react";
 
 export default function HRSettings() {
   const { t } = useTranslation(["hr", "common"]);
@@ -30,7 +31,7 @@ export default function HRSettings() {
 
       <div className="max-w-4xl mx-auto">
         <Tabs defaultValue="account" className="space-y-6">
-          <TabsList className="bg-white border border-[#E6E6E4] p-1.5 rounded-xl w-full grid grid-cols-4 h-auto">
+          <TabsList className="bg-white border border-[#E6E6E4] p-1.5 rounded-xl w-full grid grid-cols-5 h-auto">
             <TabsTrigger
               value="account"
               className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
@@ -53,6 +54,13 @@ export default function HRSettings() {
               {t("hr:leaveApprovals", "Leave Approvals")}
             </TabsTrigger>
             <TabsTrigger
+              value="leave-types"
+              className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+            >
+              <List className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+              {t("hr:leaveTypes", "Leave Types")}
+            </TabsTrigger>
+            <TabsTrigger
               value="templates"
               className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
             >
@@ -71,6 +79,10 @@ export default function HRSettings() {
 
           <TabsContent value="approvals">
             <LeaveApprovalSettings />
+          </TabsContent>
+
+          <TabsContent value="leave-types">
+            <LeaveTypesSettings />
           </TabsContent>
 
           <TabsContent value="templates">

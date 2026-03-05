@@ -346,7 +346,7 @@ export default function HRDashboard() {
   return (
     <div className="space-y-8 pb-12">
       {/* Hero Header */}
-      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 mb-6 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8 animate-fade-in">
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] dark:from-card dark:to-card border-b-2 border-[hsl(var(--jw-gold-accent))]/25 mb-6 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -355,15 +355,15 @@ export default function HRDashboard() {
                 {t("hr:hrDashboard")}
               </h1>
             </div>
-            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+            <p className="text-sm text-[#777777] dark:text-muted-foreground ltr:ml-9 rtl:mr-9">
               {t("hr:dashboardDescription")}
             </p>
           </div>
 
           {stats.expiringDocuments > 0 && (
             <Link href={`${basePath}/documents?status=expiring`}>
-              <div className="flex items-center gap-3 px-3 py-2 bg-white border border-[#E6E6E4] rounded-md hover:border-[#C6A03B] transition-all cursor-pointer">
-                <FileText className="h-4 w-4 text-[#777777]" />
+              <div className="flex items-center gap-3 px-3 py-2 bg-white dark:bg-card border border-[#E6E6E4] dark:border-border dark:border-border rounded-md hover:border-[#C6A03B] transition-all cursor-pointer">
+                <FileText className="h-4 w-4 text-[#777777] dark:text-muted-foreground" />
                 <span className="text-[#DC2626] font-medium text-sm">
                   {stats.expiringDocuments} Expiring
                 </span>
@@ -374,11 +374,11 @@ export default function HRDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <Card className="border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
+      <Card className="border-[#E6E6E4] dark:border-border shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <Plus className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-            <CardTitle className="text-xl font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+            <CardTitle className="text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B]" style={{ fontFamily: 'Playfair Display, serif' }}>
               {t("hr:quickActions", "Quick Actions")}
             </CardTitle>
           </div>
@@ -387,46 +387,46 @@ export default function HRDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Button
               variant="outline"
-              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
+              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent transition-all group"
               onClick={() => router.push(`${basePath}/employees/new`)}
             >
               <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
-                <UserPlus className="h-5 w-5 text-[#0C5536]" />
+                <UserPlus className="h-5 w-5 text-[#0C5536] dark:text-[#C6A03B]" />
               </div>
-              <span className="text-sm font-medium text-[#222222]">{t("hr:addEmployee")}</span>
+              <span className="text-sm font-medium text-[#222222] dark:text-foreground">{t("hr:addEmployee")}</span>
             </Button>
 
             <Button
               variant="outline"
-              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
+              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent transition-all group"
               onClick={() => router.push(`${basePath}/leave?action=new`)}
             >
               <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
-                <CalendarPlus className="h-5 w-5 text-[#0C5536]" />
+                <CalendarPlus className="h-5 w-5 text-[#0C5536] dark:text-[#C6A03B]" />
               </div>
-              <span className="text-sm font-medium text-[#222222]">{t("hr:submitLeave", "Submit Leave")}</span>
+              <span className="text-sm font-medium text-[#222222] dark:text-foreground">{t("hr:submitLeave", "Submit Leave")}</span>
             </Button>
 
             <Button
               variant="outline"
-              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
+              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent transition-all group"
               onClick={() => router.push(`${basePath}/attendance`)}
             >
               <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
-                <Clock className="h-5 w-5 text-[#0C5536]" />
+                <Clock className="h-5 w-5 text-[#0C5536] dark:text-[#C6A03B]" />
               </div>
-              <span className="text-sm font-medium text-[#222222]">{t("hr:recordAttendance", "Record Attendance")}</span>
+              <span className="text-sm font-medium text-[#222222] dark:text-foreground">{t("hr:recordAttendance", "Record Attendance")}</span>
             </Button>
 
             <Button
               variant="outline"
-              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
+              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent transition-all group"
               onClick={() => router.push(`${basePath}/kpis/new`)}
             >
               <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
-                <Target className="h-5 w-5 text-[#0C5536]" />
+                <Target className="h-5 w-5 text-[#0C5536] dark:text-[#C6A03B]" />
               </div>
-              <span className="text-sm font-medium text-[#222222]">{t("hr:addKPI", "Add KPI")}</span>
+              <span className="text-sm font-medium text-[#222222] dark:text-foreground">{t("hr:addKPI", "Add KPI")}</span>
             </Button>
           </div>
         </CardContent>
@@ -435,24 +435,24 @@ export default function HRDashboard() {
       {/* Quick Stats */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <Card 
-          className="rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group cursor-pointer"
+          className="rounded-lg border border-[#E6E6E4] dark:border-border hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group cursor-pointer"
           onClick={() => router.push(`${basePath}/employees`)}
         >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-[#777777]">
+              <CardTitle className="text-sm font-medium text-[#777777] dark:text-muted-foreground">
                 {t("hr:totalEmployees")}
               </CardTitle>
               <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: 'rgba(198, 160, 59, 0.15)' }}>
-                <Users className="h-5 w-5 text-[#0C5536]" />
+                <Users className="h-5 w-5 text-[#0C5536] dark:text-[#C6A03B]" />
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tight text-[#222222]">
+            <div className="text-3xl font-bold tracking-tight text-[#222222] dark:text-foreground">
               {stats.totalEmployees}
             </div>
-            <p className="text-xs text-[#777777] mt-2">
+            <p className="text-xs text-[#777777] dark:text-muted-foreground mt-2">
               {t("hr:registeredEmployees")}
             </p>
             <div className="h-0.5 w-0 group-hover:w-full bg-[#C6A03B] transition-all duration-300 mt-3"></div>
@@ -460,24 +460,24 @@ export default function HRDashboard() {
         </Card>
 
         <Card 
-          className="rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group cursor-pointer"
+          className="rounded-lg border border-[#E6E6E4] dark:border-border hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group cursor-pointer"
           onClick={() => router.push(`${basePath}/employees?status=active`)}
         >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-[#777777]">
+              <CardTitle className="text-sm font-medium text-[#777777] dark:text-muted-foreground">
                 {t("hr:activeEmployees")}
               </CardTitle>
               <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: 'rgba(198, 160, 59, 0.15)' }}>
-                <Users className="h-5 w-5 text-[#0C5536]" />
+                <Users className="h-5 w-5 text-[#0C5536] dark:text-[#C6A03B]" />
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tight text-[#222222]">
+            <div className="text-3xl font-bold tracking-tight text-[#222222] dark:text-foreground">
               {stats.activeEmployees}
             </div>
-            <p className="text-xs text-[#777777] mt-2">
+            <p className="text-xs text-[#777777] dark:text-muted-foreground mt-2">
               {t("hr:currentlyActive")}
             </p>
             <div className="h-0.5 w-0 group-hover:w-full bg-[#C6A03B] transition-all duration-300 mt-3"></div>
@@ -485,24 +485,24 @@ export default function HRDashboard() {
         </Card>
 
         <Card 
-          className="rounded-lg border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group cursor-pointer"
+          className="rounded-lg border border-[#E6E6E4] dark:border-border hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group cursor-pointer"
           onClick={() => router.push(`${basePath}/departments`)}
         >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-[#777777]">
+              <CardTitle className="text-sm font-medium text-[#777777] dark:text-muted-foreground">
                 {t("hr:departments")}
               </CardTitle>
               <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: 'rgba(198, 160, 59, 0.15)' }}>
-                <Building className="h-5 w-5 text-[#0C5536]" />
+                <Building className="h-5 w-5 text-[#0C5536] dark:text-[#C6A03B]" />
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tight text-[#222222]">
+            <div className="text-3xl font-bold tracking-tight text-[#222222] dark:text-foreground">
               {stats.departments}
             </div>
-            <p className="text-xs text-[#777777] mt-2">
+            <p className="text-xs text-[#777777] dark:text-muted-foreground mt-2">
               {t("hr:activeDepartments")}
             </p>
             <div className="h-0.5 w-0 group-hover:w-full bg-[#C6A03B] transition-all duration-300 mt-3"></div>
@@ -512,28 +512,28 @@ export default function HRDashboard() {
         <Card 
           className={`rounded-lg hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all duration-100 group cursor-pointer ${
             stats.expiringDocuments > 0 
-              ? "bg-red-50 border-red-200" 
-              : "border border-[#E6E6E4]"
+              ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800" 
+              : "border border-[#E6E6E4] dark:border-border"
           }`}
           onClick={() => router.push(`${basePath}/documents?status=expiring`)}
         >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-[#777777]">
+              <CardTitle className="text-sm font-medium text-[#777777] dark:text-muted-foreground">
                 {t("hr:expiringDocs")}
               </CardTitle>
               <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
                 stats.expiringDocuments > 0 ? "bg-red-100" : ""
               }`} style={stats.expiringDocuments === 0 ? { backgroundColor: 'rgba(198, 160, 59, 0.15)' } : {}}>
-                <FileText className={`h-5 w-5 ${stats.expiringDocuments > 0 ? "text-red-500" : "text-[#0C5536]"}`} />
+                <FileText className={`h-5 w-5 ${stats.expiringDocuments > 0 ? "text-red-500" : "text-[#0C5536] dark:text-[#C6A03B]"}`} />
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className={`text-3xl font-bold tracking-tight ${stats.expiringDocuments > 0 ? "text-red-600" : "text-[#222222]"}`}>
+            <div className={`text-3xl font-bold tracking-tight ${stats.expiringDocuments > 0 ? "text-red-600" : "text-[#222222] dark:text-foreground"}`}>
               {stats.expiringDocuments}
             </div>
-            <p className="text-xs text-[#777777] mt-2">
+            <p className="text-xs text-[#777777] dark:text-muted-foreground mt-2">
               {t("hr:documentsExpiring")}
             </p>
             <div className={`h-0.5 w-0 group-hover:w-full transition-all duration-300 mt-3 ${
@@ -548,34 +548,34 @@ export default function HRDashboard() {
         <Card
           className={`rounded-lg transition-all duration-100 group ${
             monthlyGroups.length > 0
-              ? "bg-amber-50 border-amber-200 hover:shadow-[0_2px_8px_rgba(245,158,11,0.12)]"
-              : "border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)]"
+              ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 hover:shadow-[0_2px_8px_rgba(245,158,11,0.12)]"
+              : "border border-[#E6E6E4] dark:border-border hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)]"
           }`}
         >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-[#777777]">
+              <CardTitle className="text-sm font-medium text-[#777777] dark:text-muted-foreground">
                 {t("hr:pendingMonthlyReviews")}
               </CardTitle>
               <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
                 monthlyGroups.length > 0 ? "bg-amber-100" : ""
               }`} style={monthlyGroups.length === 0 ? { backgroundColor: 'rgba(198, 160, 59, 0.15)' } : {}}>
                 <ClipboardList className={`h-5 w-5 ${
-                  monthlyGroups.length > 0 ? "text-amber-600" : "text-[#0C5536]"
+                  monthlyGroups.length > 0 ? "text-amber-600" : "text-[#0C5536] dark:text-[#C6A03B]"
                 }`} />
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className={`text-3xl font-bold tracking-tight ${
-              monthlyGroups.length > 0 ? "text-amber-600" : "text-[#222222]"
+              monthlyGroups.length > 0 ? "text-amber-600" : "text-[#222222] dark:text-foreground"
             }`}>
               {stats.pendingMonthlyReviews}
             </div>
             {monthlyGroups.length > 0 ? (
               <p className="text-xs text-amber-500 mt-2">{monthlyGroups.length} {t("hr:monthsPending")}</p>
             ) : (
-              <p className="text-xs text-[#777777] mt-2">{t("hr:allReviewsComplete")}</p>
+              <p className="text-xs text-[#777777] dark:text-muted-foreground mt-2">{t("hr:allReviewsComplete")}</p>
             )}
 
             {monthlyGroups.length > 0 && (
@@ -584,16 +584,16 @@ export default function HRDashboard() {
                   <div className="max-h-[200px] overflow-y-auto space-y-3 pr-1">
                     {monthlyGroups.map((group) => (
                       <div key={`${group.year}-${group.month}`} className="space-y-1.5">
-                        <div className="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-1 rounded-md sticky top-0">
+                        <div className="text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50 px-2 py-1 rounded-md sticky top-0">
                           {t(`hr:month.${["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"][group.month - 1]}`)} {group.year}
                         </div>
                         {group.employees.map((emp) => (
                           <Link
                             key={`${emp.employee_id}-${group.month}-${group.year}`}
                             href={`/admin/hr/kpis/evaluations/${emp.employee_id}?month=${group.month}&year=${group.year}`}
-                            className="flex items-center justify-between p-2 rounded-md bg-white/70 hover:bg-white border border-amber-100 hover:border-amber-300 transition-colors text-sm ml-2"
+                            className="flex items-center justify-between p-2 rounded-md bg-white/70 dark:bg-white/10 hover:bg-white dark:hover:bg-white/15 border border-amber-100 dark:border-amber-800/50 hover:border-amber-300 dark:hover:border-amber-700 transition-colors text-sm ml-2"
                           >
-                            <span className="font-medium text-[#222222] truncate">
+                            <span className="font-medium text-[#222222] dark:text-foreground truncate">
                               {emp.employee_name}
                             </span>
                             <span className="text-amber-500 text-xs">
@@ -605,7 +605,7 @@ export default function HRDashboard() {
                     ))}
                   </div>
                   {monthlyGroups.length > 2 && (
-                    <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-amber-50 to-transparent pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-amber-50 dark:from-amber-950/30 to-transparent pointer-events-none" />
                   )}
                 </div>
               </div>
@@ -619,34 +619,34 @@ export default function HRDashboard() {
         <Card
           className={`rounded-lg transition-all duration-100 group ${
             quarterlyGroups.length > 0
-              ? "bg-orange-50 border-orange-200 hover:shadow-[0_2px_8px_rgba(249,115,22,0.12)]"
-              : "border border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)]"
+              ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800 hover:shadow-[0_2px_8px_rgba(249,115,22,0.12)]"
+              : "border border-[#E6E6E4] dark:border-border hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)]"
           }`}
         >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-[#777777]">
+              <CardTitle className="text-sm font-medium text-[#777777] dark:text-muted-foreground">
                 {t("hr:pendingQuarterlyReviews")}
               </CardTitle>
               <div className={`flex h-12 w-12 items-center justify-center rounded-full ${
                 quarterlyGroups.length > 0 ? "bg-orange-100" : ""
               }`} style={quarterlyGroups.length === 0 ? { backgroundColor: 'rgba(198, 160, 59, 0.15)' } : {}}>
                 <CalendarCheck className={`h-5 w-5 ${
-                  quarterlyGroups.length > 0 ? "text-orange-600" : "text-[#0C5536]"
+                  quarterlyGroups.length > 0 ? "text-orange-600" : "text-[#0C5536] dark:text-[#C6A03B]"
                 }`} />
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className={`text-3xl font-bold tracking-tight ${
-              quarterlyGroups.length > 0 ? "text-orange-600" : "text-[#222222]"
+              quarterlyGroups.length > 0 ? "text-orange-600" : "text-[#222222] dark:text-foreground"
             }`}>
               {stats.pendingQuarterlyReviews}
             </div>
             {quarterlyGroups.length > 0 ? (
               <p className="text-xs text-orange-500 mt-2">{quarterlyGroups.length} {t("hr:quartersPending")}</p>
             ) : (
-              <p className="text-xs text-[#777777] mt-2">{t("hr:allReviewsComplete")}</p>
+              <p className="text-xs text-[#777777] dark:text-muted-foreground mt-2">{t("hr:allReviewsComplete")}</p>
             )}
             {quarterlyGroups.length > 0 && (
               <div className="space-y-2 mt-4">
@@ -654,16 +654,16 @@ export default function HRDashboard() {
                   <div className="max-h-[200px] overflow-y-auto space-y-3 pr-1">
                     {quarterlyGroups.map((group) => (
                       <div key={`${group.year}-Q${group.quarter}`} className="space-y-1.5">
-                        <div className="text-xs font-semibold text-orange-700 bg-orange-100 px-2 py-1 rounded-md sticky top-0">
+                        <div className="text-xs font-semibold text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/50 px-2 py-1 rounded-md sticky top-0">
                           Q{group.quarter} {group.year}
                         </div>
                         {group.employees.map((emp) => (
                           <Link
                             key={`${emp.employee_id}-Q${group.quarter}-${group.year}`}
                             href={`/admin/hr/kpis/evaluations/${emp.employee_id}?month=${(group.quarter - 1) * 3 + 1}&year=${group.year}`}
-                            className="flex items-center justify-between p-2 rounded-md bg-white/70 hover:bg-white border border-orange-100 hover:border-orange-300 transition-colors text-sm ml-2"
+                            className="flex items-center justify-between p-2 rounded-md bg-white/70 dark:bg-white/10 hover:bg-white dark:hover:bg-white/15 border border-orange-100 dark:border-orange-800/50 hover:border-orange-300 dark:hover:border-orange-700 transition-colors text-sm ml-2"
                           >
-                            <span className="font-medium text-[#222222] truncate">
+                            <span className="font-medium text-[#222222] dark:text-foreground truncate">
                               {emp.employee_name}
                             </span>
                             <span className="text-orange-500 text-xs">
@@ -675,7 +675,7 @@ export default function HRDashboard() {
                     ))}
                   </div>
                   {quarterlyGroups.length > 2 && (
-                    <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-orange-50 to-transparent pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-orange-50 dark:from-orange-950/30 to-transparent pointer-events-none" />
                   )}
                 </div>
               </div>
@@ -691,11 +691,11 @@ export default function HRDashboard() {
       {/* KPI & Performance Section */}
       {/* ============================================ */}
       
-      {/* KPI Evaluation Alert */}
-      <KPIEvaluationAlertCard />
-
       {/* Quarterly Review Alerts */}
       <ReviewAlertCard />
+
+      {/* KPI Evaluation Alert */}
+      <KPIEvaluationAlertCard />
 
       {/* KPI Performance Overview */}
       <KPIOverviewCard />
@@ -734,7 +734,7 @@ export default function HRDashboard() {
       <div className="space-y-4">
         <div className="flex items-center justify-end gap-2">
           <Link href={`${basePath}/documents`}>
-            <Button variant="outline" size="sm" className="border-[#E6E6E4]">
+            <Button variant="outline" size="sm" className="border-[#E6E6E4] dark:border-border">
               <FileText className="h-4 w-4 mr-2" />
               {t("hr:documents")}
             </Button>
@@ -745,8 +745,8 @@ export default function HRDashboard() {
       </div>
 
       {/* Footer Legal Notice */}
-      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
-        <p className="text-xs text-[#777777]">
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] dark:border-border text-center">
+        <p className="text-xs text-[#777777] dark:text-muted-foreground">
           {t("hr:legalNotice", { defaultValue: "All employee data is confidential and handled in accordance with data protection regulations." })}
         </p>
       </div>
