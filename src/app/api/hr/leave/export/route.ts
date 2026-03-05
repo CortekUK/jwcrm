@@ -6,7 +6,6 @@ import {
   LeaveExportRequest,
   EmployeeLeaveStats,
   LeaveExportData,
-  LEAVE_TYPE_LABELS,
   LEAVE_STATUS_LABELS,
 } from "@/types/leave-export";
 
@@ -25,6 +24,17 @@ export async function POST(request: NextRequest) {
 
     // Create supabase client with service role for data access
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Fetch leave type labels dynamically
+    const { data: leaveTypesData } = await supabase
+      .from("leave_types")
+      .select("slug, name")
+      .order("sort_order");
+
+    const LEAVE_TYPE_LABELS: Record<string, string> = {};
+    (leaveTypesData || []).forEach((lt: any) => {
+      LEAVE_TYPE_LABELS[lt.slug] = lt.name;
+    });
 
     // Verify the token
     const {
@@ -236,13 +246,13 @@ export async function POST(request: NextRequest) {
     const wb = XLSX.utils.book_new();
 
     // Sheet 1: Summary
-    const summaryData = buildSummarySheet(exportData);
+    const summaryData = buildSummarySheet(exportData, LEAVE_TYPE_LABELS);
     const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
     summarySheet["!cols"] = [{ wch: 25 }, { wch: 20 }, { wch: 15 }];
     XLSX.utils.book_append_sheet(wb, summarySheet, "Summary");
 
     // Sheet 2: All Leave Requests
-    const requestsData = buildRequestsSheet(requests);
+    const requestsData = buildRequestsSheet(requests, LEAVE_TYPE_LABELS);
     const requestsSheet = XLSX.utils.aoa_to_sheet(requestsData);
     requestsSheet["!cols"] = [
       { wch: 25 },
@@ -297,7 +307,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function buildSummarySheet(data: LeaveExportData): any[][] {
+function buildSummarySheet(data: LeaveExportData, LEAVE_TYPE_LABELS: Record<string, string>): any[][] {
   const rows: any[][] = [
     ["Leave Report"],
     [],
@@ -331,7 +341,7 @@ function buildSummarySheet(data: LeaveExportData): any[][] {
   return rows;
 }
 
-function buildRequestsSheet(requests: LeaveExportRequest[]): any[][] {
+function buildRequestsSheet(requests: LeaveExportRequest[], LEAVE_TYPE_LABELS: Record<string, string>): any[][] {
   const headers = [
     "Employee Name",
     "Department",

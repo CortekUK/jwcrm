@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -23,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useTranslation } from "react-i18next";
 import { Download, Loader2, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useLeaveTypes } from "@/hooks/useLeaveTypes";
 import { useToast } from "@/hooks/use-toast";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 
@@ -36,13 +38,6 @@ interface ExportLeaveModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const LEAVE_TYPES = [
-  { id: "annual", label: "Annual Leave" },
-  { id: "sick", label: "Sick Leave" },
-  { id: "emergency", label: "Emergency Leave" },
-  { id: "unpaid", label: "Unpaid Leave" },
-];
-
 const STATUSES = [
   { id: "pending", label: "Pending" },
   { id: "approved", label: "Approved" },
@@ -52,6 +47,7 @@ const STATUSES = [
 export function ExportLeaveModal({ open, onOpenChange }: ExportLeaveModalProps) {
   const { t } = useTranslation(["hr", "common"]);
   const { toast } = useToast();
+  const { leaveTypes: leaveTypesList } = useLeaveTypes();
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(false);
@@ -240,25 +236,40 @@ export function ExportLeaveModal({ open, onOpenChange }: ExportLeaveModalProps) 
               <Label htmlFor="start_date" className="text-[#555555]">
                 {t("hr:startDate", "Start Date")}
               </Label>
-              <Input
-                id="start_date"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+              <DatePicker
+                date={startDate ? new Date(startDate + "T00:00:00") : undefined}
+                onDateChange={(date) => {
+                  if (date) {
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, "0");
+                    const day = String(date.getDate()).padStart(2, "0");
+                    setStartDate(`${year}-${month}-${day}`);
+                  } else {
+                    setStartDate("");
+                  }
+                }}
+                placeholder={t("hr:startDate", "Start Date")}
+                className="w-full"
               />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="end_date" className="text-[#555555]">
                 {t("hr:endDate", "End Date")}
               </Label>
-              <Input
-                id="end_date"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                min={startDate}
-                className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+              <DatePicker
+                date={endDate ? new Date(endDate + "T00:00:00") : undefined}
+                onDateChange={(date) => {
+                  if (date) {
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, "0");
+                    const day = String(date.getDate()).padStart(2, "0");
+                    setEndDate(`${year}-${month}-${day}`);
+                  } else {
+                    setEndDate("");
+                  }
+                }}
+                placeholder={t("hr:endDate", "End Date")}
+                className="w-full"
               />
             </div>
           </div>
@@ -272,19 +283,19 @@ export function ExportLeaveModal({ open, onOpenChange }: ExportLeaveModalProps) 
               </span>
             </Label>
             <div className="flex flex-wrap gap-3">
-              {LEAVE_TYPES.map((type) => (
-                <div key={type.id} className="flex items-center space-x-2">
+              {leaveTypesList.map((lt) => (
+                <div key={lt.slug} className="flex items-center space-x-2">
                   <Checkbox
-                    id={`leave-${type.id}`}
-                    checked={selectedLeaveTypes.includes(type.id)}
-                    onCheckedChange={() => toggleLeaveType(type.id)}
+                    id={`leave-${lt.slug}`}
+                    checked={selectedLeaveTypes.includes(lt.slug)}
+                    onCheckedChange={() => toggleLeaveType(lt.slug)}
                     className="border-[#E6E6E4] data-[state=checked]:bg-[hsl(var(--jw-primary-green))] data-[state=checked]:border-[hsl(var(--jw-primary-green))]"
                   />
                   <label
-                    htmlFor={`leave-${type.id}`}
+                    htmlFor={`leave-${lt.slug}`}
                     className="text-sm text-[#555555] cursor-pointer"
                   >
-                    {t(`hr:leaveType.${type.id}`, type.label)}
+                    {lt.name}
                   </label>
                 </div>
               ))}

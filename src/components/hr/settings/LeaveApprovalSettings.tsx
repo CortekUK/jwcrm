@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -49,12 +50,11 @@ import {
   UserCheck,
   Shield,
   Building2,
-  Plane,
-  Thermometer,
-  Wallet,
   ArrowRight,
   CalendarDays,
 } from "lucide-react";
+import { useLeaveTypes } from "@/hooks/useLeaveTypes";
+import { getLeaveTypeIcon } from "@/lib/leave-type-icons";
 import { format, isAfter, isBefore, isToday, parseISO } from "date-fns";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -93,15 +93,9 @@ interface User {
   email: string;
 }
 
-const leaveTypeConfig: Record<string, { icon: any; color: string; label: string }> = {
-  annual: { icon: Plane, color: "text-purple-600", label: "Annual Leave" },
-  sick: { icon: Thermometer, color: "text-yellow-600", label: "Sick Leave" },
-  emergency: { icon: AlertCircle, color: "text-orange-600", label: "Emergency Leave" },
-  unpaid: { icon: Wallet, color: "text-gray-600", label: "Unpaid Leave" },
-};
-
 export function LeaveApprovalSettings() {
   const { t } = useTranslation(["hr", "common"]);
+  const { leaveTypes: leaveTypesList, getBySlug } = useLeaveTypes();
   const { toast } = useToast();
   const { canPerform } = usePermissions();
 
@@ -538,8 +532,9 @@ export function LeaveApprovalSettings() {
                     <TableBody>
                       {rules.map((rule) => {
                         const chain = getApprovalChainDisplay(rule);
-                        const leaveConfig = rule.leave_type ? leaveTypeConfig[rule.leave_type] : null;
-                        const LeaveIcon = leaveConfig?.icon || CalendarDays;
+                        const lt = rule.leave_type ? getBySlug(rule.leave_type) : null;
+                        const LeaveIcon = lt ? getLeaveTypeIcon(lt.icon_name) : CalendarDays;
+                        const leaveConfig = lt ? { color: lt.color_class, label: lt.name } : null;
 
                         return (
                           <TableRow key={rule.id} className="hover:bg-[#FAFAF8]">
@@ -701,7 +696,7 @@ export function LeaveApprovalSettings() {
                                 <div className="flex gap-1 flex-wrap">
                                   {delegation.leave_types.map(type => (
                                     <Badge key={type} variant="outline" className="text-xs border-[#E6E6E4]">
-                                      {leaveTypeConfig[type]?.label || type}
+                                      {getBySlug(type)?.name || type}
                                     </Badge>
                                   ))}
                                 </div>
@@ -775,13 +770,13 @@ export function LeaveApprovalSettings() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t("hr:allLeaveTypes", "All Leave Types")}</SelectItem>
-                  {Object.entries(leaveTypeConfig).map(([key, config]) => {
-                    const Icon = config.icon;
+                  {leaveTypesList.map((lt) => {
+                    const Icon = getLeaveTypeIcon(lt.icon_name);
                     return (
-                      <SelectItem key={key} value={key}>
+                      <SelectItem key={lt.slug} value={lt.slug}>
                         <div className="flex items-center gap-2">
-                          <Icon className={`h-4 w-4 ${config.color}`} />
-                          {config.label}
+                          <Icon className={`h-4 w-4 ${lt.color_class}`} />
+                          {lt.name}
                         </div>
                       </SelectItem>
                     );
@@ -948,21 +943,38 @@ export function LeaveApprovalSettings() {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label className="text-[#555555]">{t("hr:startDate", "Start Date")} <span className="text-red-500">*</span></Label>
-                <Input
-                  type="date"
-                  value={delegationForm.start_date}
-                  onChange={(e) => setDelegationForm({ ...delegationForm, start_date: e.target.value })}
-                  className="border-[#E6E6E4]"
+                <DatePicker
+                  date={delegationForm.start_date ? new Date(delegationForm.start_date + "T00:00:00") : undefined}
+                  onDateChange={(date) => {
+                    if (date) {
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, "0");
+                      const day = String(date.getDate()).padStart(2, "0");
+                      setDelegationForm({ ...delegationForm, start_date: `${year}-${month}-${day}` });
+                    } else {
+                      setDelegationForm({ ...delegationForm, start_date: "" });
+                    }
+                  }}
+                  placeholder={t("hr:startDate", "Start Date")}
+                  className="w-full"
                 />
               </div>
               <div className="grid gap-2">
                 <Label className="text-[#555555]">{t("hr:endDate", "End Date")} <span className="text-red-500">*</span></Label>
-                <Input
-                  type="date"
-                  value={delegationForm.end_date}
-                  onChange={(e) => setDelegationForm({ ...delegationForm, end_date: e.target.value })}
-                  min={delegationForm.start_date}
-                  className="border-[#E6E6E4]"
+                <DatePicker
+                  date={delegationForm.end_date ? new Date(delegationForm.end_date + "T00:00:00") : undefined}
+                  onDateChange={(date) => {
+                    if (date) {
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, "0");
+                      const day = String(date.getDate()).padStart(2, "0");
+                      setDelegationForm({ ...delegationForm, end_date: `${year}-${month}-${day}` });
+                    } else {
+                      setDelegationForm({ ...delegationForm, end_date: "" });
+                    }
+                  }}
+                  placeholder={t("hr:endDate", "End Date")}
+                  className="w-full"
                 />
               </div>
             </div>
@@ -972,12 +984,12 @@ export function LeaveApprovalSettings() {
               <Label className="text-[#555555]">{t("hr:leaveTypesScope", "Leave Types (optional)")}</Label>
               <p className="text-xs text-[#6B6B6B] mb-2">{t("hr:leaveTypesScopeDesc", "Leave empty to delegate all types")}</p>
               <div className="flex flex-wrap gap-2">
-                {Object.entries(leaveTypeConfig).map(([key, config]) => {
-                  const Icon = config.icon;
-                  const isSelected = delegationForm.leave_types.includes(key);
+                {leaveTypesList.map((lt) => {
+                  const Icon = getLeaveTypeIcon(lt.icon_name);
+                  const isSelected = delegationForm.leave_types.includes(lt.slug);
                   return (
                     <Button
-                      key={key}
+                      key={lt.slug}
                       type="button"
                       variant={isSelected ? "default" : "outline"}
                       size="sm"
@@ -985,22 +997,22 @@ export function LeaveApprovalSettings() {
                         if (isSelected) {
                           setDelegationForm({
                             ...delegationForm,
-                            leave_types: delegationForm.leave_types.filter(t => t !== key),
+                            leave_types: delegationForm.leave_types.filter(t => t !== lt.slug),
                           });
                         } else {
                           setDelegationForm({
                             ...delegationForm,
-                            leave_types: [...delegationForm.leave_types, key],
+                            leave_types: [...delegationForm.leave_types, lt.slug],
                           });
                         }
                       }}
-                      className={isSelected 
-                        ? "bg-[hsl(var(--jw-primary-green))] text-white" 
+                      className={isSelected
+                        ? "bg-[hsl(var(--jw-primary-green))] text-white"
                         : "border-[#E6E6E4]"
                       }
                     >
                       <Icon className="h-3 w-3 ltr:mr-1 rtl:ml-1" />
-                      {config.label}
+                      {lt.name}
                     </Button>
                   );
                 })}

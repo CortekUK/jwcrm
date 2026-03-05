@@ -13,34 +13,23 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Plane,
-  Thermometer,
-  AlertCircle,
   Loader2,
   User,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays } from "date-fns";
-import { Database } from "@/integrations/supabase/types";
-
-type LeaveType = Database["public"]["Enums"]["leave_type"];
+import { useLeaveTypes } from "@/hooks/useLeaveTypes";
+import { getLeaveTypeIcon } from "@/lib/leave-type-icons";
 
 interface PendingRequest {
   id: string;
   employee_name: string;
-  leave_type: LeaveType;
+  leave_type: string;
   start_date: string;
   end_date: string;
   total_days: number;
   created_at: string;
 }
-
-const getLeaveTypeConfig = (t: (key: string) => string): Record<LeaveType, { icon: any; color: string; label: string }> => ({
-  annual: { icon: Plane, color: "text-blue-600", label: t("leaveBalances.annual") },
-  sick: { icon: Thermometer, color: "text-yellow-600", label: t("leaveBalances.sick") },
-  emergency: { icon: AlertCircle, color: "text-orange-600", label: t("leaveType.emergency") },
-  unpaid: { icon: CalendarDays, color: "text-gray-600", label: t("leaveType.unpaid") },
-});
 
 interface LeaveSummaryWidgetProps {
   onApprove?: (id: string) => void;
@@ -50,7 +39,7 @@ interface LeaveSummaryWidgetProps {
 export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProps) {
   const { t } = useTranslation(["hr"]);
   const router = useRouter();
-  const leaveTypeConfig = getLeaveTypeConfig(t);
+  const { getBySlug } = useLeaveTypes();
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [approvingId, setApprovingId] = useState<string | null>(null);
@@ -121,7 +110,7 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
 
   if (loading) {
     return (
-      <Card className="border-[#E6E6E4]">
+      <Card className="border-[#E6E6E4] dark:border-border">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -133,7 +122,7 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
         </CardHeader>
         <CardContent className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="p-3 rounded-lg border border-[#E6E6E4]">
+            <div key={i} className="p-3 rounded-lg border border-[#E6E6E4] dark:border-border">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2">
@@ -159,9 +148,9 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
   }
 
   return (
-    <Card className="border-[#E6E6E4]">
+    <Card className="border-[#E6E6E4] dark:border-border">
       <CardHeader className="pb-2">
-        <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
+        <CardTitle className="text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
           <span className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
               <CalendarDays className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
@@ -169,7 +158,7 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
             {t("leaveWidget.leaveRequests")}
           </span>
           {requests.length > 0 && (
-            <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
+            <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950/30 text-amber-600 border-amber-200 dark:border-amber-800">
               {requests.length} {t("leaveWidget.pending")}
             </Badge>
           )}
@@ -178,17 +167,21 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
       <CardContent className="space-y-3">
         {requests.length === 0 ? (
           <div className="text-center py-6">
-            <div className="mx-auto w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mb-3">
+            <div className="mx-auto w-16 h-16 rounded-full bg-green-50 dark:bg-green-950/30 flex items-center justify-center mb-3">
               <CheckCircle className="h-8 w-8 text-green-500" />
             </div>
-            <p className="text-[#222222] font-medium mb-1">{t("leaveWidget.noPendingRequests")}</p>
-            <p className="text-sm text-[#6B6B6B]">{t("leaveWidget.allCaughtUp")}</p>
+            <p className="text-[#222222] dark:text-foreground font-medium mb-1">{t("leaveWidget.noPendingRequests")}</p>
+            <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground">{t("leaveWidget.allCaughtUp")}</p>
           </div>
         ) : (
           <>
             {requests.slice(0, 3).map((request) => {
-              const config = leaveTypeConfig[request.leave_type];
-              const Icon = config.icon;
+              const lt = getBySlug(request.leave_type);
+              const Icon = getLeaveTypeIcon(lt?.icon_name || "Calendar");
+              const config = {
+                color: lt?.color_class || "text-gray-600",
+                label: lt?.name || request.leave_type,
+              };
               const isToday =
                 request.start_date === format(new Date(), "yyyy-MM-dd") ||
                 differenceInDays(new Date(request.start_date), new Date()) <= 1;
@@ -196,15 +189,15 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
               return (
                 <div
                   key={request.id}
-                  className={`p-3 rounded-lg border ${isToday ? "border-orange-200 bg-orange-50" : "border-[#E6E6E4] bg-white"}`}
+                  className={`p-3 rounded-lg border ${isToday ? "border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30" : "border-[#E6E6E4] dark:border-border bg-white dark:bg-card"}`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <User className="h-4 w-4 text-[#6B6B6B]" />
-                        <span className="font-medium text-[#222222] truncate">{request.employee_name}</span>
+                        <User className="h-4 w-4 text-[#6B6B6B] dark:text-muted-foreground" />
+                        <span className="font-medium text-[#222222] dark:text-foreground truncate">{request.employee_name}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-[#6B6B6B]">
+                      <div className="flex items-center gap-2 text-xs text-[#6B6B6B] dark:text-muted-foreground">
                         <Icon className={`h-3 w-3 ${config.color}`} />
                         <span>{config.label}</span>
                         <span>|</span>
@@ -221,7 +214,7 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
                             onClick={() => router.push("/admin/hr/leave")}
                             disabled={approvingId === request.id}
                           >
@@ -235,7 +228,7 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                            className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/30"
                             onClick={() => handleApprove(request)}
                             disabled={approvingId !== null}
                           >
@@ -255,14 +248,14 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
             })}
 
             {requests.length > 3 && (
-              <p className="text-xs text-center text-[#6B6B6B]">+{requests.length - 3} {t("leaveWidget.moreRequests")}</p>
+              <p className="text-xs text-center text-[#6B6B6B] dark:text-muted-foreground">+{requests.length - 3} {t("leaveWidget.moreRequests")}</p>
             )}
           </>
         )}
 
         <Button
           variant="outline"
-          className="w-full border-[#E6E6E4] hover:bg-[#FAFAF8]"
+          className="w-full border-[#E6E6E4] dark:border-border hover:bg-[#FAFAF8] dark:hover:bg-accent"
           onClick={() => router.push("/admin/hr/leave")}
         >
           <CalendarDays className="h-4 w-4 mr-2 text-[hsl(var(--jw-primary-green))]" />

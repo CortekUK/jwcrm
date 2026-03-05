@@ -18,10 +18,6 @@ import {
   Loader2,
   ArrowLeft,
   Calendar,
-  Plane,
-  Thermometer,
-  AlertCircle,
-  Wallet,
   User,
   CheckCircle,
   XCircle,
@@ -32,8 +28,9 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
+import { useLeaveTypes } from "@/hooks/useLeaveTypes";
+import { getLeaveTypeIcon } from "@/lib/leave-type-icons";
 
-type LeaveType = Database["public"]["Enums"]["leave_type"];
 type LeaveRequestStatus = Database["public"]["Enums"]["leave_request_status"];
 
 interface Employee {
@@ -52,7 +49,7 @@ interface LeaveBalance {
 
 interface LeaveRequest {
   id: string;
-  leave_type: LeaveType;
+  leave_type: string;
   start_date: string;
   end_date: string;
   total_days: number;
@@ -77,13 +74,6 @@ interface AttendanceLeave {
 
 type LeaveRecord = LeaveRequest | AttendanceLeave;
 
-const leaveTypeConfig: Record<LeaveType, { icon: any; color: string; bgColor: string; label: string }> = {
-  annual: { icon: Plane, color: "text-blue-600", bgColor: "bg-blue-100", label: "Annual Leave" },
-  sick: { icon: Thermometer, color: "text-yellow-600", bgColor: "bg-yellow-100", label: "Sick Leave" },
-  emergency: { icon: AlertCircle, color: "text-orange-600", bgColor: "bg-orange-100", label: "Emergency Leave" },
-  unpaid: { icon: Wallet, color: "text-gray-600", bgColor: "bg-gray-100", label: "Unpaid Leave" },
-};
-
 const statusConfig: Record<LeaveRequestStatus, { icon: any; color: string; bgColor: string; label: string }> = {
   pending: { icon: Clock, color: "text-yellow-600", bgColor: "bg-yellow-100", label: "Pending" },
   approved: { icon: CheckCircle, color: "text-green-600", bgColor: "bg-green-100", label: "Approved" },
@@ -96,6 +86,7 @@ export default function EmployeeLeaveHistoryPage() {
   const params = useParams();
   const { toast } = useToast();
   const employeeId = params.employeeId as string;
+  const { leaveTypes: leaveTypesList, getBySlug } = useLeaveTypes();
 
   const [loading, setLoading] = useState(true);
   const [employee, setEmployee] = useState<Employee | null>(null);
@@ -443,9 +434,9 @@ export default function EmployeeLeaveHistoryPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  {(Object.keys(leaveTypeConfig) as LeaveType[]).map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {leaveTypeConfig[type].label}
+                  {leaveTypesList.map((lt) => (
+                    <SelectItem key={lt.slug} value={lt.slug}>
+                      {lt.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -473,7 +464,13 @@ export default function EmployeeLeaveHistoryPage() {
           ) : (
             <div className="space-y-4">
               {allRecords.map((record) => {
-                const typeConfig = leaveTypeConfig[record.leave_type];
+                const lt = getBySlug(record.leave_type);
+                const typeConfig = {
+                  icon: getLeaveTypeIcon(lt?.icon_name || "Calendar"),
+                  color: lt?.color_class || "text-gray-600",
+                  bgColor: lt?.bg_color_class || "bg-gray-100",
+                  label: lt?.name || record.leave_type,
+                };
                 const TypeIcon = typeConfig.icon;
 
                 // Handle leave request records

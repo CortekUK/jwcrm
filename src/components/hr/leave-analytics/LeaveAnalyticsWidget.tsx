@@ -77,31 +77,31 @@ const getSeverityStyles = (severity: string) => {
   switch (severity) {
     case "high":
       return {
-        bg: "bg-red-50",
-        border: "border-red-200",
-        badge: "bg-red-100 text-red-700 border-red-200",
-        icon: "text-red-600",
+        bg: "bg-red-50 dark:bg-red-950/30",
+        border: "border-red-200 dark:border-red-800",
+        badge: "bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800",
+        icon: "text-red-600 dark:text-red-400",
       };
     case "medium":
       return {
-        bg: "bg-amber-50",
-        border: "border-amber-200",
-        badge: "bg-amber-100 text-amber-700 border-amber-200",
-        icon: "text-amber-600",
+        bg: "bg-amber-50 dark:bg-amber-950/30",
+        border: "border-amber-200 dark:border-amber-800",
+        badge: "bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+        icon: "text-amber-600 dark:text-amber-400",
       };
     case "low":
       return {
-        bg: "bg-blue-50",
-        border: "border-blue-200",
-        badge: "bg-blue-100 text-blue-700 border-blue-200",
-        icon: "text-blue-600",
+        bg: "bg-blue-50 dark:bg-blue-950/30",
+        border: "border-blue-200 dark:border-blue-800",
+        badge: "bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+        icon: "text-blue-600 dark:text-blue-400",
       };
     default:
       return {
-        bg: "bg-gray-50",
-        border: "border-gray-200",
-        badge: "bg-gray-100 text-gray-700 border-gray-200",
-        icon: "text-gray-600",
+        bg: "bg-gray-50 dark:bg-card",
+        border: "border-gray-200 dark:border-border",
+        badge: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-border",
+        icon: "text-gray-600 dark:text-gray-400",
       };
   }
 };
@@ -109,13 +109,13 @@ const getSeverityStyles = (severity: string) => {
 const getUrgencyStyles = (urgency: string) => {
   switch (urgency) {
     case "immediate":
-      return "bg-red-100 text-red-800 border-red-300";
+      return "bg-red-100 dark:bg-red-950/50 text-red-800 dark:text-red-300 border-red-300 dark:border-red-800";
     case "this_week":
-      return "bg-amber-100 text-amber-800 border-amber-300";
+      return "bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800";
     case "this_month":
-      return "bg-blue-100 text-blue-800 border-blue-300";
+      return "bg-blue-100 dark:bg-blue-950/50 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800";
     default:
-      return "bg-gray-100 text-gray-800 border-gray-300";
+      return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300 border-gray-300 dark:border-border";
   }
 };
 
@@ -190,7 +190,7 @@ export function LeaveAnalyticsWidget() {
 
   if (loading) {
     return (
-      <Card className="border-[#E6E6E4]">
+      <Card className="border-[#E6E6E4] dark:border-border">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -212,9 +212,9 @@ export function LeaveAnalyticsWidget() {
   // No analytics yet
   if (!result) {
     return (
-      <Card className="border-[#E6E6E4]">
+      <Card className="border-[#E6E6E4] dark:border-border">
         <CardHeader className="pb-2">
-          <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
+          <CardTitle className="text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
             <span className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
                 <Brain className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
@@ -237,8 +237,8 @@ export function LeaveAnalyticsWidget() {
             <div className="mx-auto w-16 h-16 rounded-full bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center mb-3">
               <Brain className="h-8 w-8 text-[hsl(var(--jw-primary-green))]" />
             </div>
-            <p className="text-[#222222] font-medium mb-1">{t("leaveAnalytics.noAnalysis")}</p>
-            <p className="text-sm text-[#6B6B6B] mb-4">{t("leaveAnalytics.clickToGenerate")}</p>
+            <p className="text-[#222222] dark:text-foreground font-medium mb-1">{t("leaveAnalytics.noAnalysis")}</p>
+            <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground mb-4">{t("leaveAnalytics.clickToGenerate")}</p>
             <Button onClick={handleRefresh} disabled={refreshing} className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))]">
               {refreshing ? (
                 <>
@@ -263,9 +263,9 @@ export function LeaveAnalyticsWidget() {
   const displayedInsights = expanded ? result.insights : result.insights?.slice(0, 3);
 
   return (
-    <Card className="border-[#E6E6E4]">
+    <Card className="border-[#E6E6E4] dark:border-border">
       <CardHeader className="pb-2">
-        <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
+        <CardTitle className="text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
           <span className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
               <Brain className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
@@ -273,7 +273,7 @@ export function LeaveAnalyticsWidget() {
             {t("leaveAnalytics.title")}
           </span>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-[#6B6B6B] font-normal">
+            <span className="text-xs text-[#6B6B6B] dark:text-muted-foreground font-normal">
               {formatDistanceToNow(new Date(result.analysis_date), { addSuffix: true })}
             </span>
             <Button
@@ -291,7 +291,7 @@ export function LeaveAnalyticsWidget() {
       <CardContent className="space-y-3">
         {/* Summary */}
         <div className="p-3 rounded-lg bg-[hsl(var(--jw-primary-green))]/5 border border-[hsl(var(--jw-primary-green))]/10">
-          <p className="text-sm text-[#222222]">{result.summary}</p>
+          <p className="text-sm text-[#222222] dark:text-foreground">{result.summary}</p>
         </div>
 
         {/* Alerts */}
@@ -328,11 +328,11 @@ export function LeaveAnalyticsWidget() {
                         <Badge variant="outline" className={`text-xs ${styles.badge}`}>
                           {insight.severity.toUpperCase()}
                         </Badge>
-                        <span className="font-medium text-sm text-[#222222] truncate">{insight.title}</span>
+                        <span className="font-medium text-sm text-[#222222] dark:text-foreground truncate">{insight.title}</span>
                       </div>
-                      <p className="text-xs text-[#6B6B6B] line-clamp-2">{insight.description}</p>
+                      <p className="text-xs text-[#6B6B6B] dark:text-muted-foreground line-clamp-2">{insight.description}</p>
                       {insight.affected_employees && insight.affected_employees.length > 0 && (
-                        <p className="text-xs text-[#6B6B6B] mt-1">
+                        <p className="text-xs text-[#6B6B6B] dark:text-muted-foreground mt-1">
                           <span className="font-medium">{t("leaveAnalytics.affected")}:</span>{" "}
                           {insight.affected_employees.slice(0, 3).join(", ")}
                           {insight.affected_employees.length > 3 && ` +${insight.affected_employees.length - 3}`}
@@ -349,7 +349,7 @@ export function LeaveAnalyticsWidget() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full text-[#6B6B6B] hover:text-[#222222]"
+                className="w-full text-[#6B6B6B] dark:text-muted-foreground hover:text-[#222222] dark:text-foreground"
                 onClick={() => setExpanded(!expanded)}
               >
                 {expanded ? (
@@ -369,12 +369,12 @@ export function LeaveAnalyticsWidget() {
         ) : (
           <div className="text-center py-4">
             <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-            <p className="text-sm text-[#6B6B6B]">{t("leaveAnalytics.noPatterns")}</p>
+            <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground">{t("leaveAnalytics.noPatterns")}</p>
           </div>
         )}
 
         {/* Stats footer */}
-        <div className="flex items-center justify-between pt-2 border-t border-[#E6E6E4] text-xs text-[#6B6B6B]">
+        <div className="flex items-center justify-between pt-2 border-t border-[#E6E6E4] dark:border-border text-xs text-[#6B6B6B] dark:text-muted-foreground">
           <span>
             {t("leaveAnalytics.analyzed")}: {result.employee_count} {t("leaveAnalytics.employees")}
           </span>

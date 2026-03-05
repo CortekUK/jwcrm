@@ -27,9 +27,7 @@ import {
   Loader2,
   ArrowLeft,
   Plane,
-  Thermometer,
   AlertCircle,
-  Wallet,
   Minus,
   Star,
   User,
@@ -53,16 +51,15 @@ import {
 import Holidays from "date-holidays";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Database } from "@/integrations/supabase/types";
-
-type LeaveType = Database["public"]["Enums"]["leave_type"];
+import { useLeaveTypes } from "@/hooks/useLeaveTypes";
+import { getLeaveTypeIcon } from "@/lib/leave-type-icons";
 
 interface LeaveRequest {
   id: string;
   employee_id: string;
   employee_name: string;
   department_name: string | null;
-  leave_type: LeaveType;
+  leave_type: string;
   start_date: string;
   end_date: string;
   total_days: number;
@@ -86,7 +83,7 @@ interface DayLeaveData {
   leaves: {
     employeeId: string;
     employeeName: string;
-    leaveType: LeaveType;
+    leaveType: string;
     isStart: boolean;
     isEnd: boolean;
   }[];
@@ -94,13 +91,6 @@ interface DayLeaveData {
   isHoliday: boolean;
   holidayName?: string;
 }
-
-const getLeaveTypeConfig = (t: (key: string) => string): Record<LeaveType, { icon: any; color: string; bgColor: string; label: string }> => ({
-  annual: { icon: Plane, color: "text-[#2563EB]", bgColor: "bg-[#E6F0FF]", label: t("leaveBalances.annual") },
-  sick: { icon: Thermometer, color: "text-[#C6A03B]", bgColor: "bg-[#FFF9E6]", label: t("leaveBalances.sick") },
-  emergency: { icon: AlertCircle, color: "text-[#D97706]", bgColor: "bg-[#FFEDD5]", label: t("leaveType.emergency") },
-  unpaid: { icon: Wallet, color: "text-[#6B6B6B]", bgColor: "bg-[#F5F5F5]", label: t("leaveType.unpaid") },
-});
 
 // UAE holidays instance will be created with language in component
 
@@ -113,7 +103,21 @@ export default function LeaveCalendarPage() {
   const { t, i18n } = useTranslation(["hr"]);
   const router = useRouter();
   const { toast } = useToast();
-  const leaveTypeConfig = getLeaveTypeConfig(t);
+  const { leaveTypes: leaveTypesList, getBySlug } = useLeaveTypes();
+  const getConfig = (slug: string) => {
+    const lt = getBySlug(slug);
+    return lt ? {
+      icon: getLeaveTypeIcon(lt.icon_name),
+      color: lt.color_class,
+      bgColor: lt.bg_color_class,
+      label: lt.name,
+    } : {
+      icon: Calendar,
+      color: "text-gray-600",
+      bgColor: "bg-gray-100",
+      label: slug,
+    };
+  };
   const WEEKDAY_LABELS = getWeekdayLabels(t);
 
   const [loading, setLoading] = useState(true);
@@ -655,7 +659,7 @@ export default function LeaveCalendarPage() {
                   {hasLeaves && (
                     <div className="mt-1 flex flex-wrap gap-0.5">
                       {leaves.slice(0, 3).map((leave, idx) => {
-                        const config = leaveTypeConfig[leave.leaveType];
+                        const config = getConfig(leave.leaveType);
                         return (
                           <div
                             key={idx}
@@ -676,14 +680,13 @@ export default function LeaveCalendarPage() {
 
           {/* Legend */}
           <div className="flex flex-wrap gap-4 pt-4 border-t border-[#E6E6E4]">
-            {(Object.keys(leaveTypeConfig) as LeaveType[]).map((type) => {
-              const config = leaveTypeConfig[type];
-              const Icon = config.icon;
+            {leaveTypesList.map((lt) => {
+              const Icon = getLeaveTypeIcon(lt.icon_name);
               return (
-                <div key={type} className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${config.bgColor}`} />
-                  <Icon className={`h-4 w-4 ${config.color}`} />
-                  <span className="text-sm text-[#555555]">{config.label}</span>
+                <div key={lt.slug} className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${lt.bg_color_class}`} />
+                  <Icon className={`h-4 w-4 ${lt.color_class}`} />
+                  <span className="text-sm text-[#555555]">{lt.name}</span>
                 </div>
               );
             })}
@@ -725,7 +728,7 @@ export default function LeaveCalendarPage() {
 
                 <div className="space-y-3 max-h-[300px] overflow-y-auto">
                   {selectedDay.leaves.map((leave, idx) => {
-                    const config = leaveTypeConfig[leave.leaveType];
+                    const config = getConfig(leave.leaveType);
                     const Icon = config.icon;
                     return (
                       <div

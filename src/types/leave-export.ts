@@ -59,13 +59,6 @@ export interface LeaveExportData {
   };
 }
 
-export const LEAVE_TYPE_LABELS: Record<string, string> = {
-  annual: "Annual Leave",
-  sick: "Sick Leave",
-  emergency: "Emergency Leave",
-  unpaid: "Unpaid Leave",
-};
-
 export const LEAVE_STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
   approved: "Approved",

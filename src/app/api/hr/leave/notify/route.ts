@@ -93,8 +93,12 @@ export async function POST(request: NextRequest) {
     const statusText = isApproved ? 'Approved' : 'Denied';
     const statusEmoji = isApproved ? '✅' : '❌';
 
-    // Format leave type for display
-    const leaveTypeDisplay = leaveType.charAt(0).toUpperCase() + leaveType.slice(1) + ' Leave';
+    // Format leave type for display - query DB for proper name
+    let leaveTypeDisplay = leaveType.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    try {
+      const { data: ltData } = await supabase.from('leave_types').select('name').eq('slug', leaveType).single();
+      if (ltData?.name) leaveTypeDisplay = ltData.name;
+    } catch { /* use formatted fallback */ }
 
     // Build email HTML
     const emailHtml = `

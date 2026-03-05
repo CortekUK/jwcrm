@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "react-i18next";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -31,8 +32,6 @@ import {
   XCircle,
   Clock,
   Plus,
-  Plane,
-  Thermometer,
   AlertCircle,
   Wallet,
   User,
@@ -50,15 +49,16 @@ import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays, isWeekend, eachDayOfInterval, isFriday, isSaturday } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
 import { ExportLeaveModal } from "@/components/hr/leave/ExportLeaveModal";
+import { useLeaveTypes } from "@/hooks/useLeaveTypes";
+import { getLeaveTypeIcon } from "@/lib/leave-type-icons";
 
-type LeaveType = Database["public"]["Enums"]["leave_type"];
 type LeaveRequestStatus = Database["public"]["Enums"]["leave_request_status"];
 
 interface LeaveRequest {
   id: string;
   employee_id: string;
   employee_name: string;
-  leave_type: LeaveType;
+  leave_type: string;
   start_date: string;
   end_date: string;
   total_days: number;
@@ -77,13 +77,6 @@ interface AttendanceConflict {
   date: string;
   status: string;
 }
-
-const getLeaveTypeConfig = (t: (key: string) => string): Record<LeaveType, { icon: any; color: string; label: string }> => ({
-  annual: { icon: Plane, color: "text-purple-600", label: t("leaveType.annual") },
-  sick: { icon: Thermometer, color: "text-yellow-600", label: t("leaveType.sick") },
-  emergency: { icon: AlertCircle, color: "text-orange-600", label: t("leaveType.emergency") },
-  unpaid: { icon: Wallet, color: "text-gray-600", label: t("leaveType.unpaid") },
-});
 
 // Calculate working days (excluding Fri-Sat)
 function calculateWorkingDays(startDate: string, endDate: string): number {
@@ -143,7 +136,20 @@ export default function LeavePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const leaveTypeConfig = getLeaveTypeConfig(t);
+  const { leaveTypes: leaveTypesList, getBySlug } = useLeaveTypes();
+
+  const getConfig = (slug: string) => {
+    const lt = getBySlug(slug);
+    return lt ? {
+      icon: getLeaveTypeIcon(lt.icon_name),
+      color: lt.color_class,
+      label: lt.name,
+    } : {
+      icon: Calendar,
+      color: "text-gray-600",
+      label: slug,
+    };
+  };
 
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
@@ -180,7 +186,7 @@ export default function LeavePage() {
   // New request dialog
   const [newRequestOpen, setNewRequestOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState("");
-  const [leaveType, setLeaveType] = useState<LeaveType>("annual");
+  const [leaveType, setLeaveType] = useState("annual");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
@@ -360,8 +366,9 @@ export default function LeavePage() {
 
       // Update leave balance
       const year = new Date().getFullYear();
-      const balanceField =
-        request.leave_type === "annual" ? "annual_used" : request.leave_type === "sick" ? "sick_used" : null;
+      const ltConfig = getBySlug(request.leave_type);
+      const balanceField = ltConfig?.tracks_balance && ltConfig?.balance_field_prefix
+        ? `${ltConfig.balance_field_prefix}_used` : null;
 
       if (balanceField) {
         // Get or create leave balance
@@ -753,23 +760,22 @@ export default function LeavePage() {
             <p className="text-2xl font-bold mt-2 text-[#222222]">{pendingCount}</p>
           </CardContent>
         </Card>
-        {(Object.keys(leaveTypeConfig) as LeaveType[]).slice(0, 3).map((type) => {
-          const config = leaveTypeConfig[type];
-          const Icon = config.icon;
-          const count = requests.filter((r) => r.leave_type === type && r.status === "pending").length;
+        {leaveTypesList.slice(0, 3).map((lt) => {
+          const Icon = getLeaveTypeIcon(lt.icon_name);
+          const count = requests.filter((r) => r.leave_type === lt.slug && r.status === "pending").length;
 
           return (
-            <Card 
-              key={type} 
-              className={`border-[#E6E6E4] cursor-pointer transition-all hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] ${leaveTypeFilter === type ? "ring-2 ring-[#C6A03B]" : ""}`}
+            <Card
+              key={lt.slug}
+              className={`border-[#E6E6E4] cursor-pointer transition-all hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] ${leaveTypeFilter === lt.slug ? "ring-2 ring-[#C6A03B]" : ""}`}
               onClick={() => {
-                setLeaveTypeFilter(leaveTypeFilter === type ? "all" : type);
+                setLeaveTypeFilter(leaveTypeFilter === lt.slug ? "all" : lt.slug);
                 setStatusFilter("pending");
               }}
             >
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-[#6B6B6B]">{config.label}</p>
+                  <p className="text-sm text-[#6B6B6B]">{lt.name}</p>
                   <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
                     <Icon className="h-5 w-5 text-[#0C5536]" />
                   </div>
@@ -816,14 +822,13 @@ export default function LeavePage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("leavePage.allTypes", "All Types")}</SelectItem>
-                {(Object.keys(leaveTypeConfig) as LeaveType[]).map((type) => {
-                  const config = leaveTypeConfig[type];
-                  const Icon = config.icon;
+                {leaveTypesList.map((lt) => {
+                  const Icon = getLeaveTypeIcon(lt.icon_name);
                   return (
-                    <SelectItem key={type} value={type}>
+                    <SelectItem key={lt.slug} value={lt.slug}>
                       <div className="flex items-center gap-2">
-                        <Icon className={`h-4 w-4 ${config.color}`} />
-                        {config.label}
+                        <Icon className={`h-4 w-4 ${lt.color_class}`} />
+                        {lt.name}
                       </div>
                     </SelectItem>
                   );
@@ -914,7 +919,7 @@ export default function LeavePage() {
           ) : (
             <div className="space-y-3">
               {sortedRequests.map((request) => {
-                const config = leaveTypeConfig[request.leave_type];
+                const config = getConfig(request.leave_type);
                 const Icon = config.icon;
                 const daysAgo = differenceInDays(new Date(), new Date(request.created_at));
 
@@ -1036,19 +1041,18 @@ export default function LeavePage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="leave_type" className="text-[#555555]">{t("leavePage.leaveTypeLabel")} <span className="text-red-500">*</span></Label>
-              <Select value={leaveType} onValueChange={(v) => setLeaveType(v as LeaveType)}>
+              <Select value={leaveType} onValueChange={setLeaveType}>
                 <SelectTrigger className="border-[#E6E6E4]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(leaveTypeConfig) as LeaveType[]).map((type) => {
-                    const config = leaveTypeConfig[type];
-                    const Icon = config.icon;
+                  {leaveTypesList.map((lt) => {
+                    const Icon = getLeaveTypeIcon(lt.icon_name);
                     return (
-                      <SelectItem key={type} value={type}>
+                      <SelectItem key={lt.slug} value={lt.slug}>
                         <div className="flex items-center gap-2">
-                          <Icon className={`h-4 w-4 ${config.color}`} />
-                          {config.label}
+                          <Icon className={`h-4 w-4 ${lt.color_class}`} />
+                          {lt.name}
                         </div>
                       </SelectItem>
                     );
@@ -1059,23 +1063,40 @@ export default function LeavePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="start_date" className="text-[#555555]">{t("leavePage.startDate")} <span className="text-red-500">*</span></Label>
-                <Input
-                  id="start_date"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                <DatePicker
+                  date={startDate ? new Date(startDate + "T00:00:00") : undefined}
+                  onDateChange={(date) => {
+                    if (date) {
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, "0");
+                      const day = String(date.getDate()).padStart(2, "0");
+                      setStartDate(`${year}-${month}-${day}`);
+                    } else {
+                      setStartDate("");
+                    }
+                  }}
+                  placeholder={t("leavePage.startDate")}
+                  className="w-full"
+                  clearable={false}
                 />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="end_date" className="text-[#555555]">{t("leavePage.endDate")} <span className="text-red-500">*</span></Label>
-                <Input
-                  id="end_date"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  min={startDate}
-                  className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                <DatePicker
+                  date={endDate ? new Date(endDate + "T00:00:00") : undefined}
+                  onDateChange={(date) => {
+                    if (date) {
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, "0");
+                      const day = String(date.getDate()).padStart(2, "0");
+                      setEndDate(`${year}-${month}-${day}`);
+                    } else {
+                      setEndDate("");
+                    }
+                  }}
+                  placeholder={t("leavePage.endDate")}
+                  className="w-full"
+                  clearable={false}
                 />
               </div>
             </div>
@@ -1130,7 +1151,7 @@ export default function LeavePage() {
               {t("leavePage.denyLeaveRequest")}
             </DialogTitle>
             <DialogDescription>
-              {selectedRequest && t("leavePage.denyDescription", { name: selectedRequest.employee_name, type: leaveTypeConfig[selectedRequest.leave_type].label })}
+              {selectedRequest && t("leavePage.denyDescription", { name: selectedRequest.employee_name, type: getConfig(selectedRequest.leave_type).label })}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
