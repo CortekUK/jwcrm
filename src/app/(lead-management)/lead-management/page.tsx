@@ -214,10 +214,20 @@ export default function LeadManagementDashboard() {
       );
 
       // Calculate salesperson performance
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name")
-        .contains("roles", ["salesperson"]);
+      // First get salesperson user_ids from user_roles table
+      const { data: salespersonRoles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "salesperson");
+
+      const salespersonIds = (salespersonRoles || []).map(r => r.user_id);
+
+      const { data: profiles } = salespersonIds.length > 0
+        ? await supabase
+            .from("profiles")
+            .select("user_id, full_name")
+            .in("user_id", salespersonIds)
+        : { data: [] as { user_id: string; full_name: string | null }[] };
 
       const salespersonStats: Record<string, SalespersonStats> = {};
       
@@ -261,22 +271,29 @@ export default function LeadManagementDashboard() {
           .slice(0, 5)
       );
 
-      // Fetch recent activity
-      const { data: history, error: historyError } = await supabase
-        .from("lead_history")
+      // Fetch recent activity from lead_communications (lead_history table doesn't exist)
+      const { data: recentComms } = await supabase
+        .from("lead_communications")
         .select(`
           id,
           lead_id,
           type,
-          description,
+          notes,
           created_at,
           lead:leads(full_name)
         `)
         .order("created_at", { ascending: false })
         .limit(10);
 
-      if (!historyError) {
-        setRecentActivity(history || []);
+      if (recentComms) {
+        setRecentActivity(recentComms.map(c => ({
+          id: c.id,
+          lead_id: c.lead_id,
+          type: c.type,
+          description: c.notes || c.type,
+          created_at: c.created_at,
+          lead: c.lead as any,
+        })));
       }
 
     } catch (error) {
