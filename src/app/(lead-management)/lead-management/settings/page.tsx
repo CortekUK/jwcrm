@@ -41,7 +41,11 @@ import {
   CheckCircle2,
   PhoneOff,
   Info,
+  User,
+  Lock,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 
 interface NotificationSettings {
   emailNewLeadAssigned: boolean;
@@ -165,10 +169,11 @@ const DEFAULT_AUTOMATION_RULES: AutomationRule[] = [
 ];
 
 export default function LeadManagementSettings() {
-  const { t } = useTranslation("leadManagement");
+  const { t } = useTranslation(["leadManagement", "common", "portal"]);
+  const { profile, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("notifications");
+  const [activeTab, setActiveTab] = useState("account");
 
   // Notification settings state
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
@@ -308,13 +313,20 @@ export default function LeadManagementSettings() {
 
       {/* Settings Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-white border border-[#E6E6E4] p-1.5 rounded-xl w-full grid grid-cols-4 h-auto">
+        <TabsList className="bg-white border border-[#E6E6E4] p-1.5 rounded-xl w-full grid grid-cols-5 h-auto">
+          <TabsTrigger
+            value="account"
+            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-[#555555] font-medium transition-all"
+          >
+            <User className="h-4 w-4 mr-2" />
+            {t("common:account", "Account")}
+          </TabsTrigger>
           <TabsTrigger
             value="notifications"
             className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-[#555555] font-medium transition-all"
           >
             <Bell className="h-4 w-4 mr-2" />
-            {t("notifications", "Notifications")}
+            {t("leadManagement:notifications", "Notifications")}
           </TabsTrigger>
           <TabsTrigger
             value="templates"
@@ -338,6 +350,49 @@ export default function LeadManagementSettings() {
             {t("teamSettings", "Team")}
           </TabsTrigger>
         </TabsList>
+
+        {/* Account Tab */}
+        <TabsContent value="account" className="space-y-6">
+          <Card className="border-[#E6E6E4]">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+                <CardTitle className="text-lg font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                  {t("common:accountInformation", "Account Information")}
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label className="text-[#555555] text-sm">{t("common:fullName", "Full Name")}</Label>
+                  <p className="mt-1 text-[#222222] font-medium">{profile?.full_name || t("common:notAvailable", "N/A")}</p>
+                </div>
+                <div>
+                  <Label className="text-[#555555] text-sm flex items-center gap-1">
+                    <Mail className="h-3 w-3 text-[#C6A03B]" />
+                    {t("common:email", "Email")}
+                  </Label>
+                  <p className="mt-1 text-[#222222] font-medium">{user?.email}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-[#E6E6E4]">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+                <CardTitle className="text-lg font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                  {t("portal:settings.changePassword", "Change Password")}
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ChangePasswordForm />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Notification Settings Tab */}
         <TabsContent value="notifications" className="space-y-6">
