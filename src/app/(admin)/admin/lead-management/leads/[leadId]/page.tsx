@@ -32,6 +32,9 @@ import {
   Save,
   Send,
   PhoneOff,
+  FileText,
+  Receipt,
+  ChevronDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,6 +52,13 @@ import { AddReminderDialog } from "@/components/lead-management/reminders/AddRem
 import { LeadDocuments } from "@/components/lead-management/LeadDocuments";
 import { LeadNotes } from "@/components/lead-management/LeadNotes";
 import { QuickProposalDialog } from "@/components/lead-management/QuickProposalDialog";
+import { SendInvoiceDialog } from "@/components/lead-management/SendInvoiceDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Lead } from "@/components/lead-management/LeadTable";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -94,6 +104,7 @@ interface Proposal {
   amount: number;
   currency: string;
   status: string;
+  proposal_content?: string | null;
   created_at: string;
   sent_at: string | null;
   paid_at: string | null;
@@ -150,6 +161,7 @@ export default function LeadHistoryPage({
   const [showCommunicationDialog, setShowCommunicationDialog] = useState(false);
   const [showReminderDialog, setShowReminderDialog] = useState(false);
   const [showQuickProposalDialog, setShowQuickProposalDialog] = useState(false);
+  const [showSendInvoiceDialog, setShowSendInvoiceDialog] = useState(false);
   
   // Consultation outcome state
   const [needsIdentified, setNeedsIdentified] = useState("");
@@ -534,14 +546,28 @@ export default function LeadHistoryPage({
           </div>
           <div className="flex items-center gap-2 ltr:ml-13 rtl:mr-13 lg:ml-0 lg:mr-0">
             {canSendProposal && (
-              <Button
-                size="sm"
-                onClick={() => setShowQuickProposalDialog(true)}
-                className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
-              >
-                <Send className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-                {t("completeAndSendProposal", "Complete & Send Proposal")}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+                  >
+                    <Send className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+                    {t("actionsDropdown", "Actions")}
+                    <ChevronDown className="h-4 w-4 ltr:ml-2 rtl:mr-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowQuickProposalDialog(true)}>
+                    <FileText className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+                    {t("sendProposal")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowSendInvoiceDialog(true)}>
+                    <Receipt className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+                    {t("sendInvoice")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             <Button
               variant="outline"
@@ -847,6 +873,13 @@ export default function LeadHistoryPage({
         lead={leadForDialog}
         open={showQuickProposalDialog}
         onOpenChange={setShowQuickProposalDialog}
+        onSuccess={handleProposalSent}
+      />
+
+      <SendInvoiceDialog
+        lead={leadForDialog}
+        open={showSendInvoiceDialog}
+        onOpenChange={setShowSendInvoiceDialog}
         onSuccess={handleProposalSent}
       />
 

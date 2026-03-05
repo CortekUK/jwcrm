@@ -112,7 +112,7 @@ export function UserProfileMenu({
   // Expanded mode
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <div className={cn("flex items-center gap-1", isRtl && "flex-row-reverse")}>
+      <div className={cn("flex items-center gap-3", isRtl && "flex-row-reverse")}>
         {showReminderBadge && selectedRole === "salesperson" && <ReminderNotificationBadge />}
         {showReminderBadge && selectedRole === "hr" && <HRNotificationBadge />}
         <PopoverTrigger asChild>

@@ -90,7 +90,7 @@ export function ReminderNotificationBadge({ className }: ReminderNotificationBad
         variant="ghost"
         size="icon"
         className={cn(
-          "relative h-9 w-9 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+          "relative h-10 w-10 rounded-lg bg-sidebar-accent/30 text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors",
           className
         )}
         onClick={() => setPanelOpen(true)}

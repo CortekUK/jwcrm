@@ -60,6 +60,7 @@ import {
   ChevronLeft,
   ChevronRight,
   UserCheck,
+  Receipt,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -135,6 +136,7 @@ interface LeadTableProps {
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
   onSendProposal: (lead: Lead) => void;
+  onSendInvoice?: (lead: Lead) => void;
   onViewProposals: (lead: Lead) => void;
   onStatusChange: (leadId: string, status: LeadStatus) => void;
   onViewHistory?: (lead: Lead) => void;
@@ -169,6 +171,7 @@ export function LeadTable({
   onEdit,
   onDelete,
   onSendProposal,
+  onSendInvoice,
   onViewProposals,
   onStatusChange,
   onViewHistory,
@@ -1071,41 +1074,33 @@ export function LeadTable({
                       )}
                     </TableCell>
                     <TableCell>
-                      {lead.status === "not_started" ? (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => onSendProposal(lead)}
-                          className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
-                        >
-                          <Send className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
-                          {t("sendProposal")}
-                        </Button>
-                      ) : (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-1 border-[hsl(var(--jw-primary-green))] text-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-primary-green))]/10"
-                            >
-                              <FileText className="h-4 w-4" />
-                              {t("proposal")}
-                              <ChevronDown className="h-3 w-3 ltr:ml-1 rtl:mr-1" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            <DropdownMenuItem onClick={() => onSendProposal(lead)} className="hover:bg-[#F5F5F3]">
-                              <Pencil className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
-                              {t("edit")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => onViewProposals(lead)} className="hover:bg-[#F5F5F3]">
-                              <Eye className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
-                              {t("view")}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 border-[hsl(var(--jw-primary-green))] text-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-primary-green))]/10"
+                          >
+                            <FileText className="h-4 w-4" />
+                            {t("proposal")}
+                            <ChevronDown className="h-3 w-3 ltr:ml-1 rtl:mr-1" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem onClick={() => onSendProposal(lead)} className="hover:bg-[#F5F5F3]">
+                            <Send className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                            {t("sendProposal")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onSendInvoice?.(lead)} className="hover:bg-[#F5F5F3]">
+                            <Receipt className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                            {t("sendInvoice")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onViewProposals(lead)} className="hover:bg-[#F5F5F3]">
+                            <Eye className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                            {t("view")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-0">

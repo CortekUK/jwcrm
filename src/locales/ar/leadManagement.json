@@ -97,6 +97,17 @@
   "proposalSentSuccess": "تم إرسال العرض بنجاح!",
   "failedToSendProposal": "فشل في إرسال العرض",
 
+  "sendInvoice": "إرسال فاتورة",
+  "sendInvoiceDescription": "إنشاء وإرسال فاتورة للعميل.",
+  "invoiceDescription": "الوصف",
+  "invoiceDescriptionPlaceholder": "وصف الخدمة للفاتورة",
+  "invoiceDescriptionDefault": "خدمات صياغة الوصايا الاحترافية",
+  "invoiceTotal": "إجمالي الفاتورة",
+  "previewInvoice": "معاينة قالب الفاتورة",
+  "invoiceSentSuccess": "تم إرسال الفاتورة بنجاح!",
+  "failedToSendInvoice": "فشل في إرسال الفاتورة",
+  "actionsDropdown": "الإجراءات",
+
   "proposalsFor": "عروض لـ {{name}}",
   "viewAndDownload": "عرض وتنزيل العروض والفواتير المرسلة لهذا العميل المحتمل.",
   "noProposalsFound": "لم يتم العثور على عروض لهذا العميل المحتمل.",
@@ -190,6 +201,10 @@
   "eventProposalCreatedDescription": "تم إنشاء العرض {{invoiceNumber}}.",
   "eventProposalSent": "تم إرسال العرض",
   "eventProposalSentDescription": "تم إرسال العرض {{invoiceNumber}} إلى العميل.",
+  "eventInvoiceCreated": "تم إنشاء الفاتورة",
+  "eventInvoiceCreatedDescription": "تم إنشاء الفاتورة {{invoiceNumber}}.",
+  "eventInvoiceSent": "تم إرسال الفاتورة",
+  "eventInvoiceSentDescription": "تم إرسال الفاتورة {{invoiceNumber}} إلى العميل.",
   "eventPaymentReceived": "تم استلام الدفع",
   "eventPaymentReceivedDescription": "تم استلام الدفع للعرض {{invoiceNumber}}.",
 

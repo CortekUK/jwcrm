@@ -70,7 +70,7 @@ export function HRNotificationBadge({ className }: HRNotificationBadgeProps) {
         role="button"
         tabIndex={0}
         className={cn(
-          "relative inline-flex items-center justify-center h-9 w-9 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground cursor-pointer",
+          "relative inline-flex items-center justify-center h-10 w-10 rounded-lg bg-sidebar-accent/30 text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground cursor-pointer transition-colors",
           className
         )}
         onClick={(e) => {

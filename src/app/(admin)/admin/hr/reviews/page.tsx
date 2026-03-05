@@ -13,8 +13,7 @@ import {
   FileText, 
   Clock, 
   CheckCircle, 
-  BarChart3, 
-  User, 
+  User,
   X, 
   ClipboardCheck,
   AlertCircle,
@@ -344,7 +343,7 @@ export default function AdminQuarterlyReviewsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <Button
               variant="outline"
               className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
@@ -354,17 +353,6 @@ export default function AdminQuarterlyReviewsPage() {
                 <Plus className="h-5 w-5 text-[#0C5536]" />
               </div>
               <span className="text-sm font-medium text-[#222222]">{t("hr:reviews.createReview")}</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
-              onClick={() => router.push("/admin/hr/reviews/compliance")}
-            >
-              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
-                <BarChart3 className="h-5 w-5 text-[#0C5536]" />
-              </div>
-              <span className="text-sm font-medium text-[#222222]">{t("hr:reviews.compliance")}</span>
             </Button>
 
             <Button

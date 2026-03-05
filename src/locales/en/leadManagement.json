@@ -97,6 +97,17 @@
   "proposalSentSuccess": "Proposal sent successfully!",
   "failedToSendProposal": "Failed to send proposal",
 
+  "sendInvoice": "Send Invoice",
+  "sendInvoiceDescription": "Generate and send an invoice to the client.",
+  "invoiceDescription": "Description",
+  "invoiceDescriptionPlaceholder": "Service description for the invoice",
+  "invoiceDescriptionDefault": "Professional Will Drafting Services",
+  "invoiceTotal": "Invoice Total",
+  "previewInvoice": "Preview Invoice Template",
+  "invoiceSentSuccess": "Invoice sent successfully!",
+  "failedToSendInvoice": "Failed to send invoice",
+  "actionsDropdown": "Actions",
+
   "proposalsFor": "Proposals for {{name}}",
   "viewAndDownload": "View and download proposals and invoices sent to this lead.",
   "noProposalsFound": "No proposals found for this lead.",
@@ -190,6 +201,10 @@
   "eventProposalCreatedDescription": "Proposal {{invoiceNumber}} was created.",
   "eventProposalSent": "Proposal Sent",
   "eventProposalSentDescription": "Proposal {{invoiceNumber}} was sent to client.",
+  "eventInvoiceCreated": "Invoice Created",
+  "eventInvoiceCreatedDescription": "Invoice {{invoiceNumber}} was created.",
+  "eventInvoiceSent": "Invoice Sent",
+  "eventInvoiceSentDescription": "Invoice {{invoiceNumber}} was sent to client.",
   "eventPaymentReceived": "Payment Received",
   "eventPaymentReceivedDescription": "Payment for {{invoiceNumber}} was received.",
 

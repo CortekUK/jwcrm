@@ -8,6 +8,7 @@ import { LeadPipelineBoard } from "@/components/lead-management/LeadPipelineBoar
 import { CreateLeadDialog } from "@/components/lead-management/CreateLeadDialog";
 import { EditLeadDialog } from "@/components/lead-management/EditLeadDialog";
 import { SendProposalDialog } from "@/components/lead-management/SendProposalDialog";
+import { SendInvoiceDialog } from "@/components/lead-management/SendInvoiceDialog";
 import { ViewProposalDialog } from "@/components/lead-management/ViewProposalDialog";
 import { AddCommunicationDialog } from "@/components/lead-management/AddCommunicationDialog";
 import { AddReminderDialog } from "@/components/lead-management/reminders/AddReminderDialog";
@@ -46,6 +47,7 @@ export default function LeadsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [viewProposalsDialogOpen, setViewProposalsDialogOpen] = useState(false);
   const [communicationDialogOpen, setCommunicationDialogOpen] = useState(false);
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
@@ -246,6 +248,12 @@ export default function LeadsPage() {
     setProposalDialogOpen(true);
   };
 
+  // Send invoice
+  const handleSendInvoice = (lead: Lead) => {
+    setSelectedLead(lead);
+    setInvoiceDialogOpen(true);
+  };
+
   // View proposals
   const handleViewProposals = (lead: Lead) => {
     setSelectedLead(lead);
@@ -366,6 +374,7 @@ export default function LeadsPage() {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onSendProposal={handleSendProposal}
+          onSendInvoice={handleSendInvoice}
           onViewProposals={handleViewProposals}
           onStatusChange={handleStatusChange}
           onViewHistory={(lead) => router.push(`/admin/lead-management/leads/${lead.id}`)}
@@ -427,6 +436,14 @@ export default function LeadsPage() {
 
           if (error) throw error;
         }}
+      />
+
+      {/* Send Invoice Dialog */}
+      <SendInvoiceDialog
+        lead={selectedLead}
+        open={invoiceDialogOpen}
+        onOpenChange={setInvoiceDialogOpen}
+        onSuccess={fetchLeads}
       />
 
       {/* View Proposals Dialog */}

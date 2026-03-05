@@ -16,12 +16,13 @@ import {
   Users,
   Pencil,
   Trash2,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export interface TimelineEvent {
   id: string;
-  type: "created" | "assigned" | "proposal_created" | "proposal_sent" | "payment_received" | "communication";
+  type: "created" | "assigned" | "proposal_created" | "proposal_sent" | "invoice_sent" | "payment_received" | "communication";
   timestamp: string;
   title: string;
   description: string;
@@ -74,6 +75,8 @@ export function LeadHistoryTimeline({ events, isLoading, canEdit, onEditCommunic
         return <FileText className="h-4 w-4" />;
       case "proposal_sent":
         return <Send className="h-4 w-4" />;
+      case "invoice_sent":
+        return <Receipt className="h-4 w-4" />;
       case "payment_received":
         return <CreditCard className="h-4 w-4" />;
       case "communication":
@@ -93,6 +96,8 @@ export function LeadHistoryTimeline({ events, isLoading, canEdit, onEditCommunic
         return "bg-[#F5F5F5] text-[#6B6B6B] border-[#F5F5F5]";
       case "proposal_sent":
         return "bg-[#FFF9E6] text-[#C6A03B] border-[#FFF9E6]";
+      case "invoice_sent":
+        return "bg-[#E6F7F1] text-[#0C5536] border-[#E6F7F1]";
       case "payment_received":
         return "bg-[#E6F7F1] text-[#0C5536] border-[#E6F7F1]";
       case "communication":
@@ -219,6 +224,7 @@ export function buildTimelineEvents(
     invoice_number: string;
     amount: number;
     currency: string;
+    proposal_content?: string | null;
     created_at: string;
     sent_at: string | null;
     paid_at: string | null;
@@ -277,15 +283,21 @@ export function buildTimelineEvents(
     });
   }
 
-  // Proposal events
+  // Proposal / Invoice events
   proposals.forEach((proposal) => {
-    // Proposal created
+    const isInvoiceOnly = !proposal.proposal_content;
+
+    // Proposal/Invoice created
     events.push({
       id: `proposal_created_${proposal.id}`,
       type: "proposal_created",
       timestamp: proposal.created_at,
-      title: t("eventProposalCreated"),
-      description: t("eventProposalCreatedDescription", { invoiceNumber: proposal.invoice_number }),
+      title: isInvoiceOnly
+        ? t("eventInvoiceCreated", "Invoice Created")
+        : t("eventProposalCreated"),
+      description: isInvoiceOnly
+        ? t("eventInvoiceCreatedDescription", { invoiceNumber: proposal.invoice_number, defaultValue: "Invoice {{invoiceNumber}} was created." })
+        : t("eventProposalCreatedDescription", { invoiceNumber: proposal.invoice_number }),
       metadata: {
         proposalId: proposal.id,
         invoiceNumber: proposal.invoice_number,
@@ -294,14 +306,18 @@ export function buildTimelineEvents(
       },
     });
 
-    // Proposal sent
+    // Proposal sent / Invoice sent
     if (proposal.sent_at) {
       events.push({
-        id: `proposal_sent_${proposal.id}`,
-        type: "proposal_sent",
+        id: isInvoiceOnly ? `invoice_sent_${proposal.id}` : `proposal_sent_${proposal.id}`,
+        type: isInvoiceOnly ? "invoice_sent" : "proposal_sent",
         timestamp: proposal.sent_at,
-        title: t("eventProposalSent"),
-        description: t("eventProposalSentDescription", { invoiceNumber: proposal.invoice_number }),
+        title: isInvoiceOnly
+          ? t("eventInvoiceSent", "Invoice Sent")
+          : t("eventProposalSent"),
+        description: isInvoiceOnly
+          ? t("eventInvoiceSentDescription", { invoiceNumber: proposal.invoice_number, defaultValue: "Invoice {{invoiceNumber}} was sent to client." })
+          : t("eventProposalSentDescription", { invoiceNumber: proposal.invoice_number }),
         metadata: {
           proposalId: proposal.id,
           invoiceNumber: proposal.invoice_number,

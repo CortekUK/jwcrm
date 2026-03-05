@@ -61,6 +61,7 @@ export async function GET(
         amount,
         currency,
         status,
+        proposal_content,
         created_at,
         sent_at,
         paid_at

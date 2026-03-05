@@ -14,8 +14,7 @@ import {
   FileText, 
   Clock, 
   CheckCircle, 
-  BarChart3, 
-  User, 
+  User,
   X, 
   ClipboardCheck,
   AlertCircle,
@@ -237,7 +236,7 @@ export default function QuarterlyReviewsPage() {
   return (
     <div className="space-y-8 pb-12">
       {/* Hero Banner */}
-      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] dark:from-background dark:to-background border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
         <div className={`flex items-center justify-between ${isRtl ? "flex-row-reverse" : ""}`}>
           <div className={isRtl ? "text-right" : ""}>
             <div className={`flex items-center gap-3 mb-2 ${isRtl ? "flex-row-reverse" : ""}`}>
@@ -246,7 +245,7 @@ export default function QuarterlyReviewsPage() {
                 {t("hr:reviews.quarterlyReviews")}
               </h1>
             </div>
-            <p className={`text-sm text-[#777777] ${isRtl ? "mr-9" : "ml-9"}`}>
+            <p className={`text-sm text-[#777777] dark:text-muted-foreground ${isRtl ? "mr-9" : "ml-9"}`}>
               {employeeId && employeeName
                 ? t("hr:reviews.reviewHistoryFor", { name: employeeName, defaultValue: `Review history for ${employeeName}` })
                 : t("hr:reviews.manageQuarterlyReviews")}
@@ -255,7 +254,7 @@ export default function QuarterlyReviewsPage() {
           
           {/* Quick badge for overdue if any */}
           {stats.overdueReviews > 0 && (
-            <div className={`flex items-center gap-2 px-3 py-2 bg-white border border-[#E6E6E4] rounded-md ${isRtl ? "flex-row-reverse" : ""}`}>
+            <div className={`flex items-center gap-2 px-3 py-2 bg-white dark:bg-card border border-[#E6E6E4] dark:border-border rounded-md ${isRtl ? "flex-row-reverse" : ""}`}>
               <AlertCircle className="h-4 w-4 text-red-500" />
               <span className="text-red-600 font-medium text-sm">
                 {stats.overdueReviews} {t("hr:reviews.overdue")}
@@ -268,28 +267,28 @@ export default function QuarterlyReviewsPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Total Reviews */}
-        <Card className="border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all cursor-pointer"
+        <Card className="border-[#E6E6E4] dark:border-border hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all cursor-pointer"
               onClick={() => setActiveTab("all")}>
           <CardContent className="p-4">
             <div className={`flex items-center justify-between ${isRtl ? "flex-row-reverse" : ""}`}>
-              <p className="text-sm text-[#6B6B6B]">{t("hr:reviews.totalReviews")}</p>
+              <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground">{t("hr:reviews.totalReviews")}</p>
               <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
                 <FileText className="h-5 w-5 text-[#0C5536]" />
               </div>
             </div>
-            <p className="text-2xl font-bold mt-2 text-[#222222]">
+            <p className="text-2xl font-bold mt-2 text-[#222222] dark:text-foreground">
               {loadingStats ? "-" : stats.totalReviews}
             </p>
-            <p className="text-xs text-[#777777] mt-1">Q{getCurrentQuarter()} {getCurrentYear()}</p>
+            <p className="text-xs text-[#777777] dark:text-muted-foreground mt-1">Q{getCurrentQuarter()} {getCurrentYear()}</p>
           </CardContent>
         </Card>
 
         {/* Pending Approval */}
-        <Card className={`border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all cursor-pointer ${stats.pendingApproval > 0 ? "bg-blue-50 border-blue-200" : ""}`}
+        <Card className={`border-[#E6E6E4] dark:border-border hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all cursor-pointer ${stats.pendingApproval > 0 ? "bg-blue-50 border-blue-200 dark:bg-blue-950/30" : ""}`}
               onClick={() => setActiveTab("pending")}>
           <CardContent className="p-4">
             <div className={`flex items-center justify-between ${isRtl ? "flex-row-reverse" : ""}`}>
-              <p className="text-sm text-[#6B6B6B]">{t("hr:reviews.pendingApproval")}</p>
+              <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground">{t("hr:reviews.pendingApproval")}</p>
               <div className={`h-10 w-10 rounded-full flex items-center justify-center ${stats.pendingApproval > 0 ? "bg-blue-100" : "bg-[rgba(198,160,59,0.15)]"}`}>
                 <Clock className={`h-5 w-5 ${stats.pendingApproval > 0 ? "text-blue-600" : "text-[#0C5536]"}`} />
               </div>
@@ -297,31 +296,31 @@ export default function QuarterlyReviewsPage() {
             <p className={`text-2xl font-bold mt-2 ${stats.pendingApproval > 0 ? "text-blue-600" : "text-[#222222]"}`}>
               {loadingStats ? "-" : stats.pendingApproval}
             </p>
-            <p className="text-xs text-[#777777] mt-1">{t("hr:reviews.awaitingApproval")}</p>
+            <p className="text-xs text-[#777777] dark:text-muted-foreground mt-1">{t("hr:reviews.awaitingApproval")}</p>
           </CardContent>
         </Card>
 
         {/* Completion Rate */}
-        <Card className="border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all">
+        <Card className="border-[#E6E6E4] dark:border-border hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all">
           <CardContent className="p-4">
             <div className={`flex items-center justify-between ${isRtl ? "flex-row-reverse" : ""}`}>
-              <p className="text-sm text-[#6B6B6B]">{t("hr:reviews.completionRate")}</p>
+              <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground">{t("hr:reviews.completionRate")}</p>
               <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
                 <TrendingUp className="h-5 w-5 text-[#0C5536]" />
               </div>
             </div>
-            <p className="text-2xl font-bold mt-2 text-[#222222]">
+            <p className="text-2xl font-bold mt-2 text-[#222222] dark:text-foreground">
               {loadingStats ? "-" : `${stats.completionRate}%`}
             </p>
-            <p className="text-xs text-[#777777] mt-1">{stats.completedReviews} {t("hr:reviews.completed").toLowerCase()}</p>
+            <p className="text-xs text-[#777777] dark:text-muted-foreground mt-1">{stats.completedReviews} {t("hr:reviews.completed").toLowerCase()}</p>
           </CardContent>
         </Card>
 
         {/* Overdue */}
-        <Card className={`border-[#E6E6E4] hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all ${stats.overdueReviews > 0 ? "bg-red-50 border-red-200" : ""}`}>
+        <Card className={`border-[#E6E6E4] dark:border-border hover:shadow-[0_2px_8px_rgba(198,160,59,0.08)] transition-all ${stats.overdueReviews > 0 ? "bg-red-50 border-red-200 dark:bg-red-950/30" : ""}`}>
           <CardContent className="p-4">
             <div className={`flex items-center justify-between ${isRtl ? "flex-row-reverse" : ""}`}>
-              <p className="text-sm text-[#6B6B6B]">{t("hr:reviews.overdueReviews")}</p>
+              <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground">{t("hr:reviews.overdueReviews")}</p>
               <div className={`h-10 w-10 rounded-full flex items-center justify-center ${stats.overdueReviews > 0 ? "bg-red-100" : "bg-[rgba(198,160,59,0.15)]"}`}>
                 <AlertCircle className={`h-5 w-5 ${stats.overdueReviews > 0 ? "text-red-600" : "text-[#0C5536]"}`} />
               </div>
@@ -329,13 +328,13 @@ export default function QuarterlyReviewsPage() {
             <p className={`text-2xl font-bold mt-2 ${stats.overdueReviews > 0 ? "text-red-600" : "text-[#222222]"}`}>
               {loadingStats ? "-" : stats.overdueReviews}
             </p>
-            <p className="text-xs text-[#777777] mt-1">{t("hr:reviews.needsAttention", "Needs attention")}</p>
+            <p className="text-xs text-[#777777] dark:text-muted-foreground mt-1">{t("hr:reviews.needsAttention", "Needs attention")}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Quick Actions */}
-      <Card className="border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
+      <Card className="border-[#E6E6E4] dark:border-border shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
         <CardHeader className="pb-3">
           <div className={`flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`}>
             <Plus className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
@@ -345,49 +344,38 @@ export default function QuarterlyReviewsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <Button
               variant="outline"
-              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
+              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent transition-all group"
               onClick={() => router.push("/hr/reviews/new")}
             >
               <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
                 <Plus className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <span className="text-sm font-medium text-[#222222]">{t("hr:reviews.createReview")}</span>
+              <span className="text-sm font-medium text-[#222222] dark:text-foreground">{t("hr:reviews.createReview")}</span>
             </Button>
 
             <Button
               variant="outline"
-              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
-              onClick={() => router.push("/hr/reviews/compliance")}
-            >
-              <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
-                <BarChart3 className="h-5 w-5 text-[#0C5536]" />
-              </div>
-              <span className="text-sm font-medium text-[#222222]">{t("hr:reviews.compliance")}</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
+              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent transition-all group"
               onClick={() => router.push("/hr/reviews/monthly")}
             >
               <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
                 <CalendarClock className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <span className="text-sm font-medium text-[#222222]">{t("hr:reviews.monthlyReviews", "Monthly Reviews")}</span>
+              <span className="text-sm font-medium text-[#222222] dark:text-foreground">{t("hr:reviews.monthlyReviews", "Monthly Reviews")}</span>
             </Button>
 
             <Button
               variant="outline"
-              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8] transition-all group"
+              className="h-auto py-4 px-4 flex flex-col items-center gap-2 border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent transition-all group"
               onClick={() => setActiveTab("pending")}
             >
               <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center group-hover:bg-[rgba(198,160,59,0.25)] transition-colors">
                 <CheckCircle className="h-5 w-5 text-[#0C5536]" />
               </div>
-              <span className="text-sm font-medium text-[#222222]">{t("hr:reviews.reviewPending", "Review Pending")}</span>
+              <span className="text-sm font-medium text-[#222222] dark:text-foreground">{t("hr:reviews.reviewPending", "Review Pending")}</span>
             </Button>
           </div>
         </CardContent>
@@ -421,10 +409,10 @@ export default function QuarterlyReviewsPage() {
 
       {/* Enhanced Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-white border border-[#E6E6E4] p-1.5 rounded-xl w-full grid grid-cols-3 h-auto">
+        <TabsList className="bg-white dark:bg-card border border-[#E6E6E4] dark:border-border p-1.5 rounded-xl w-full grid grid-cols-3 h-auto">
           <TabsTrigger
             value="all"
-            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] dark:text-muted-foreground font-medium transition-all"
           >
             <FileText className={`h-4 w-4 ${isRtl ? "ml-2" : "mr-2"}`} />
             {t("hr:reviews.allReviews")}
@@ -436,7 +424,7 @@ export default function QuarterlyReviewsPage() {
           </TabsTrigger>
           <TabsTrigger
             value="pending"
-            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] dark:text-muted-foreground font-medium transition-all"
           >
             <Clock className={`h-4 w-4 ${isRtl ? "ml-2" : "mr-2"}`} />
             {t("hr:reviews.pendingApproval")}
@@ -448,7 +436,7 @@ export default function QuarterlyReviewsPage() {
           </TabsTrigger>
           <TabsTrigger
             value="complete"
-            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] dark:text-muted-foreground font-medium transition-all"
           >
             <CheckCircle className={`h-4 w-4 ${isRtl ? "ml-2" : "mr-2"}`} />
             {t("hr:reviews.completed")}
@@ -486,8 +474,8 @@ export default function QuarterlyReviewsPage() {
       </Tabs>
 
       {/* Legal Notice Footer */}
-      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
-        <p className="text-xs text-[#777777]">
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] dark:border-border text-center">
+        <p className="text-xs text-[#777777] dark:text-muted-foreground">
           {t("hr:legalNotice")}
         </p>
       </div>
