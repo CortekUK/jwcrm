@@ -3,6 +3,15 @@
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 
+type TemplateSection = {
+  id: string;
+  title: string;
+  type: "textarea" | "readonly" | "list";
+  required: boolean;
+  order: number;
+  isCustom?: boolean;
+};
+
 type QuarterlyReviewPDFTemplateProps = {
   employeeName: string;
   employeeJobTitle: string | null;
@@ -20,6 +29,8 @@ type QuarterlyReviewPDFTemplateProps = {
   approvedBy: string | null;
   submittedAt: string | null;
   approvedAt: string | null;
+  customFields?: Record<string, string> | null;
+  templateSections?: TemplateSection[];
 };
 
 export const QuarterlyReviewPDFTemplate = forwardRef<HTMLDivElement, QuarterlyReviewPDFTemplateProps>(
@@ -41,6 +52,8 @@ export const QuarterlyReviewPDFTemplate = forwardRef<HTMLDivElement, QuarterlyRe
       approvedBy,
       submittedAt,
       approvedAt,
+      customFields,
+      templateSections,
     },
     ref
   ) => {
@@ -390,6 +403,36 @@ export const QuarterlyReviewPDFTemplate = forwardRef<HTMLDivElement, QuarterlyRe
               </p>
             </div>
           )}
+
+          {/* Custom Fields */}
+          {customFields && templateSections && templateSections
+            .filter((s) => s.isCustom && customFields[s.id])
+            .sort((a, b) => a.order - b.order)
+            .map((section) => (
+              <div key={section.id} style={{ marginBottom: "24px" }}>
+                <h3
+                  style={{
+                    color: "#7C3AED",
+                    fontSize: "16px",
+                    marginBottom: "12px",
+                    borderBottom: "2px solid #C6A03B",
+                    paddingBottom: "8px",
+                  }}
+                >
+                  {section.title}
+                </h3>
+                <p
+                  style={{
+                    color: "#222222",
+                    lineHeight: 1.6,
+                    margin: 0,
+                    textAlign: isRtl ? "right" : "left",
+                  }}
+                >
+                  {customFields[section.id]}
+                </p>
+              </div>
+            ))}
 
           {/* Signatures Section */}
           <div

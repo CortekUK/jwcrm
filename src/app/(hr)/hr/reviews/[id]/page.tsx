@@ -27,6 +27,15 @@ import {
 } from "lucide-react";
 import { QuarterlyReviewPDFTemplate } from "@/components/hr/reviews";
 
+type TemplateSection = {
+  id: string;
+  title: string;
+  type: "textarea" | "readonly" | "list";
+  required: boolean;
+  order: number;
+  isCustom?: boolean;
+};
+
 type QuarterlyReview = {
   id: string;
   employee_id: string;
@@ -45,7 +54,9 @@ type QuarterlyReview = {
   goals_next_quarter: string | null;
   development_plan: string | null;
   manager_comments: string | null;
+  custom_fields: Record<string, string> | null;
   created_at: string;
+  approved_by: string | null;
   employee: {
     id: string;
     full_name: string;
@@ -56,10 +67,10 @@ type QuarterlyReview = {
     } | null;
   };
   reviewer: {
-    email: string;
+    full_name: string;
   } | null;
   approver: {
-    email: string;
+    full_name: string;
   } | null;
 };
 
@@ -78,7 +89,44 @@ export default function QuarterlyReviewDetailPage() {
   const [approving, setApproving] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [templateSections, setTemplateSections] = useState<TemplateSection[]>([]);
   const templateRef = useRef<HTMLDivElement>(null);
+
+  // Load default template sections for custom field titles
+  useEffect(() => {
+    const loadTemplate = async () => {
+      try {
+        const { data } = await supabase
+          .from("review_templates")
+          .select("sections")
+          .eq("is_default", true)
+          .eq("is_active", true)
+          .single();
+
+        if (data?.sections) {
+          setTemplateSections(data.sections as TemplateSection[]);
+        }
+      } catch {
+        // If no default template, try the first active one
+        try {
+          const { data } = await supabase
+            .from("review_templates")
+            .select("sections")
+            .eq("is_active", true)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+
+          if (data?.sections) {
+            setTemplateSections(data.sections as TemplateSection[]);
+          }
+        } catch {
+          // No templates available
+        }
+      }
+    };
+    loadTemplate();
+  }, []);
 
   // Fetch review
   useEffect(() => {
@@ -378,159 +426,208 @@ export default function QuarterlyReviewDetailPage() {
         </div>
       </div>
 
-      {/* Employee Info Card */}
-      <Card className="border-[#E6E6E4] dark:border-gray-700">
-        <CardContent className="pt-6">
+      {/* Review Document Card */}
+      <Card className="border-[#E6E6E4] dark:border-gray-700 overflow-hidden">
+        {/* Green header band with employee info */}
+        <div className="bg-[#0C5536] px-6 py-5">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className={`flex items-center gap-3 ${isRtl ? "flex-row-reverse" : ""}`}>
-              <User className="h-5 w-5 text-[#6B6B6B]" />
+              <User className="h-5 w-5 text-white/60" />
               <div className={isRtl ? "text-right" : ""}>
-                <p className="text-xs text-[#6B6B6B] dark:text-gray-400">{t("hr:employee")}</p>
-                <p className="font-medium text-[#222222] dark:text-gray-200">{review.employee?.full_name}</p>
+                <p className="text-xs text-white/60">{t("hr:employee")}</p>
+                <p className="font-medium text-white">{review.employee?.full_name}</p>
               </div>
             </div>
             <div className={`flex items-center gap-3 ${isRtl ? "flex-row-reverse" : ""}`}>
-              <Briefcase className="h-5 w-5 text-[#6B6B6B]" />
+              <Briefcase className="h-5 w-5 text-white/60" />
               <div className={isRtl ? "text-right" : ""}>
-                <p className="text-xs text-[#6B6B6B] dark:text-gray-400">{t("hr:department")}</p>
-                <p className="font-medium text-[#222222] dark:text-gray-200">
+                <p className="text-xs text-white/60">{t("hr:department")}</p>
+                <p className="font-medium text-white">
                   {review.employee?.department?.name || t("hr:notAssigned")}
                 </p>
               </div>
             </div>
             <div className={`flex items-center gap-3 ${isRtl ? "flex-row-reverse" : ""}`}>
-              <Calendar className="h-5 w-5 text-[#6B6B6B]" />
+              <Calendar className="h-5 w-5 text-white/60" />
               <div className={isRtl ? "text-right" : ""}>
-                <p className="text-xs text-[#6B6B6B] dark:text-gray-400">{t("hr:reviews.period")}</p>
-                <p className="font-medium text-[#222222] dark:text-gray-200">Q{review.quarter} {review.year}</p>
+                <p className="text-xs text-white/60">{t("hr:reviews.period")}</p>
+                <p className="font-medium text-white">Q{review.quarter} {review.year}</p>
               </div>
             </div>
             <div className={`flex items-center gap-3 ${isRtl ? "flex-row-reverse" : ""}`}>
-              <BarChart3 className="h-5 w-5 text-[#6B6B6B]" />
+              <BarChart3 className="h-5 w-5 text-[#C6A03B]" />
               <div className={isRtl ? "text-right" : ""}>
-                <p className="text-xs text-[#6B6B6B] dark:text-gray-400">{t("hr:reviews.overallScore")}</p>
-                <p className={`font-bold text-xl ${getScoreColor(review.overall_kpi_score)}`}>
+                <p className="text-xs text-white/60">{t("hr:reviews.overallScore")}</p>
+                <p className="font-bold text-xl text-[#C6A03B]">
                   {review.overall_kpi_score !== null ? `${review.overall_kpi_score}%` : "-"}
                 </p>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Review content sections */}
+        <CardContent className="p-0 divide-y divide-[#E6E6E4] dark:divide-gray-700">
+          {/* Performance Summary */}
+          {review.performance_summary && (
+            <div className="px-6 py-5">
+              <div className={`flex items-center gap-2 mb-3 ${isRtl ? "flex-row-reverse" : ""}`}>
+                <CheckCircle className="h-4 w-4 text-[#0C5536]" />
+                <h3 className="font-semibold text-[#222222] dark:text-gray-200">
+                  {t("hr:reviews.performanceSummary")}
+                </h3>
+              </div>
+              <p className={`text-[#222222] dark:text-gray-300 whitespace-pre-wrap leading-relaxed ${isRtl ? "text-right" : ""}`}>
+                {review.performance_summary}
+              </p>
+            </div>
+          )}
+
+          {/* Strengths & Areas for Improvement — side by side on larger screens */}
+          {(review.strengths || review.areas_for_improvement) && (
+            <div className="px-6 py-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Strengths */}
+                {review.strengths && (
+                  <div>
+                    <div className={`flex items-center gap-2 mb-3 ${isRtl ? "flex-row-reverse" : ""}`}>
+                      <TrendingUp className="h-4 w-4 text-[#0C5536]" />
+                      <h3 className="font-semibold text-[#0C5536]">
+                        {t("hr:reviews.strengths")}
+                      </h3>
+                    </div>
+                    <ul className={`space-y-1.5 ${isRtl ? "pr-4" : "pl-4"}`}>
+                      {formatTextToList(review.strengths).map((item, index) => (
+                        <li key={index} className="text-[#222222] dark:text-gray-300 list-disc">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Areas for Improvement */}
+                {review.areas_for_improvement && (
+                  <div>
+                    <div className={`flex items-center gap-2 mb-3 ${isRtl ? "flex-row-reverse" : ""}`}>
+                      <TrendingDown className="h-4 w-4 text-[#C6A03B]" />
+                      <h3 className="font-semibold text-[#C6A03B]">
+                        {t("hr:reviews.areasForImprovement")}
+                      </h3>
+                    </div>
+                    <ul className={`space-y-1.5 ${isRtl ? "pr-4" : "pl-4"}`}>
+                      {formatTextToList(review.areas_for_improvement).map((item, index) => (
+                        <li key={index} className="text-[#222222] dark:text-gray-300 list-disc">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Goals for Next Quarter */}
+          {review.goals_next_quarter && (
+            <div className="px-6 py-5">
+              <div className={`flex items-center gap-2 mb-3 ${isRtl ? "flex-row-reverse" : ""}`}>
+                <Target className="h-4 w-4 text-[#0C5536]" />
+                <h3 className="font-semibold text-[#222222] dark:text-gray-200">
+                  {t("hr:reviews.goalsNextQuarter")}
+                </h3>
+              </div>
+              <ul className={`space-y-1.5 ${isRtl ? "pr-4" : "pl-4"}`}>
+                {formatTextToList(review.goals_next_quarter).map((item, index) => (
+                  <li key={index} className="text-[#222222] dark:text-gray-300 list-disc">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Development Plan */}
+          {review.development_plan && (
+            <div className="px-6 py-5">
+              <div className={`flex items-center gap-2 mb-3 ${isRtl ? "flex-row-reverse" : ""}`}>
+                <Briefcase className="h-4 w-4 text-[#6B6B6B]" />
+                <h3 className="font-semibold text-[#222222] dark:text-gray-200">
+                  {t("hr:reviews.developmentPlan")}
+                </h3>
+              </div>
+              <p className={`text-[#222222] dark:text-gray-300 whitespace-pre-wrap leading-relaxed ${isRtl ? "text-right" : ""}`}>
+                {review.development_plan}
+              </p>
+            </div>
+          )}
+
+          {/* Manager Comments */}
+          {review.manager_comments && (
+            <div className="px-6 py-5 bg-[#FAFAF8] dark:bg-gray-800/50">
+              <div className={`flex items-center gap-2 mb-3 ${isRtl ? "flex-row-reverse" : ""}`}>
+                <User className="h-4 w-4 text-[#6B6B6B]" />
+                <h3 className="font-semibold text-[#222222] dark:text-gray-200">
+                  {t("hr:reviews.managerComments")}
+                </h3>
+              </div>
+              <p className={`text-[#222222] dark:text-gray-300 whitespace-pre-wrap leading-relaxed italic ${isRtl ? "text-right" : ""}`}>
+                {review.manager_comments}
+              </p>
+            </div>
+          )}
+
+          {/* Custom Fields */}
+          {review.custom_fields && Object.keys(review.custom_fields).length > 0 && (() => {
+            const customSections = templateSections.filter(
+              (s) => s.isCustom && review.custom_fields?.[s.id]
+            );
+            const renderedIds = new Set(customSections.map((s) => s.id));
+            const unmatchedKeys = Object.keys(review.custom_fields).filter(
+              (k) => !renderedIds.has(k) && review.custom_fields![k]
+            );
+
+            return (
+              <>
+                {customSections
+                  .sort((a, b) => a.order - b.order)
+                  .map((section) => (
+                    <div key={section.id} className="px-6 py-5 border-l-4 border-l-purple-400">
+                      <div className={`flex items-center gap-2 mb-3 ${isRtl ? "flex-row-reverse" : ""}`}>
+                        <CheckCircle className="h-4 w-4 text-purple-500" />
+                        <h3 className="font-semibold text-[#222222] dark:text-gray-200">
+                          {section.title}
+                        </h3>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-purple-300 text-purple-600 bg-purple-50">
+                          {t("hr:reviews.customFieldLabel")}
+                        </Badge>
+                      </div>
+                      <p className={`text-[#222222] dark:text-gray-300 whitespace-pre-wrap leading-relaxed ${isRtl ? "text-right" : ""}`}>
+                        {review.custom_fields![section.id]}
+                      </p>
+                    </div>
+                  ))}
+                {unmatchedKeys.map((key) => (
+                  <div key={key} className="px-6 py-5 border-l-4 border-l-purple-400">
+                    <div className={`flex items-center gap-2 mb-3 ${isRtl ? "flex-row-reverse" : ""}`}>
+                      <CheckCircle className="h-4 w-4 text-purple-500" />
+                      <h3 className="font-semibold text-[#222222] dark:text-gray-200">
+                        {key.replace(/^custom_/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                      </h3>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-purple-300 text-purple-600 bg-purple-50">
+                        {t("hr:reviews.customFieldLabel")}
+                      </Badge>
+                    </div>
+                    <p className={`text-[#222222] dark:text-gray-300 whitespace-pre-wrap leading-relaxed ${isRtl ? "text-right" : ""}`}>
+                      {review.custom_fields![key]}
+                    </p>
+                  </div>
+                ))}
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
-
-      {/* Performance Summary */}
-      {review.performance_summary && (
-        <Card className="border-[#E6E6E4] dark:border-gray-700">
-          <CardHeader>
-            <CardTitle className={`flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`}>
-              <CheckCircle className="h-5 w-5 text-[#0C5536]" />
-              {t("hr:reviews.performanceSummary")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={`text-[#222222] dark:text-gray-200 whitespace-pre-wrap ${isRtl ? "text-right" : ""}`}>
-              {review.performance_summary}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Strengths */}
-      {review.strengths && (
-        <Card className="border-[#E6E6E4] dark:border-gray-700">
-          <CardHeader>
-            <CardTitle className={`flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`}>
-              <TrendingUp className="h-5 w-5 text-[#0C5536]" />
-              {t("hr:reviews.strengths")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className={`space-y-2 ${isRtl ? "pr-4" : "pl-4"}`}>
-              {formatTextToList(review.strengths).map((item, index) => (
-                <li key={index} className="text-[#222222] dark:text-gray-200 list-disc">
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Areas for Improvement */}
-      {review.areas_for_improvement && (
-        <Card className="border-[#E6E6E4] dark:border-gray-700">
-          <CardHeader>
-            <CardTitle className={`flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`}>
-              <TrendingDown className="h-5 w-5 text-[#C6A03B]" />
-              {t("hr:reviews.areasForImprovement")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className={`space-y-2 ${isRtl ? "pr-4" : "pl-4"}`}>
-              {formatTextToList(review.areas_for_improvement).map((item, index) => (
-                <li key={index} className="text-[#222222] dark:text-gray-200 list-disc">
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Goals for Next Quarter */}
-      {review.goals_next_quarter && (
-        <Card className="border-[#E6E6E4] dark:border-gray-700">
-          <CardHeader>
-            <CardTitle className={`flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`}>
-              <Target className="h-5 w-5 text-[#0C5536]" />
-              {t("hr:reviews.goalsNextQuarter")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className={`space-y-2 ${isRtl ? "pr-4" : "pl-4"}`}>
-              {formatTextToList(review.goals_next_quarter).map((item, index) => (
-                <li key={index} className="text-[#222222] dark:text-gray-200 list-disc">
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Development Plan */}
-      {review.development_plan && (
-        <Card className="border-[#E6E6E4] dark:border-gray-700">
-          <CardHeader>
-            <CardTitle className={`flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`}>
-              <Briefcase className="h-5 w-5 text-[#6B6B6B]" />
-              {t("hr:reviews.developmentPlan")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={`text-[#222222] dark:text-gray-200 whitespace-pre-wrap ${isRtl ? "text-right" : ""}`}>
-              {review.development_plan}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Manager Comments */}
-      {review.manager_comments && (
-        <Card className="border-[#E6E6E4] dark:border-gray-700">
-          <CardHeader>
-            <CardTitle className={`flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`}>
-              <User className="h-5 w-5 text-[#6B6B6B]" />
-              {t("hr:reviews.managerComments")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={`text-[#222222] dark:text-gray-200 whitespace-pre-wrap italic ${isRtl ? "text-right" : ""}`}>
-              {review.manager_comments}
-            </p>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Hidden PDF Template */}
       <div
@@ -559,6 +656,8 @@ export default function QuarterlyReviewDetailPage() {
           approvedBy={approverName}
           submittedAt={review.submitted_at}
           approvedAt={review.approved_at}
+          customFields={review.custom_fields}
+          templateSections={templateSections}
         />
       </div>
     </div>

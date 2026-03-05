@@ -27,15 +27,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Loader2, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Loader2,
+  Plus,
+  Edit,
+  Trash2,
   Star,
   FileText,
   GripVertical,
-  Check,
+  X,
 } from "lucide-react";
 
 type TemplateSection = {
@@ -44,6 +51,7 @@ type TemplateSection = {
   type: "textarea" | "readonly" | "list";
   required: boolean;
   order: number;
+  isCustom?: boolean;
 };
 
 type ReviewTemplate = {
@@ -56,7 +64,8 @@ type ReviewTemplate = {
   created_at: string;
 };
 
-const defaultSections: TemplateSection[] = [
+// Full pool of available sections — templates choose a subset
+const ALL_AVAILABLE_SECTIONS: TemplateSection[] = [
   { id: "kpi_performance", title: "KPI Performance", type: "readonly", required: true, order: 1 },
   { id: "performance_summary", title: "Performance Summary", type: "textarea", required: true, order: 2 },
   { id: "strengths", title: "Strengths", type: "textarea", required: true, order: 3 },
@@ -65,6 +74,8 @@ const defaultSections: TemplateSection[] = [
   { id: "development_plan", title: "Development Plan", type: "textarea", required: false, order: 6 },
   { id: "manager_comments", title: "Manager Comments", type: "textarea", required: false, order: 7 },
 ];
+
+const defaultSections = ALL_AVAILABLE_SECTIONS;
 
 export function ReviewTemplateManager() {
   const { t, i18n } = useTranslation(["hr", "common"]);
@@ -86,8 +97,12 @@ export function ReviewTemplateManager() {
     name: "",
     description: "",
     is_active: true,
-    sections: defaultSections,
+    sections: defaultSections as TemplateSection[],
   });
+
+  // Custom field creation state
+  const [showCustomFieldInput, setShowCustomFieldInput] = useState(false);
+  const [customFieldName, setCustomFieldName] = useState("");
 
   // Fetch templates
   useEffect(() => {
@@ -126,8 +141,10 @@ export function ReviewTemplateManager() {
       name: "",
       description: "",
       is_active: true,
-      sections: defaultSections,
+      sections: defaultSections as TemplateSection[],
     });
+    setShowCustomFieldInput(false);
+    setCustomFieldName("");
     setEditDialogOpen(true);
   };
 
@@ -139,6 +156,8 @@ export function ReviewTemplateManager() {
       is_active: template.is_active,
       sections: template.sections,
     });
+    setShowCustomFieldInput(false);
+    setCustomFieldName("");
     setEditDialogOpen(true);
   };
 
@@ -288,6 +307,86 @@ export function ReviewTemplateManager() {
       ),
     }));
   };
+
+  const handleRemoveSection = (sectionId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      sections: prev.sections.filter(s => s.id !== sectionId),
+    }));
+    toast({
+      description: t("hr:reviews.fieldRemoved"),
+      className: "bg-[hsl(var(--jw-primary-green))] text-white",
+    });
+  };
+
+  const handleAddSection = (sectionId: string) => {
+    const sectionDef = ALL_AVAILABLE_SECTIONS.find(s => s.id === sectionId);
+    if (!sectionDef) return;
+    setFormData(prev => {
+      const maxOrder = prev.sections.reduce((max, s) => Math.max(max, s.order), 0);
+      return {
+        ...prev,
+        sections: [...prev.sections, { ...sectionDef, required: false, order: maxOrder + 1 }],
+      };
+    });
+    toast({
+      description: t("hr:reviews.fieldAdded"),
+      className: "bg-[hsl(var(--jw-primary-green))] text-white",
+    });
+  };
+
+  const handleAddCustomField = () => {
+    const name = customFieldName.trim();
+    if (!name) {
+      toast({
+        variant: "destructive",
+        description: t("hr:reviews.customFieldNameRequired"),
+      });
+      return;
+    }
+
+    // Check for duplicate names
+    const duplicate = formData.sections.some(
+      (s) => s.title.toLowerCase() === name.toLowerCase()
+    );
+    if (duplicate) {
+      toast({
+        variant: "destructive",
+        description: t("hr:reviews.customFieldNameDuplicate"),
+      });
+      return;
+    }
+
+    // Generate a slug-style ID from the title
+    const id = `custom_${name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
+    const maxOrder = formData.sections.reduce((max, s) => Math.max(max, s.order), 0);
+
+    setFormData((prev) => ({
+      ...prev,
+      sections: [
+        ...prev.sections,
+        {
+          id,
+          title: name,
+          type: "textarea" as const,
+          required: false,
+          order: maxOrder + 1,
+          isCustom: true,
+        },
+      ],
+    }));
+
+    setCustomFieldName("");
+    setShowCustomFieldInput(false);
+    toast({
+      description: t("hr:reviews.fieldAdded"),
+      className: "bg-[hsl(var(--jw-primary-green))] text-white",
+    });
+  };
+
+  const availableSectionsToAdd = ALL_AVAILABLE_SECTIONS.filter(
+    s => s.type !== "readonly" && !formData.sections.find(fs => fs.id === s.id)
+  );
 
   if (loading) {
     return (
@@ -476,7 +575,9 @@ export function ReviewTemplateManager() {
             <div className="space-y-2">
               <Label>{t("hr:reviews.templateSections")}</Label>
               <div className="space-y-2">
-                {formData.sections.map((section) => (
+                {formData.sections
+                  .sort((a, b) => a.order - b.order)
+                  .map((section) => (
                   <div
                     key={section.id}
                     className="flex items-center justify-between p-3 bg-[#FAFAF8] dark:bg-gray-800 rounded-lg border border-[#E6E6E4] dark:border-gray-700"
@@ -484,34 +585,120 @@ export function ReviewTemplateManager() {
                     <div className="flex items-center gap-3">
                       <GripVertical className="h-4 w-4 text-[#6B6B6B] cursor-move" />
                       <div>
-                        <p className="font-medium text-[#222222] dark:text-gray-200">
-                          {section.title}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-[#222222] dark:text-gray-200">
+                            {section.title}
+                          </p>
+                          {section.isCustom && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-purple-300 text-purple-600 bg-purple-50">
+                              {t("hr:reviews.customFieldLabel")}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-[#6B6B6B] dark:text-gray-400">
                           {section.type === "readonly" ? t("hr:reviews.readonlySection") : t("hr:reviews.editableSection")}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {section.type !== "readonly" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleSectionRequired(section.id)}
-                          className={section.required ? "text-[#0C5536]" : "text-[#6B6B6B]"}
-                        >
-                          {section.required ? (
-                            <Check className="h-4 w-4" />
-                          ) : null}
-                          <span className="text-xs ml-1">
-                            {section.required ? t("hr:reviews.required") : t("hr:reviews.optional")}
-                          </span>
-                        </Button>
-                      )}
+                    <div className="flex items-center gap-3">
+                      {section.type !== "readonly" ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={section.required}
+                              onCheckedChange={() => toggleSectionRequired(section.id)}
+                            />
+                            <span className={`text-xs font-medium ${section.required ? "text-[#0C5536]" : "text-[#6B6B6B]"}`}>
+                              {section.required ? t("hr:reviews.required") : t("hr:reviews.optional")}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveSection(section.id)}
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 ))}
               </div>
+
+              {/* Add Field */}
+              <Select
+                onValueChange={handleAddSection}
+                disabled={availableSectionsToAdd.length === 0}
+              >
+                <SelectTrigger className="border-dashed border-[#E6E6E4] dark:border-gray-600 text-[#6B6B6B]">
+                  <Plus className="h-4 w-4 mr-2" />
+                  <SelectValue
+                    placeholder={
+                      availableSectionsToAdd.length > 0
+                        ? t("hr:reviews.addField")
+                        : t("hr:reviews.allFieldsAdded")
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSectionsToAdd.map((section) => (
+                    <SelectItem key={section.id} value={section.id}>
+                      {section.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Add Custom Field */}
+              {showCustomFieldInput ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={customFieldName}
+                    onChange={(e) => setCustomFieldName(e.target.value)}
+                    placeholder={t("hr:reviews.customFieldNamePlaceholder")}
+                    className="border-[#E6E6E4] dark:border-gray-600 flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddCustomField();
+                      }
+                      if (e.key === "Escape") {
+                        setShowCustomFieldInput(false);
+                        setCustomFieldName("");
+                      }
+                    }}
+                    autoFocus
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleAddCustomField}
+                    className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+                  >
+                    {t("common:add", "Add")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowCustomFieldInput(false);
+                      setCustomFieldName("");
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="border-dashed border-purple-300 text-purple-600 hover:bg-purple-50 w-full"
+                  onClick={() => setShowCustomFieldInput(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("hr:reviews.addCustomField")}
+                </Button>
+              )}
             </div>
           </div>
 

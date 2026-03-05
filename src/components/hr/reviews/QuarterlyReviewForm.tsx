@@ -76,6 +76,7 @@ type QuarterlyReview = {
   goals_next_quarter: string | null;
   development_plan: string | null;
   manager_comments: string | null;
+  custom_fields: Record<string, string> | null;
 };
 
 type QuarterlyReviewFormProps = {
@@ -105,12 +106,14 @@ type TemplateSection = {
   type: "textarea" | "readonly" | "list";
   required: boolean;
   order: number;
+  isCustom?: boolean;
 };
 
 type ReviewTemplate = {
   id: string;
   name: string;
   sections: TemplateSection[];
+  is_default?: boolean;
 };
 
 // Default sections if no template is loaded
@@ -190,13 +193,16 @@ export function QuarterlyReviewForm({
     goals_next_quarter: null,
     development_plan: null,
     manager_comments: null,
+    custom_fields: null,
   });
+  const [customFields, setCustomFields] = useState<Record<string, string>>({});
   
   const [kpiSummary, setKpiSummary] = useState<ReviewSummary | null>(null);
   const [loading, setLoading] = useState(!!reviewId);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [allTemplates, setAllTemplates] = useState<ReviewTemplate[]>([]);
   const [template, setTemplate] = useState<ReviewTemplate | null>(null);
   const [templateSections, setTemplateSections] = useState<TemplateSection[]>(defaultSections);
   
@@ -207,45 +213,40 @@ export function QuarterlyReviewForm({
 
   const yearOptions = getYearOptions();
 
-  // Load active template on mount
+  // Load all active templates on mount
   useEffect(() => {
-    const loadTemplate = async () => {
+    const loadTemplates = async () => {
       try {
-        // First try to get the default template
-        let { data, error } = await supabase
+        const { data, error } = await supabase
           .from("review_templates")
-          .select("id, name, sections")
-          .eq("is_default", true)
+          .select("id, name, sections, is_default")
           .eq("is_active", true)
-          .single();
+          .order("is_default", { ascending: false })
+          .order("name", { ascending: true });
 
-        // If no default, get any active template
-        if (error || !data) {
-          const result = await supabase
-            .from("review_templates")
-            .select("id, name, sections")
-            .eq("is_active", true)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
-          
-          data = result.data;
-          error = result.error;
+        if (error || !data?.length) {
+          setTemplateSections(defaultSections);
+          return;
         }
 
-        if (data && !error) {
-          setTemplate(data as ReviewTemplate);
-          const sections = (data.sections as TemplateSection[]) || defaultSections;
-          setTemplateSections(sections.sort((a, b) => a.order - b.order));
-        }
+        const templates = data.map((t) => ({
+          ...t,
+          sections: (t.sections as TemplateSection[]) || defaultSections,
+        }));
+        setAllTemplates(templates);
+
+        const defaultTpl = templates.find((t) => t.is_default) || templates[0];
+        setTemplate(defaultTpl);
+        setTemplateSections(
+          [...defaultTpl.sections].sort((a, b) => a.order - b.order)
+        );
       } catch (error) {
-        console.error("Error loading template:", error);
-        // Use default sections if template loading fails
+        console.error("Error loading templates:", error);
         setTemplateSections(defaultSections);
       }
     };
 
-    loadTemplate();
+    loadTemplates();
   }, []);
 
   // Load existing review if reviewId provided
@@ -267,6 +268,10 @@ export function QuarterlyReviewForm({
           setReview(data as QuarterlyReview);
           setSelectedQuarter(data.quarter);
           setSelectedYear(data.year);
+          // Populate custom fields from JSONB
+          if (data.custom_fields && typeof data.custom_fields === "object") {
+            setCustomFields(data.custom_fields as Record<string, string>);
+          }
         }
       } catch (error) {
         console.error("Error loading review:", error);
@@ -376,6 +381,9 @@ export function QuarterlyReviewForm({
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
+      // Build custom fields: only include non-empty values
+      const customFieldsData = Object.keys(customFields).length > 0 ? customFields : {};
+
       const reviewData = {
         employee_id: employee.id,
         reviewer_id: user?.id,
@@ -390,6 +398,7 @@ export function QuarterlyReviewForm({
         goals_next_quarter: review.goals_next_quarter,
         development_plan: review.development_plan,
         manager_comments: review.manager_comments,
+        custom_fields: customFieldsData,
         updated_at: new Date().toISOString(),
       };
 
@@ -438,6 +447,7 @@ export function QuarterlyReviewForm({
     for (const section of requiredSections) {
       const fieldKey = sectionFieldMap[section.id];
       if (fieldKey) {
+        // Predefined field validation
         const value = review[fieldKey];
         if (!value || (typeof value === "string" && !value.trim())) {
           toast({
@@ -448,11 +458,26 @@ export function QuarterlyReviewForm({
           });
           return;
         }
+      } else if (section.isCustom) {
+        // Custom field validation
+        const value = customFields[section.id];
+        if (!value || !value.trim()) {
+          toast({
+            variant: "destructive",
+            description: t("hr:reviews.customFieldRequired", {
+              name: section.title,
+              defaultValue: `${section.title} is required`,
+            }),
+          });
+          return;
+        }
       }
     }
 
     setSubmitting(true);
     try {
+      const customFieldsData = Object.keys(customFields).length > 0 ? customFields : {};
+
       const reviewData = {
         employee_id: employee.id,
         reviewer_id: user?.id,
@@ -468,6 +493,7 @@ export function QuarterlyReviewForm({
         goals_next_quarter: review.goals_next_quarter,
         development_plan: review.development_plan,
         manager_comments: review.manager_comments,
+        custom_fields: customFieldsData,
         updated_at: new Date().toISOString(),
       };
 
@@ -635,9 +661,44 @@ export function QuarterlyReviewForm({
             </div>
           </div>
 
-          {/* Deadline Selection */}
+          {/* Template & Deadline Selection */}
           <div className="mt-4 pt-4 border-t border-[#E6E6E4] dark:border-gray-700">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Template Selector - only for new reviews */}
+              {!reviewId && allTemplates.length > 1 && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-[#6B6B6B] dark:text-gray-400 flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    {t("hr:reviews.selectTemplate")}
+                  </Label>
+                  <Select
+                    value={template?.id || ""}
+                    onValueChange={(id) => {
+                      const selected = allTemplates.find((t) => t.id === id);
+                      if (selected) {
+                        setTemplate(selected);
+                        setTemplateSections(
+                          [...selected.sections].sort((a, b) => a.order - b.order)
+                        );
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="border-[#E6E6E4] dark:border-gray-600">
+                      <FileText className="h-4 w-4 mr-2 text-[#6B6B6B]" />
+                      <SelectValue placeholder={t("hr:reviews.selectTemplatePlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allTemplates.map((tpl) => (
+                        <SelectItem key={tpl.id} value={tpl.id}>
+                          {tpl.name}{tpl.is_default ? ` (${t("hr:reviews.active")})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Deadline */}
               <div className="space-y-1">
                 <Label className="text-xs text-[#6B6B6B] dark:text-gray-400 flex items-center gap-1">
                   <Clock className="h-3 w-3" />
@@ -655,9 +716,6 @@ export function QuarterlyReviewForm({
                   disabled={!isEditable}
                   className="w-full border-[#E6E6E4] dark:border-gray-600"
                 />
-                <p className="text-xs text-[#6B6B6B] dark:text-gray-400">
-                  {t("hr:reviews.deadlineHint", "Set a deadline for this review to be completed")}
-                </p>
               </div>
             </div>
           </div>
@@ -981,23 +1039,34 @@ export function QuarterlyReviewForm({
         .filter((section) => section.type !== "readonly") // KPI section is handled separately above
         .map((section) => {
           const fieldKey = sectionFieldMap[section.id];
-          if (!fieldKey) return null;
+          const isCustomField = !fieldKey && section.isCustom;
 
-          const value = review[fieldKey] as string | null;
-          const icon = sectionIcons[section.id] || <CheckCircle2 className="h-5 w-5 text-[#6B6B6B]" />;
-          const translationKey = section.id.replace(/_/g, "");
-          
+          // Skip sections that are neither predefined nor custom
+          if (!fieldKey && !isCustomField) return null;
+
+          const value = isCustomField
+            ? (customFields[section.id] || "")
+            : (review[fieldKey!] as string | null) || "";
+          const icon = sectionIcons[section.id] || <CheckCircle2 className="h-5 w-5 text-purple-500" />;
+
           // Get translated title, fallback to template title
-          const title = t(`hr:reviews.${section.id.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())}`, {
-            defaultValue: section.title,
-          });
+          const title = isCustomField
+            ? section.title
+            : t(`hr:reviews.${section.id.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())}`, {
+                defaultValue: section.title,
+              });
 
           return (
-            <Card key={section.id} className="border-[#E6E6E4] dark:border-gray-700">
+            <Card key={section.id} className={`border-[#E6E6E4] dark:border-gray-700 ${isCustomField ? "border-l-4 border-l-purple-400" : ""}`}>
               <CardHeader>
                 <CardTitle className={`flex items-center gap-2 text-lg ${isRtl ? "flex-row-reverse" : ""}`}>
                   {icon}
                   {title}
+                  {isCustomField && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-purple-300 text-purple-600 bg-purple-50 font-normal">
+                      {t("hr:reviews.customFieldLabel")}
+                    </Badge>
+                  )}
                   {section.required ? (
                     <span className="text-red-500">*</span>
                   ) : (
@@ -1007,14 +1076,22 @@ export function QuarterlyReviewForm({
               </CardHeader>
               <CardContent>
                 <Textarea
-                  value={value || ""}
-                  onChange={(e) =>
-                    setReview((prev) => ({ ...prev, [fieldKey]: e.target.value }))
+                  value={value}
+                  onChange={(e) => {
+                    if (isCustomField) {
+                      setCustomFields((prev) => ({ ...prev, [section.id]: e.target.value }));
+                    } else {
+                      setReview((prev) => ({ ...prev, [fieldKey!]: e.target.value }));
+                    }
+                  }}
+                  placeholder={
+                    isCustomField
+                      ? `${t("common:enter", "Enter")} ${section.title.toLowerCase()}...`
+                      : t(`hr:reviews.${section.id}Placeholder`, {
+                          defaultValue: `Enter ${section.title.toLowerCase()}...`,
+                        })
                   }
-                  placeholder={t(`hr:reviews.${section.id}Placeholder`, {
-                    defaultValue: `Enter ${section.title.toLowerCase()}...`,
-                  })}
-                  className={`min-h-[${section.id === "manager_comments" ? "80" : "100"}px] border-[#E6E6E4] dark:border-gray-600`}
+                  className={`min-h-[100px] border-[#E6E6E4] dark:border-gray-600`}
                   dir={isRtl ? "rtl" : "ltr"}
                   disabled={!isEditable}
                 />

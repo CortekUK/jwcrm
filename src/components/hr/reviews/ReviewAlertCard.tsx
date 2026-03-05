@@ -151,9 +151,9 @@ export function ReviewAlertCard() {
 
   if (loading) {
     return (
-      <Card className="border-[#E6E6E4]">
+      <Card className="border-[#E6E6E4] dark:border-border">
         <CardHeader className="pb-2">
-          <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+          <CardTitle className="text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
             <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
               <FileText className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
             </div>
@@ -171,9 +171,9 @@ export function ReviewAlertCard() {
 
   if (totalAlerts === 0) {
     return (
-      <Card className="border-[#E6E6E4]">
+      <Card className="border-[#E6E6E4] dark:border-border">
         <CardHeader className="pb-2">
-          <CardTitle className={`text-xl font-semibold text-[#0C5536] flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`} style={{ fontFamily: 'Playfair Display, serif' }}>
+          <CardTitle className={`text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B] flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`} style={{ fontFamily: 'Playfair Display, serif' }}>
             <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
               <FileText className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
             </div>
@@ -181,7 +181,7 @@ export function ReviewAlertCard() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 border border-green-200">
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
             <CheckCircle className="h-8 w-8 text-green-500 shrink-0" />
             <div>
               <p className="font-medium text-green-700">{t("hr:reviews.noReviewAlerts")}</p>
@@ -206,10 +206,10 @@ export function ReviewAlertCard() {
   }
 
   return (
-    <Card className="border-[#E6E6E4]">
+    <Card className="border-[#E6E6E4] dark:border-border">
       <CardHeader className="pb-2">
         <div className={`flex items-center justify-between ${isRtl ? "flex-row-reverse" : ""}`}>
-          <CardTitle className={`text-xl font-semibold text-[#0C5536] flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`} style={{ fontFamily: 'Playfair Display, serif' }}>
+          <CardTitle className={`text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B] flex items-center gap-2 ${isRtl ? "flex-row-reverse" : ""}`} style={{ fontFamily: 'Playfair Display, serif' }}>
             <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
               <FileText className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
             </div>
@@ -224,19 +224,19 @@ export function ReviewAlertCard() {
         {/* Stats Row */}
         <div className="grid grid-cols-3 gap-2">
           {stats.overdue > 0 && (
-            <div className="p-2 bg-red-50 rounded-lg text-center border border-red-200">
+            <div className="p-2 bg-red-50 dark:bg-red-950/30 rounded-lg text-center border border-red-200 dark:border-red-800">
               <p className="text-lg font-bold text-red-600">{stats.overdue}</p>
               <p className="text-xs text-red-600">{t("hr:reviews.overdue")}</p>
             </div>
           )}
           {stats.pendingApproval > 0 && (
-            <div className="p-2 bg-blue-50 rounded-lg text-center border border-blue-200">
+            <div className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-center border border-blue-200 dark:border-blue-800">
               <p className="text-lg font-bold text-blue-600">{stats.pendingApproval}</p>
               <p className="text-xs text-blue-600">{t("hr:reviews.pendingApproval")}</p>
             </div>
           )}
           {stats.upcomingDeadlines > 0 && (
-            <div className="p-2 bg-[#FFF9E6] rounded-lg text-center border border-[#C6A03B]/30">
+            <div className="p-2 bg-[#FFF9E6] dark:bg-[#8B6914]/20 rounded-lg text-center border border-[#C6A03B]/30">
               <p className="text-lg font-bold text-[#C6A03B]">{stats.upcomingDeadlines}</p>
               <p className="text-xs text-[#C6A03B]">{t("hr:reviews.upcoming")}</p>
             </div>
@@ -250,10 +250,10 @@ export function ReviewAlertCard() {
               key={`${alert.id}-${alert.type}`}
               className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                 alert.type === "overdue"
-                  ? "border-red-200 bg-red-50/50 hover:bg-red-50"
+                  ? "border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20 hover:bg-red-50 dark:hover:bg-red-950/30"
                   : alert.type === "pending_approval"
-                  ? "border-blue-200 bg-blue-50/50 hover:bg-blue-50"
-                  : "border-[#C6A03B]/30 bg-[#FFF9E6]/50 hover:bg-[#FFF9E6]"
+                  ? "border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                  : "border-[#C6A03B]/30 bg-[#FFF9E6]/50 dark:bg-[#8B6914]/10 hover:bg-[#FFF9E6] dark:hover:bg-[#8B6914]/20"
               }`}
               onClick={() => router.push(`/hr/reviews/${alert.id}`)}
             >
@@ -269,10 +269,10 @@ export function ReviewAlertCard() {
                 )}
                 
                 <div className={`flex-1 min-w-0 ${isRtl ? "text-right" : ""}`}>
-                  <p className="font-medium text-[#222222] truncate">
+                  <p className="font-medium text-[#222222] dark:text-foreground truncate">
                     {alert.employee_name}
                   </p>
-                  <p className="text-xs text-[#6B6B6B]">
+                  <p className="text-xs text-[#6B6B6B] dark:text-muted-foreground">
                     {alert.department_name && `${alert.department_name} • `}
                     Q{alert.quarter} {alert.year}
                   </p>
@@ -280,17 +280,17 @@ export function ReviewAlertCard() {
 
                 <div className={`flex-shrink-0 ${isRtl ? "text-left" : "text-right"}`}>
                   {alert.type === "overdue" && (
-                    <Badge className="bg-red-100 text-red-700 text-xs">
+                    <Badge className="bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 text-xs">
                       {alert.days_overdue} {t("hr:reviews.daysLate")}
                     </Badge>
                   )}
                   {alert.type === "pending_approval" && (
-                    <Badge className="bg-blue-100 text-blue-700 text-xs">
+                    <Badge className="bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 text-xs">
                       {t("hr:reviews.awaitingApproval")}
                     </Badge>
                   )}
                   {alert.type === "upcoming_deadline" && (
-                    <Badge className="bg-[#FFF9E6] text-[#C6A03B] text-xs">
+                    <Badge className="bg-[#FFF9E6] dark:bg-[#8B6914]/20 text-[#C6A03B] text-xs">
                       {alert.days_until === 0 
                         ? t("hr:reviews.dueToday")
                         : t("hr:reviews.dueInDays", { days: alert.days_until })

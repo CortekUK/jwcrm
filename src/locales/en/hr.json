@@ -1190,7 +1190,24 @@
     "importToGoals": "Import to Goals",
     "importToComments": "Import to Comments",
     "contentImported": "Content imported successfully",
-    "noContentInMonthlyReview": "No content available in this monthly review"
+    "noContentInMonthlyReview": "No content available in this monthly review",
+
+    "selectTemplate": "Review Template",
+    "selectTemplatePlaceholder": "Select a template...",
+    "addField": "Add Field",
+    "removeField": "Remove",
+    "cannotRemoveKPI": "KPI Performance section cannot be removed",
+    "allFieldsAdded": "All available fields have been added",
+    "fieldAdded": "Field added",
+    "fieldRemoved": "Field removed",
+
+    "addCustomField": "Add Custom Field",
+    "customFieldName": "Field Name",
+    "customFieldNamePlaceholder": "Enter field name...",
+    "customFieldLabel": "Custom",
+    "customFieldNameRequired": "Field name is required",
+    "customFieldNameDuplicate": "A field with this name already exists",
+    "customFieldRequired": "{{name}} is required"
   },
 
   "quarterlyReviews": "Quarterly Reviews",
@@ -1277,5 +1294,30 @@
   "pleaseSelectStatus": "Please select at least one status",
   "leaveTypes": "Leave Types",
   "statuses": "Statuses",
-  "leaveAllIfNone": "all if none selected"
+  "leaveAllIfNone": "all if none selected",
+
+  "customKpis": "Custom KPIs",
+  "individualGoals": "Custom / Individual Goals",
+  "addCustomKpi": "Add Custom KPI",
+  "editCustomKpi": "Edit Custom KPI",
+  "deadline": "Deadline",
+  "customScore": "Custom Score",
+  "roleScore": "Role Score",
+  "noCustomKpis": "No custom KPIs assigned",
+  "noCustomKpisDesc": "Click + to add individual goals for this employee.",
+  "customKpiAdded": "Custom KPI added successfully",
+  "customKpiUpdated": "Custom KPI updated successfully",
+  "customKpiArchived": "Custom KPI archived successfully",
+  "customKpiRestored": "Custom KPI restored successfully",
+  "custom": "Custom",
+  "customKpisOnly": "Custom KPIs only",
+  "roleBasedKpis": "Role-Based KPIs",
+  "customKpiCount": "{{count}} Custom KPIs",
+  "deadlineApproaching": "Deadline approaching",
+  "deadlinePassed": "Deadline passed",
+  "noDeadline": "No deadline",
+  "weightingSummary": "Weighting: {{used}}% of 100% used",
+  "saveAll": "Save All",
+  "savingAll": "Saving...",
+  "viewDetails": "View Details"
 }

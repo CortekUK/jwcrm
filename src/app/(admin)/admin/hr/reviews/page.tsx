@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -429,9 +428,9 @@ export default function AdminQuarterlyReviewsPage() {
             <FileText className={`h-4 w-4 ${isRtl ? "ml-2" : "mr-2"}`} />
             {t("hr:reviews.allReviews")}
             {!loadingStats && stats.totalReviews > 0 && (
-              <Badge variant="secondary" className="ml-2 bg-white/20 text-inherit">
+              <span className="ml-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-medium bg-white/20 text-inherit">
                 {stats.totalReviews}
-              </Badge>
+              </span>
             )}
           </TabsTrigger>
           <TabsTrigger
@@ -441,9 +440,9 @@ export default function AdminQuarterlyReviewsPage() {
             <Clock className={`h-4 w-4 ${isRtl ? "ml-2" : "mr-2"}`} />
             {t("hr:reviews.pendingApproval")}
             {!loadingStats && stats.pendingApproval > 0 && (
-              <Badge variant="secondary" className="ml-2 bg-blue-500 text-white">
+              <span className="ml-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-500 text-white">
                 {stats.pendingApproval}
-              </Badge>
+              </span>
             )}
           </TabsTrigger>
           <TabsTrigger
@@ -453,9 +452,9 @@ export default function AdminQuarterlyReviewsPage() {
             <CheckCircle className={`h-4 w-4 ${isRtl ? "ml-2" : "mr-2"}`} />
             {t("hr:reviews.completed")}
             {!loadingStats && stats.completedReviews > 0 && (
-              <Badge variant="secondary" className="ml-2 bg-green-500 text-white">
+              <span className="ml-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-500 text-white">
                 {stats.completedReviews}
-              </Badge>
+              </span>
             )}
           </TabsTrigger>
         </TabsList>

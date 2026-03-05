@@ -1189,7 +1189,24 @@
     "importToGoals": "استيراد إلى الأهداف",
     "importToComments": "استيراد إلى التعليقات",
     "contentImported": "تم استيراد المحتوى بنجاح",
-    "noContentInMonthlyReview": "لا يوجد محتوى متاح في هذه المراجعة الشهرية"
+    "noContentInMonthlyReview": "لا يوجد محتوى متاح في هذه المراجعة الشهرية",
+
+    "selectTemplate": "قالب المراجعة",
+    "selectTemplatePlaceholder": "اختر قالباً...",
+    "addField": "إضافة حقل",
+    "removeField": "إزالة",
+    "cannotRemoveKPI": "لا يمكن إزالة قسم أداء مؤشرات الأداء",
+    "allFieldsAdded": "تمت إضافة جميع الحقول المتاحة",
+    "fieldAdded": "تمت إضافة الحقل",
+    "fieldRemoved": "تمت إزالة الحقل",
+
+    "addCustomField": "إضافة حقل مخصص",
+    "customFieldName": "اسم الحقل",
+    "customFieldNamePlaceholder": "أدخل اسم الحقل...",
+    "customFieldLabel": "مخصص",
+    "customFieldNameRequired": "اسم الحقل مطلوب",
+    "customFieldNameDuplicate": "يوجد حقل بهذا الاسم بالفعل",
+    "customFieldRequired": "{{name}} مطلوب"
   },
 
   "quarterlyReviews": "المراجعات الفصلية",
@@ -1276,5 +1293,30 @@
   "pleaseSelectStatus": "يرجى تحديد حالة واحدة على الأقل",
   "leaveTypes": "أنواع الإجازات",
   "statuses": "الحالات",
-  "leaveAllIfNone": "الكل إذا لم يتم التحديد"
+  "leaveAllIfNone": "الكل إذا لم يتم التحديد",
+
+  "customKpis": "مؤشرات أداء مخصصة",
+  "individualGoals": "أهداف مخصصة / فردية",
+  "addCustomKpi": "إضافة مؤشر أداء مخصص",
+  "editCustomKpi": "تعديل مؤشر أداء مخصص",
+  "deadline": "الموعد النهائي",
+  "customScore": "درجة المؤشرات المخصصة",
+  "roleScore": "درجة مؤشرات الدور",
+  "noCustomKpis": "لا توجد مؤشرات أداء مخصصة",
+  "noCustomKpisDesc": "انقر على + لإضافة أهداف فردية لهذا الموظف.",
+  "customKpiAdded": "تمت إضافة مؤشر الأداء المخصص بنجاح",
+  "customKpiUpdated": "تم تحديث مؤشر الأداء المخصص بنجاح",
+  "customKpiArchived": "تمت أرشفة مؤشر الأداء المخصص بنجاح",
+  "customKpiRestored": "تمت استعادة مؤشر الأداء المخصص بنجاح",
+  "custom": "مخصص",
+  "customKpisOnly": "مؤشرات أداء مخصصة فقط",
+  "roleBasedKpis": "مؤشرات أداء الدور الوظيفي",
+  "customKpiCount": "{{count}} مؤشرات أداء مخصصة",
+  "deadlineApproaching": "اقتراب الموعد النهائي",
+  "deadlinePassed": "انتهى الموعد النهائي",
+  "noDeadline": "لا يوجد موعد نهائي",
+  "weightingSummary": "الترجيح: {{used}}% من 100% مستخدم",
+  "saveAll": "حفظ الكل",
+  "savingAll": "جارٍ الحفظ...",
+  "viewDetails": "عرض التفاصيل"
 }
