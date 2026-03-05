@@ -15,6 +15,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useFinanceRole } from "@/hooks/useFinanceRole";
 import { FinanceTransaction, Proposal } from "@/types/finance";
 import { TransactionExportButton } from "@/components/finance/TransactionExportButton";
 import { InvoiceExportButton } from "@/components/finance/InvoiceExportButton";
@@ -74,6 +75,7 @@ interface FinanceAnalytics {
 export default function FinanceReportsPage() {
   const { t, i18n } = useTranslation(["finance", "common"]);
   const isRtl = i18n.language === "ar";
+  const { isHead, userId } = useFinanceRole();
 
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
@@ -81,18 +83,33 @@ export default function FinanceReportsPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [isHead, userId]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [txResult, propResult] = await Promise.all([
-        supabase.from("finance_transactions").select("*").order("transaction_date", { ascending: false }),
-        supabase.from("proposals").select("*, lead:leads(id, full_name, email, company_name)").order("created_at", { ascending: false }),
-      ]);
+      // Build transaction query — employees see only their own
+      let txQuery = supabase.from("finance_transactions").select("*").order("transaction_date", { ascending: false });
+      if (!isHead && userId) {
+        txQuery = txQuery.eq("created_by", userId);
+      }
 
-      if (txResult.data) setTransactions(txResult.data as FinanceTransaction[]);
-      if (propResult.data) setProposals(propResult.data as Proposal[]);
+      // Employees skip proposals entirely
+      const promises: Promise<any>[] = [txQuery];
+      if (isHead) {
+        promises.push(
+          supabase.from("proposals").select("*, lead:leads(id, full_name, email, company_name)").order("created_at", { ascending: false })
+        );
+      }
+
+      const results = await Promise.all(promises);
+
+      if (results[0].data) setTransactions(results[0].data as FinanceTransaction[]);
+      if (isHead && results[1]?.data) {
+        setProposals(results[1].data as Proposal[]);
+      } else if (!isHead) {
+        setProposals([]);
+      }
     } catch (error) {
       console.error("Error fetching finance data:", error);
     } finally {
@@ -271,7 +288,7 @@ export default function FinanceReportsPage() {
         <h2 className="text-lg font-semibold text-[hsl(var(--jw-primary-green))] mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
           {t("finance:reports.overview", "Overview")}
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-2 ${isHead ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-4`}>
           {/* Total Revenue */}
           <Card className="border-[#E6E6E4]">
             <CardContent className="p-4">
@@ -331,24 +348,26 @@ export default function FinanceReportsPage() {
             </CardContent>
           </Card>
 
-          {/* Outstanding Invoices */}
-          <Card className="border-[#E6E6E4]">
-            <CardContent className="p-4">
-              {loading ? (
-                <Skeleton className="h-16 w-full" />
-              ) : (
-                <>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-[#6B6B6B]">{t("finance:reports.outstanding", "Outstanding")}</p>
-                    <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-[#0C5536]" />
+          {/* Outstanding Invoices (heads only) */}
+          {isHead && (
+            <Card className="border-[#E6E6E4]">
+              <CardContent className="p-4">
+                {loading ? (
+                  <Skeleton className="h-16 w-full" />
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-[#6B6B6B]">{t("finance:reports.outstanding", "Outstanding")}</p>
+                      <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
+                        <Clock className="h-5 w-5 text-[#0C5536]" />
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-2xl font-bold mt-2 text-[#222222]">{formatCurrency(analytics.outstandingInvoices)}</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                    <p className="text-2xl font-bold mt-2 text-[#222222]">{formatCurrency(analytics.outstandingInvoices)}</p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -461,53 +480,55 @@ export default function FinanceReportsPage() {
             </CardContent>
           </Card>
 
-          {/* Invoice Status */}
-          <Card className="border-[#E6E6E4]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium text-[#222222]">
-                {t("finance:reports.invoiceStatus", "Invoice Status")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-[200px] w-full" />
-              ) : analytics.invoicesByStatus.length > 0 ? (
-                <div className="h-[200px]">
-                  <div className="h-[140px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={analytics.invoicesByStatus}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={65}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {analytics.invoicesByStatus.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
+          {/* Invoice Status (heads only) */}
+          {isHead && (
+            <Card className="border-[#E6E6E4]">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium text-[#222222]">
+                  {t("finance:reports.invoiceStatus", "Invoice Status")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <Skeleton className="h-[200px] w-full" />
+                ) : analytics.invoicesByStatus.length > 0 ? (
+                  <div className="h-[200px]">
+                    <div className="h-[140px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={analytics.invoicesByStatus}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={40}
+                            outerRadius={65}
+                            paddingAngle={2}
+                            dataKey="value"
+                          >
+                            {analytics.invoicesByStatus.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-3 mt-2">
+                      {analytics.invoicesByStatus.map((item) => (
+                        <div key={item.name} className="flex items-center gap-1.5 text-xs">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                          <span className="text-[#555555]">{item.name}: {item.value}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap justify-center gap-3 mt-2">
-                    {analytics.invoicesByStatus.map((item) => (
-                      <div key={item.name} className="flex items-center gap-1.5 text-xs">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-[#555555]">{item.name}: {item.value}</span>
-                      </div>
-                    ))}
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-[#777777]">
+                    {t("finance:reports.noInvoices", "No invoices recorded")}
                   </div>
-                </div>
-              ) : (
-                <div className="h-[200px] flex items-center justify-center text-[#777777]">
-                  {t("finance:reports.noInvoices", "No invoices recorded")}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -536,24 +557,26 @@ export default function FinanceReportsPage() {
             </CardContent>
           </Card>
 
-          {/* Invoices Export */}
-          <Card className="border-[#E6E6E4] hover:border-[#C6A03B] transition-colors">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center flex-shrink-0">
-                  <FileText className="h-5 w-5 text-[#0C5536]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-[#222222]">{t("finance:reports.invoices", "Invoices")}</h3>
-                  <div className="flex items-center gap-2 text-xs text-[#999999] mt-1 mb-3">
-                    <FileSpreadsheet className="h-3 w-3" />
-                    <span>CSV</span>
+          {/* Invoices Export (heads only) */}
+          {isHead && (
+            <Card className="border-[#E6E6E4] hover:border-[#C6A03B] transition-colors">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center flex-shrink-0">
+                    <FileText className="h-5 w-5 text-[#0C5536]" />
                   </div>
-                  <InvoiceExportButton />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-[#222222]">{t("finance:reports.invoices", "Invoices")}</h3>
+                    <div className="flex items-center gap-2 text-xs text-[#999999] mt-1 mb-3">
+                      <FileSpreadsheet className="h-3 w-3" />
+                      <span>CSV</span>
+                    </div>
+                    <InvoiceExportButton />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

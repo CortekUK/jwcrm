@@ -22,6 +22,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -41,6 +42,7 @@ import {
   EXPENSE_CATEGORIES,
 } from "@/types/finance";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AddTransactionDialogProps {
   open: boolean;
@@ -74,6 +76,7 @@ export function AddTransactionDialog({
   defaultType = "earning",
 }: AddTransactionDialogProps) {
   const { t } = useTranslation("finance");
+  const { profile } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [existingReceiptPath, setExistingReceiptPath] = useState<string | null>(null);
@@ -220,19 +223,26 @@ export function AddTransactionDialog({
         ? `/api/finance/transactions/${editTransaction.id}`
         : "/api/finance/transactions";
 
+      const payload: Record<string, unknown> = {
+        type: data.type,
+        category: data.category,
+        amount: data.amount,
+        currency: data.currency,
+        description: data.description || null,
+        reference_number: data.reference_number || null,
+        receipt_path: receiptPath,
+        transaction_date: data.transaction_date,
+      };
+
+      // Only include created_by on new transactions (POST), not edits (PUT)
+      if (!editTransaction && profile?.user_id) {
+        payload.created_by = profile.user_id;
+      }
+
       const response = await fetch(url, {
         method: editTransaction ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: data.type,
-          category: data.category,
-          amount: data.amount,
-          currency: data.currency,
-          description: data.description || null,
-          reference_number: data.reference_number || null,
-          receipt_path: receiptPath,
-          transaction_date: data.transaction_date,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -377,7 +387,22 @@ export function AddTransactionDialog({
                 <FormItem>
                   <FormLabel>{t("transactionDate")} *</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <DatePicker
+                      date={field.value ? new Date(field.value + "T00:00:00") : undefined}
+                      onDateChange={(date) => {
+                        if (date) {
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, "0");
+                          const day = String(date.getDate()).padStart(2, "0");
+                          field.onChange(`${year}-${month}-${day}`);
+                        } else {
+                          field.onChange("");
+                        }
+                      }}
+                      placeholder={t("transactionDate")}
+                      className="w-full"
+                      clearable={false}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

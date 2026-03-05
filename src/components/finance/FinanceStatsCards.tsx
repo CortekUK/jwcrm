@@ -26,9 +26,10 @@ interface FinanceStatsCardsProps {
   previousStats?: ExtendedFinanceStats;
   isLoading?: boolean;
   onCardClick?: (action: KPICardAction) => void;
+  hideInvoiceCards?: boolean;
 }
 
-export function FinanceStatsCards({ stats, previousStats, isLoading, onCardClick }: FinanceStatsCardsProps) {
+export function FinanceStatsCards({ stats, previousStats, isLoading, onCardClick, hideInvoiceCards }: FinanceStatsCardsProps) {
   const { t } = useTranslation("finance");
 
   const formatCurrency = (amount: number, currency: string = "AED") => {
@@ -104,10 +105,17 @@ export function FinanceStatsCards({ stats, previousStats, isLoading, onCardClick
     },
   ];
 
+  const INVOICE_CARD_IDS = ["totalInvoices", "paidInvoices", "pendingInvoices"];
+  const visibleItems = hideInvoiceCards
+    ? statItems.filter((item) => !INVOICE_CARD_IDS.includes(item.id))
+    : statItems;
+
+  const gridCols = hideInvoiceCards ? "xl:grid-cols-3" : "xl:grid-cols-6";
+
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {[...Array(6)].map((_, i) => (
+      <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 ${gridCols}`}>
+        {[...Array(visibleItems.length)].map((_, i) => (
           <Card key={i} className="border-[#E6E6E4]">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
@@ -124,8 +132,8 @@ export function FinanceStatsCards({ stats, previousStats, isLoading, onCardClick
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-      {statItems.map((item) => {
+    <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 ${gridCols}`}>
+      {visibleItems.map((item) => {
         const isPositiveChange = item.comparison 
           ? (item.invertComparison ? !item.comparison.isPositive : item.comparison.isPositive)
           : null;

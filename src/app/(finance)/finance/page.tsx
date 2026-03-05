@@ -44,6 +44,7 @@ import {
   ProposalStatus,
 } from "@/types/finance";
 import { supabase } from "@/integrations/supabase/client";
+import { useFinanceRole } from "@/hooks/useFinanceRole";
 import { Wallet, FileText, ArrowLeftRight, BarChart3, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
@@ -51,21 +52,25 @@ export default function FinanceDashboard() {
   const { t } = useTranslation("finance");
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
+  const { isHead, isLoading: isRoleLoading, userId } = useFinanceRole();
 
-  // State
-  const [activeTab, setActiveTab] = useState(tabParam === "transactions" ? "transactions" : tabParam === "analytics" ? "analytics" : "invoices");
+  // State - employees default to "transactions" since they can't see invoices
+  const defaultTab = tabParam === "transactions" ? "transactions" : tabParam === "analytics" ? "analytics" : "invoices";
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Update tab when URL changes
+  // Update tab when URL changes or role loads
   useEffect(() => {
     if (tabParam === "transactions") {
       setActiveTab("transactions");
     } else if (tabParam === "analytics") {
       setActiveTab("analytics");
+    } else if (!isHead && !isRoleLoading) {
+      setActiveTab("transactions");
     } else {
       setActiveTab("invoices");
     }
-  }, [tabParam]);
+  }, [tabParam, isHead, isRoleLoading]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
   const [stats, setStats] = useState<FinanceStats>({
@@ -104,8 +109,12 @@ export default function FinanceDashboard() {
   const [deleteTransaction, setDeleteTransaction] = useState<FinanceTransaction | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<Proposal | null>(null);
 
-  // Fetch proposals
+  // Fetch proposals (skip for finance employees — they can't see invoices)
   const fetchProposals = useCallback(async () => {
+    if (!isHead) {
+      setProposals([]);
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from("proposals")
@@ -121,9 +130,9 @@ export default function FinanceDashboard() {
       console.error("Error fetching proposals:", error);
       toast.error(t("failedToFetchInvoices"));
     }
-  }, [t]);
+  }, [t, isHead]);
 
-  // Fetch transactions
+  // Fetch transactions (scoped to own data for finance employees)
   const fetchTransactions = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -136,6 +145,9 @@ export default function FinanceDashboard() {
       if (endDate) {
         params.append("endDate", endDate);
       }
+      if (!isHead && userId) {
+        params.append("created_by", userId);
+      }
 
       const response = await fetch(`/api/finance/transactions?${params}`);
       if (!response.ok) throw new Error("Failed to fetch transactions");
@@ -145,7 +157,7 @@ export default function FinanceDashboard() {
       console.error("Error fetching transactions:", error);
       toast.error(t("failedToFetchTransactions"));
     }
-  }, [transactionTypeFilter, startDate, endDate, t]);
+  }, [transactionTypeFilter, startDate, endDate, t, isHead, userId]);
 
   // Initial load
   useEffect(() => {
@@ -281,23 +293,26 @@ export default function FinanceDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <FinanceStatsCards 
-        stats={stats} 
+      <FinanceStatsCards
+        stats={stats}
         previousStats={previousStats}
-        isLoading={isLoading} 
+        isLoading={isLoading}
         onCardClick={handleKPICardClick}
+        hideInvoiceCards={!isHead}
       />
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-white border border-[#E6E6E4] p-1.5 rounded-xl w-full grid grid-cols-3 h-auto">
-          <TabsTrigger
-            value="invoices"
-            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
-          >
-            <FileText className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-            {t("invoices")}
-          </TabsTrigger>
+        <TabsList className={`bg-white border border-[#E6E6E4] p-1.5 rounded-xl w-full grid ${isHead ? "grid-cols-3" : "grid-cols-2"} h-auto`}>
+          {isHead && (
+            <TabsTrigger
+              value="invoices"
+              className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+            >
+              <FileText className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+              {t("invoices")}
+            </TabsTrigger>
+          )}
           <TabsTrigger
             value="transactions"
             className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
@@ -314,29 +329,31 @@ export default function FinanceDashboard() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Invoices Tab */}
-        <TabsContent value="invoices" className="space-y-4">
-          <Card className="border-[#E6E6E4]">
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-                <CardTitle className="text-xl font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
-                  {t("invoicesList")}
-                </CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <InvoiceTable
-                proposals={filteredProposals}
-                isLoading={isLoading}
-                statusFilter={invoiceStatusFilter}
-                onStatusFilterChange={setInvoiceStatusFilter}
-                onViewProposal={handleViewProposal}
-                onDownloadInvoice={handleDownloadInvoice}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Invoices Tab (heads only) */}
+        {isHead && (
+          <TabsContent value="invoices" className="space-y-4">
+            <Card className="border-[#E6E6E4]">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+                  <CardTitle className="text-xl font-semibold text-[#0C5536]" style={{ fontFamily: 'Playfair Display, serif' }}>
+                    {t("invoicesList")}
+                  </CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <InvoiceTable
+                  proposals={filteredProposals}
+                  isLoading={isLoading}
+                  statusFilter={invoiceStatusFilter}
+                  onStatusFilterChange={setInvoiceStatusFilter}
+                  onViewProposal={handleViewProposal}
+                  onDownloadInvoice={handleDownloadInvoice}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* Transactions Tab */}
         <TabsContent value="transactions" className="space-y-4">

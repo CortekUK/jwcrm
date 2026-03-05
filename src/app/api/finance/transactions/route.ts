@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const category = searchParams.get("category");
+    const createdBy = searchParams.get("created_by");
 
     // Build query
     let query = supabaseAdmin
@@ -34,6 +35,10 @@ export async function GET(request: NextRequest) {
 
     if (endDate) {
       query = query.lte("transaction_date", endDate);
+    }
+
+    if (createdBy) {
+      query = query.eq("created_by", createdBy);
     }
 
     const { data, error } = await query;
@@ -62,6 +67,7 @@ export async function POST(request: NextRequest) {
       reference_number,
       receipt_path,
       transaction_date,
+      created_by,
     } = body;
 
     // Validate required fields
@@ -100,6 +106,7 @@ export async function POST(request: NextRequest) {
         reference_number: reference_number || null,
         receipt_path: receipt_path || null,
         transaction_date: transaction_date || new Date().toISOString().split("T")[0],
+        created_by: created_by || null,
       })
       .select()
       .single();
