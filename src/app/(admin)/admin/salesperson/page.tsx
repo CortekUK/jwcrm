@@ -54,8 +54,8 @@ interface Reminder {
   lead_id: string;
   title: string;
   description: string | null;
-  due_date: string;
-  is_completed: boolean;
+  remind_at: string;
+  status: string | null;
   lead?: {
     full_name: string;
     email: string;
@@ -245,7 +245,7 @@ export default function SalespersonDashboard() {
   // Upcoming reminders (due today or in the future)
   const upcomingReminders = useMemo(() => {
     return reminders.filter(r => {
-      const dueDate = parseISO(r.due_date);
+      const dueDate = parseISO(r.remind_at);
       return isToday(dueDate) || isFuture(dueDate);
     }).slice(0, 5);
   }, [reminders]);
@@ -253,7 +253,7 @@ export default function SalespersonDashboard() {
   // Overdue reminders
   const overdueReminders = useMemo(() => {
     return reminders.filter(r => {
-      const dueDate = parseISO(r.due_date);
+      const dueDate = parseISO(r.remind_at);
       return isPast(dueDate) && !isToday(dueDate);
     });
   }, [reminders]);
@@ -376,7 +376,7 @@ export default function SalespersonDashboard() {
                         <div>
                           <p className="font-medium text-[#222222]">{reminder.title}</p>
                           <p className="text-sm text-[#6B6B6B]">
-                            {reminder.lead?.full_name} • {differenceInDays(new Date(), parseISO(reminder.due_date))} days overdue
+                            {reminder.lead?.full_name} • {differenceInDays(new Date(), parseISO(reminder.remind_at))} days overdue
                           </p>
                         </div>
                         <Badge className="bg-[#FEECEC] text-[#C0392B] border-0">
@@ -515,7 +515,7 @@ export default function SalespersonDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {upcomingReminders.map((reminder) => {
-                      const dueDate = parseISO(reminder.due_date);
+                      const dueDate = parseISO(reminder.remind_at);
                       const isOverdue = isPast(dueDate) && !isToday(dueDate);
                       const isDueToday = isToday(dueDate);
                       
