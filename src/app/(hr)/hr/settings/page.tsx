@@ -15,7 +15,7 @@ export default function HRSettings() {
   return (
     <div className="space-y-6 pb-12">
       {/* Hero Banner */}
-      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] dark:from-background dark:to-background border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-3 mb-2">
             <Settings className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
@@ -23,7 +23,7 @@ export default function HRSettings() {
               {t("common:settings")}
             </h1>
           </div>
-          <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+          <p className="text-sm text-[#777777] dark:text-muted-foreground ltr:ml-9 rtl:mr-9">
             {t("hr:settingsDescription", "Manage your account preferences and notification settings")}
           </p>
         </div>
@@ -31,38 +31,38 @@ export default function HRSettings() {
 
       <div className="max-w-4xl mx-auto">
         <Tabs defaultValue="account" className="space-y-6">
-          <TabsList className="bg-white border border-[#E6E6E4] p-1.5 rounded-xl w-full grid grid-cols-5 h-auto">
+          <TabsList className="bg-white dark:bg-card border border-[#E6E6E4] dark:border-border p-1.5 rounded-xl w-full grid grid-cols-5 h-auto">
             <TabsTrigger
               value="account"
-              className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+              className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] dark:text-muted-foreground font-medium transition-all"
             >
               <User className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
               {t("hr:accountSettings")}
             </TabsTrigger>
             <TabsTrigger
               value="notifications"
-              className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+              className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] dark:text-muted-foreground font-medium transition-all"
             >
               <Bell className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
               {t("hr:notifications")}
             </TabsTrigger>
             <TabsTrigger
               value="approvals"
-              className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+              className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] dark:text-muted-foreground font-medium transition-all"
             >
               <GitBranch className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
               {t("hr:leaveApprovals", "Leave Approvals")}
             </TabsTrigger>
             <TabsTrigger
               value="leave-types"
-              className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+              className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] dark:text-muted-foreground font-medium transition-all"
             >
               <List className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
               {t("hr:leaveTypes", "Leave Types")}
             </TabsTrigger>
             <TabsTrigger
               value="templates"
-              className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all"
+              className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] dark:text-muted-foreground font-medium transition-all"
             >
               <FileText className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
               {t("hr:reviewTemplates", "Review Templates")}
@@ -92,8 +92,8 @@ export default function HRSettings() {
       </div>
 
       {/* Footer */}
-      <div className="max-w-4xl mx-auto mt-12 pt-6 border-t border-[#E6E6E4] text-center">
-        <p className="text-xs text-[#777777]">
+      <div className="max-w-4xl mx-auto mt-12 pt-6 border-t border-[#E6E6E4] dark:border-border text-center">
+        <p className="text-xs text-[#777777] dark:text-muted-foreground">
           {t("legalNotice")}
         </p>
       </div>

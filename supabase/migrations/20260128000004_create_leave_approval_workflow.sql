@@ -41,6 +41,7 @@ CREATE INDEX IF NOT EXISTS idx_leave_approval_rules_active ON leave_approval_rul
 ALTER TABLE leave_approval_rules ENABLE ROW LEVEL SECURITY;
 
 -- HR and Admin can manage approval rules
+DROP POLICY IF EXISTS "HR can manage leave_approval_rules" ON leave_approval_rules;
 CREATE POLICY "HR can manage leave_approval_rules" ON leave_approval_rules
     FOR ALL USING (
         EXISTS (
@@ -91,6 +92,7 @@ CREATE INDEX IF NOT EXISTS idx_leave_approval_steps_status ON leave_approval_ste
 ALTER TABLE leave_approval_steps ENABLE ROW LEVEL SECURITY;
 
 -- HR and Admin can manage approval steps
+DROP POLICY IF EXISTS "HR can manage leave_approval_steps" ON leave_approval_steps;
 CREATE POLICY "HR can manage leave_approval_steps" ON leave_approval_steps
     FOR ALL USING (
         EXISTS (
@@ -100,9 +102,11 @@ CREATE POLICY "HR can manage leave_approval_steps" ON leave_approval_steps
     );
 
 -- Approvers can view and update their own steps
+DROP POLICY IF EXISTS "Approvers can view their steps" ON leave_approval_steps;
 CREATE POLICY "Approvers can view their steps" ON leave_approval_steps
     FOR SELECT USING (approver_id = auth.uid() OR escalated_to = auth.uid());
 
+DROP POLICY IF EXISTS "Approvers can update their steps" ON leave_approval_steps;
 CREATE POLICY "Approvers can update their steps" ON leave_approval_steps
     FOR UPDATE USING (approver_id = auth.uid() OR escalated_to = auth.uid());
 
@@ -154,20 +158,25 @@ CREATE INDEX IF NOT EXISTS idx_leave_approval_delegations_active ON leave_approv
 ALTER TABLE leave_approval_delegations ENABLE ROW LEVEL SECURITY;
 
 -- Users can view delegations they're involved in
+DROP POLICY IF EXISTS "Users can view their delegations" ON leave_approval_delegations;
 CREATE POLICY "Users can view their delegations" ON leave_approval_delegations
     FOR SELECT USING (delegator_id = auth.uid() OR delegate_id = auth.uid());
 
 -- Users can manage their own delegations
+DROP POLICY IF EXISTS "Users can create delegations" ON leave_approval_delegations;
 CREATE POLICY "Users can create delegations" ON leave_approval_delegations
     FOR INSERT WITH CHECK (delegator_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update their delegations" ON leave_approval_delegations;
 CREATE POLICY "Users can update their delegations" ON leave_approval_delegations
     FOR UPDATE USING (delegator_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete their delegations" ON leave_approval_delegations;
 CREATE POLICY "Users can delete their delegations" ON leave_approval_delegations
     FOR DELETE USING (delegator_id = auth.uid());
 
 -- HR can manage all delegations
+DROP POLICY IF EXISTS "HR can manage all delegations" ON leave_approval_delegations;
 CREATE POLICY "HR can manage all delegations" ON leave_approval_delegations
     FOR ALL USING (
         EXISTS (
@@ -231,7 +240,7 @@ ON CONFLICT DO NOTHING;
 -- =====================================================
 
 CREATE OR REPLACE FUNCTION get_applicable_approval_rule(
-    p_leave_type leave_type,
+    p_leave_type text,
     p_total_days INTEGER
 )
 RETURNS UUID AS $$
@@ -241,15 +250,15 @@ BEGIN
     SELECT id INTO v_rule_id
     FROM leave_approval_rules
     WHERE is_active = true
-        AND (leave_type IS NULL OR leave_type = p_leave_type)
+        AND (leave_type IS NULL OR leave_type::text = p_leave_type)
         AND p_total_days >= min_days
         AND (max_days IS NULL OR p_total_days <= max_days)
-    ORDER BY 
+    ORDER BY
         -- Specific leave type rules take priority over generic
         CASE WHEN leave_type IS NOT NULL THEN 0 ELSE 1 END,
         priority ASC
     LIMIT 1;
-    
+
     RETURN v_rule_id;
 END;
 $$ LANGUAGE plpgsql;
@@ -260,7 +269,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION get_active_delegate(
     p_delegator_id UUID,
-    p_leave_type leave_type,
+    p_leave_type text,
     p_total_days INTEGER
 )
 RETURNS UUID AS $$
@@ -272,11 +281,11 @@ BEGIN
     WHERE delegator_id = p_delegator_id
         AND is_active = true
         AND CURRENT_DATE BETWEEN start_date AND end_date
-        AND (leave_types IS NULL OR p_leave_type = ANY(leave_types))
+        AND (leave_types IS NULL OR p_leave_type = ANY(leave_types::text[]))
         AND (max_days IS NULL OR p_total_days <= max_days)
     ORDER BY created_at DESC
     LIMIT 1;
-    
+
     RETURN v_delegate_id;
 END;
 $$ LANGUAGE plpgsql;

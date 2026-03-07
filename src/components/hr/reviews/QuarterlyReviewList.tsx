@@ -370,21 +370,21 @@ export function QuarterlyReviewList({
     switch (status) {
       case "draft":
         return (
-          <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200">
+          <Badge variant="outline" className="bg-gray-100 dark:bg-muted text-gray-700 border-gray-200">
             <Edit className="h-3 w-3 mr-1" />
             {t("hr:reviews.status_draft")}
           </Badge>
         );
       case "submitted":
         return (
-          <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+          <Badge className="bg-blue-100 dark:bg-blue-950/30 text-blue-700 border-blue-200">
             <Clock className="h-3 w-3 mr-1" />
             {t("hr:reviews.status_submitted")}
           </Badge>
         );
       case "approved":
         return (
-          <Badge className="bg-green-100 text-green-700 border-green-200">
+          <Badge className="bg-green-100 dark:bg-green-950/30 text-green-700 border-green-200">
             <CheckCircle className="h-3 w-3 mr-1" />
             {t("hr:reviews.status_approved")}
           </Badge>
@@ -402,12 +402,12 @@ export function QuarterlyReviewList({
   };
 
   const getScoreBadge = (score: number | null) => {
-    if (score === null) return <span className="text-[#6B6B6B]">-</span>;
-    
-    const colorClass = 
+    if (score === null) return <span className="text-[#6B6B6B] dark:text-muted-foreground">-</span>;
+
+    const colorClass =
       score >= 80 ? "bg-[#E6F7F1] text-[#0C5536]" :
       score >= 60 ? "bg-[#FFF9E6] text-[#C6A03B]" :
-      "bg-red-50 text-red-600";
+      "bg-red-50 dark:bg-red-950/30 text-red-600";
 
     return (
       <Badge className={colorClass}>
@@ -621,7 +621,7 @@ export function QuarterlyReviewList({
                               {getDeadlineStatus(review.deadline_date, review.status)}
                             </>
                           ) : (
-                            <span className="text-[#6B6B6B]">-</span>
+                            <span className="text-[#6B6B6B] dark:text-muted-foreground">-</span>
                           )}
                         </div>
                       </TableCell>

@@ -67,37 +67,37 @@ const getStatusConfig = (t: (key: string) => string): Record<
   present: {
     icon: CheckCircle2,
     color: "text-green-600",
-    bgColor: "bg-green-50",
+    bgColor: "bg-green-50 dark:bg-green-950/30",
     label: t("attendanceStatus.present"),
   },
   late: {
     icon: Clock,
     color: "text-orange-600",
-    bgColor: "bg-orange-50",
+    bgColor: "bg-orange-50 dark:bg-orange-950/30",
     label: t("attendanceStatus.late"),
   },
   wfh: {
     icon: Home,
     color: "text-blue-600",
-    bgColor: "bg-blue-50",
+    bgColor: "bg-blue-50 dark:bg-blue-950/30",
     label: t("attendanceStatus.wfh"),
   },
   on_leave: {
     icon: Plane,
     color: "text-purple-600",
-    bgColor: "bg-purple-50",
+    bgColor: "bg-purple-50 dark:bg-purple-950/30",
     label: t("attendanceStatus.onLeave"),
   },
   sick_leave: {
     icon: Thermometer,
     color: "text-yellow-600",
-    bgColor: "bg-yellow-50",
+    bgColor: "bg-yellow-50 dark:bg-amber-950/30",
     label: t("attendanceStatus.sickLeave"),
   },
   absent: {
     icon: XCircle,
     color: "text-red-600",
-    bgColor: "bg-red-50",
+    bgColor: "bg-red-50 dark:bg-red-950/30",
     label: t("attendanceStatus.absent"),
   },
 });
@@ -548,7 +548,7 @@ export default function AttendancePage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Hero Banner */}
-      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
+      <div className="bg-gradient-to-b from-white to-[#F8F6EC] dark:from-background dark:to-background border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -557,14 +557,14 @@ export default function AttendancePage() {
                 {t("attendance", "Attendance")}
               </h1>
             </div>
-            <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">
+            <p className="text-sm text-[#777777] dark:text-muted-foreground ltr:ml-9 rtl:mr-9">
               {t("calendar.pageDescription", "Mark and view attendance for all employees")}
             </p>
           </div>
           <Button
             variant="outline"
             onClick={() => setShowExportModal(true)}
-            className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+            className="border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
           >
             <FileSpreadsheet className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
             {t("calendar.exportReport", "Export Report")}
@@ -574,17 +574,17 @@ export default function AttendancePage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-white border border-[#E6E6E4] p-1.5 rounded-xl w-full grid grid-cols-2 h-auto">
+        <TabsList className="bg-white dark:bg-card border border-[#E6E6E4] dark:border-border p-1.5 rounded-xl w-full grid grid-cols-2 h-auto">
           <TabsTrigger 
             value="mark" 
-            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all flex items-center justify-center gap-2"
+            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] dark:text-muted-foreground font-medium transition-all flex items-center justify-center gap-2"
           >
             <ClipboardList className="h-4 w-4" />
             {t("calendar.markAttendance", "Mark Attendance")}
           </TabsTrigger>
           <TabsTrigger 
             value="calendar" 
-            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] font-medium transition-all flex items-center justify-center gap-2"
+            className="data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm rounded-lg px-4 py-3 text-[#555555] dark:text-muted-foreground font-medium transition-all flex items-center justify-center gap-2"
           >
             <Calendar className="h-4 w-4" />
             {t("calendar.calendarView", "Calendar View")}
@@ -594,7 +594,7 @@ export default function AttendancePage() {
         {/* Mark Attendance Tab */}
         <TabsContent value="mark" className="space-y-6 mt-6">
           {/* Date Selection Card */}
-          <Card className="border-[#E6E6E4]">
+          <Card className="border-[#E6E6E4] dark:border-border">
             <CardContent className="p-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 {/* Date Navigation */}
@@ -603,7 +603,7 @@ export default function AttendancePage() {
                     variant="outline"
                     size="icon"
                     onClick={() => navigateDay("prev")}
-                    className="h-9 w-9 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                    className="h-9 w-9 border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -612,10 +612,10 @@ export default function AttendancePage() {
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-[200px] justify-start text-left font-normal border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                        className="w-[200px] justify-start text-left font-normal border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
                       >
                         <CalendarDays className="ltr:mr-2 rtl:ml-2 h-4 w-4 text-[#C6A03B]" />
-                        <span className="font-medium text-[#222222]">
+                        <span className="font-medium text-[#222222] dark:text-foreground">
                           {format(new Date(selectedDate), "EEE, MMM d, yyyy")}
                         </span>
                       </Button>
@@ -636,7 +636,7 @@ export default function AttendancePage() {
                     size="icon"
                     onClick={() => navigateDay("next")}
                     disabled={selectedDate === maxDate}
-                    className="h-9 w-9 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                    className="h-9 w-9 border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
@@ -652,7 +652,7 @@ export default function AttendancePage() {
                       onClick={() => setSelectedDate(preset.date)}
                       className={selectedDate === preset.date 
                         ? "bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white" 
-                        : "border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                        : "border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
                       }
                     >
                       {preset.label}
@@ -662,7 +662,7 @@ export default function AttendancePage() {
                     variant={selectedDate >= format(startOfWeek(new Date(), { weekStartsOn: 0 }), "yyyy-MM-dd") && selectedDate <= maxDate && selectedDate !== datePresets[0].date && selectedDate !== datePresets[1].date ? "outline" : "outline"}
                     size="sm"
                     onClick={() => setSelectedDate(format(startOfWeek(new Date(), { weekStartsOn: 0 }), "yyyy-MM-dd"))}
-                    className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                    className="border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
                   >
                     {t("attendancePage.thisWeek", "This Week")}
                   </Button>
@@ -670,7 +670,7 @@ export default function AttendancePage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setSelectedDate(format(startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 0 }), "yyyy-MM-dd"))}
-                    className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                    className="border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
                   >
                     {t("attendancePage.lastWeek", "Last Week")}
                   </Button>
@@ -678,7 +678,7 @@ export default function AttendancePage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setSelectedDate(format(startOfMonth(new Date()), "yyyy-MM-dd"))}
-                    className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                    className="border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
                   >
                     {t("attendancePage.thisMonth", "This Month")}
                   </Button>
@@ -713,7 +713,7 @@ export default function AttendancePage() {
               </Select>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <Button variant="outline" onClick={markAllPresent} disabled={!canEdit} className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]">
+              <Button variant="outline" onClick={markAllPresent} disabled={!canEdit} className="border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent">
                 <CheckCheck className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
                 {t("attendancePage.markAllPresent")}
               </Button>
@@ -757,25 +757,25 @@ export default function AttendancePage() {
 
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="border-[#E6E6E4]">
+            <Card className="border-[#E6E6E4] dark:border-border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-[#6B6B6B]">{t("attendancePage.total")}</p>
+                  <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground">{t("attendancePage.total")}</p>
                   <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
                     <Users className="h-5 w-5 text-[#0C5536]" />
                   </div>
                 </div>
-                <p className="text-2xl font-bold text-[#222222] mt-2">{startedCount}</p>
+                <p className="text-2xl font-bold text-[#222222] dark:text-foreground mt-2">{startedCount}</p>
                 {employees.length !== startedCount && (
                   <p className="text-xs text-[#999999]">({employees.length - startedCount} {t("attendancePage.notYetStarted")})</p>
                 )}
               </CardContent>
             </Card>
 
-            <Card className="border-[#E6E6E4]">
+            <Card className="border-[#E6E6E4] dark:border-border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-[#6B6B6B]">{statusConfig.present.label}</p>
+                  <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground">{statusConfig.present.label}</p>
                   <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
                     <CheckCircle2 className="h-5 w-5 text-[#0C5536]" />
                   </div>
@@ -784,10 +784,10 @@ export default function AttendancePage() {
               </CardContent>
             </Card>
 
-            <Card className="border-[#E6E6E4]">
+            <Card className="border-[#E6E6E4] dark:border-border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-[#6B6B6B]">{statusConfig.absent.label}</p>
+                  <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground">{statusConfig.absent.label}</p>
                   <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
                     <XCircle className="h-5 w-5 text-[#0C5536]" />
                   </div>
@@ -796,10 +796,10 @@ export default function AttendancePage() {
               </CardContent>
             </Card>
 
-            <Card className="border-[#E6E6E4]">
+            <Card className="border-[#E6E6E4] dark:border-border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-[#6B6B6B]">{t("attendancePage.attendanceRate")}</p>
+                  <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground">{t("attendancePage.attendanceRate")}</p>
                   <div className="h-10 w-10 rounded-full bg-[rgba(198,160,59,0.15)] flex items-center justify-center">
                     <CheckCheck className="h-5 w-5 text-[#0C5536]" />
                   </div>
@@ -807,7 +807,7 @@ export default function AttendancePage() {
                 <p className={`text-2xl font-bold mt-2 ${attendanceRate >= 85 ? "text-[#0C5536]" : attendanceRate >= 70 ? "text-[#C6A03B]" : "text-[#C0392B]"}`}>
                   {attendanceRate}%
                 </p>
-                <div className="h-1.5 bg-[#E6E6E4] rounded-full overflow-hidden mt-2">
+                <div className="h-1.5 bg-[#E6E6E4] dark:bg-muted rounded-full overflow-hidden mt-2">
                   <div
                     className={`h-full rounded-full transition-all ${attendanceRate >= 85 ? "bg-[#0C5536]" : attendanceRate >= 70 ? "bg-[#C6A03B]" : "bg-[#C0392B]"}`}
                     style={{ width: `${attendanceRate}%` }}
@@ -824,7 +824,7 @@ export default function AttendancePage() {
               className={`px-3 py-2.5 rounded-lg border transition-all text-center ${
                 statusFilter === "all"
                   ? "border-[hsl(var(--jw-primary-green))] bg-[hsl(var(--jw-primary-green))]/10 text-[hsl(var(--jw-primary-green))] font-medium"
-                  : "border-[#E6E6E4] bg-white text-[#555555] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                  : "border-[#E6E6E4] dark:border-border bg-white dark:bg-card text-[#555555] dark:text-muted-foreground hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
               }`}
             >
               <span className="text-sm">{t("attendancePage.allStatuses", "All")}</span>
@@ -843,14 +843,14 @@ export default function AttendancePage() {
                     isSelected
                       ? `${config.bgColor} ${config.color.replace("text", "border")} font-medium`
                       : count > 0
-                      ? "border-[#E6E6E4] bg-white hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
-                      : "border-[#E6E6E4] bg-white"
+                      ? "border-[#E6E6E4] dark:border-border bg-white dark:bg-card hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
+                      : "border-[#E6E6E4] dark:border-border bg-white dark:bg-card"
                   }`}
                 >
-                  <span className={`text-sm ${isSelected ? config.color : count > 0 ? "text-[#555555]" : "text-[#999999]"}`}>
+                  <span className={`text-sm ${isSelected ? config.color : count > 0 ? "text-[#555555] dark:text-muted-foreground" : "text-[#999999]"}`}>
                     {config.label}
                   </span>
-                  <span className={`block text-lg font-semibold ${isSelected ? config.color : count > 0 ? "text-[#222222]" : "text-[#999999]"}`}>
+                  <span className={`block text-lg font-semibold ${isSelected ? config.color : count > 0 ? "text-[#222222] dark:text-foreground" : "text-[#999999]"}`}>
                     {count}
                   </span>
                 </button>
@@ -859,7 +859,7 @@ export default function AttendancePage() {
           </div>
 
       {/* Employee List */}
-      <Card className="border-[#E6E6E4]">
+      <Card className="border-[#E6E6E4] dark:border-border">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 flex-wrap">
@@ -868,7 +868,7 @@ export default function AttendancePage() {
                 {t("employees")}
               </CardTitle>
               {departmentFilter !== "all" && (
-                <Badge variant="outline" className="text-[#555555] border-[#E6E6E4] bg-[#FAFAF8]">
+                <Badge variant="outline" className="text-[#555555] dark:text-muted-foreground border-[#E6E6E4] dark:border-border bg-[#FAFAF8] dark:bg-muted">
                   {departments.find(d => d.id === departmentFilter)?.name}
                 </Badge>
               )}
@@ -932,7 +932,7 @@ export default function AttendancePage() {
               return (
                 <div
                   key={employee.id}
-                  className={`p-3 rounded-lg border ${hasStarted ? `${config.bgColor} ${config.color.replace("text", "border")}/30` : "bg-gray-50 border-gray-200"} flex flex-col md:flex-row md:items-center gap-3`}
+                  className={`p-3 rounded-lg border ${hasStarted ? `${config.bgColor} ${config.color.replace("text", "border")}/30` : "bg-gray-50 dark:bg-muted border-gray-200 dark:border-border"} flex flex-col md:flex-row md:items-center gap-3`}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -952,7 +952,7 @@ export default function AttendancePage() {
                           <Circle className="h-5 w-5 text-gray-200 shrink-0" />
                         </span>
                       )}
-                      <span className={`font-medium ${hasStarted ? "text-[#222222]" : "text-gray-400"}`}>{employee.full_name}</span>
+                      <span className={`font-medium ${hasStarted ? "text-[#222222] dark:text-foreground" : "text-gray-400"}`}>{employee.full_name}</span>
                       {employee.department_name && (
                         <Badge variant="outline" className={`text-xs ${!hasStarted ? "opacity-50" : ""}`}>
                           {employee.department_name}
@@ -1040,7 +1040,7 @@ export default function AttendancePage() {
             })}
 
             {employees.length === 0 && (
-              <div className="text-center py-12 text-[#6B6B6B]">
+              <div className="text-center py-12 text-[#6B6B6B] dark:text-muted-foreground">
                 <Users className="h-10 w-10 mx-auto mb-3 text-[#C6A03B]" />
                 <p>{t("attendancePage.noActiveEmployees")}</p>
               </div>
@@ -1078,8 +1078,8 @@ export default function AttendancePage() {
       />
 
       {/* Footer */}
-      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
-        <p className="text-xs text-[#777777]">
+      <div className="mt-12 pt-6 border-t border-[#E6E6E4] dark:border-border text-center">
+        <p className="text-xs text-[#777777] dark:text-muted-foreground">
           {t("legalNotice")}
         </p>
       </div>

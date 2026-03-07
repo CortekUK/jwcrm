@@ -375,7 +375,7 @@ export function NotificationSettings() {
   return (
     <div className="space-y-6">
       {/* Document Expiry Notifications */}
-      <Card className="border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
+      <Card className="border-[#E6E6E4] dark:border-border shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
@@ -383,16 +383,16 @@ export function NotificationSettings() {
               {t("hr:documentExpiryNotifications")}
             </CardTitle>
           </div>
-          <CardDescription className="text-sm text-[#777777] ltr:ml-7 rtl:mr-7">
+          <CardDescription className="text-sm text-[#777777] dark:text-muted-foreground ltr:ml-7 rtl:mr-7">
             {t("hr:documentExpiryNotificationsDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Enable/Disable Toggle */}
-          <div className="flex items-center justify-between p-4 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4]">
+          <div className="flex items-center justify-between p-4 bg-[#FAFAF8] dark:bg-muted rounded-lg border border-[#E6E6E4] dark:border-border">
             <div className="space-y-0.5">
-              <Label className="text-base font-medium text-[#222222]">{t("hr:enableNotifications")}</Label>
-              <p className="text-sm text-[#6B6B6B]">
+              <Label className="text-base font-medium text-[#222222] dark:text-foreground">{t("hr:enableNotifications")}</Label>
+              <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground">
                 {t("hr:enableNotificationsDesc")}
               </p>
             </div>
@@ -409,7 +409,7 @@ export function NotificationSettings() {
               {/* Send Time */}
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="doc_send_time" className="flex items-center gap-2 text-[#555555]">
+                  <Label htmlFor="doc_send_time" className="flex items-center gap-2 text-[#555555] dark:text-muted-foreground">
                     <Clock className="h-4 w-4 text-[#C6A03B]" />
                     {t("hr:sendTime")}
                   </Label>
@@ -420,13 +420,13 @@ export function NotificationSettings() {
                     onChange={(e) =>
                       setDocSettings({ ...docSettings, send_time: e.target.value })
                     }
-                    className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                    className="border-[#E6E6E4] dark:border-border focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                   />
                   <p className="text-xs text-[#6B6B6B]">{t("hr:sendTimeDesc")}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="doc_timezone" className="text-[#555555]">{t("hr:timezone")}</Label>
+                  <Label htmlFor="doc_timezone" className="text-[#555555] dark:text-muted-foreground">{t("hr:timezone")}</Label>
                   <Input
                     id="doc_timezone"
                     value={docSettings.timezone}
@@ -434,7 +434,7 @@ export function NotificationSettings() {
                       setDocSettings({ ...docSettings, timezone: e.target.value })
                     }
                     placeholder="Asia/Dubai"
-                    className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                    className="border-[#E6E6E4] dark:border-border focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                   />
                 </div>
               </div>
@@ -442,7 +442,7 @@ export function NotificationSettings() {
               {/* Recipient */}
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="doc_recipient_name" className="text-[#555555]">{t("hr:recipientName")}</Label>
+                  <Label htmlFor="doc_recipient_name" className="text-[#555555] dark:text-muted-foreground">{t("hr:recipientName")}</Label>
                   <Input
                     id="doc_recipient_name"
                     value={docSettings.recipient_name}
@@ -450,12 +450,12 @@ export function NotificationSettings() {
                       setDocSettings({ ...docSettings, recipient_name: e.target.value })
                     }
                     placeholder="HR Manager"
-                    className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                    className="border-[#E6E6E4] dark:border-border focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="doc_recipient_email" className="flex items-center gap-2 text-[#555555]">
+                  <Label htmlFor="doc_recipient_email" className="flex items-center gap-2 text-[#555555] dark:text-muted-foreground">
                     <Mail className="h-4 w-4 text-[#C6A03B]" />
                     {t("hr:recipientEmail")}
                   </Label>
@@ -467,14 +467,14 @@ export function NotificationSettings() {
                       setDocSettings({ ...docSettings, recipient_email: e.target.value })
                     }
                     placeholder="hr@company.com"
-                    className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                    className="border-[#E6E6E4] dark:border-border focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
                   />
                 </div>
               </div>
 
               {/* Include Options */}
               <div className="space-y-3">
-                <Label className="text-base font-medium text-[#222222]">{t("hr:includeInDigest")}</Label>
+                <Label className="text-base font-medium text-[#222222] dark:text-foreground">{t("hr:includeInDigest")}</Label>
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="flex items-center space-x-2 rtl:space-x-reverse p-3 bg-[#FEECEC] rounded-lg border border-[#C0392B]/20">
                     <Switch
@@ -520,7 +520,7 @@ export function NotificationSettings() {
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t border-[#E6E6E4]">
+          <div className="flex gap-3 pt-4 border-t border-[#E6E6E4] dark:border-border">
             <Button
               onClick={handleSaveDocSettings}
               disabled={isSavingDoc}
@@ -540,7 +540,7 @@ export function NotificationSettings() {
               variant="outline"
               onClick={handleTestDocNotification}
               disabled={isTestingDoc || !docSettings.enabled}
-              className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+              className="border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
             >
               {isTestingDoc ? (
                 <>
@@ -559,7 +559,7 @@ export function NotificationSettings() {
       </Card>
 
       {/* Document Notification Logs */}
-      <Card className="border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
+      <Card className="border-[#E6E6E4] dark:border-border shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div>
@@ -569,7 +569,7 @@ export function NotificationSettings() {
                   {t("hr:recentNotifications")}
                 </CardTitle>
               </div>
-              <CardDescription className="text-sm text-[#777777] ltr:ml-7 rtl:mr-7 mt-1">
+              <CardDescription className="text-sm text-[#777777] dark:text-muted-foreground ltr:ml-7 rtl:mr-7 mt-1">
                 {t("hr:recentNotificationsDesc")}
               </CardDescription>
             </div>
@@ -578,7 +578,7 @@ export function NotificationSettings() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                  className="border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
                 >
                   {t("hr:viewAllLogs", "View All Logs")}
                   <ExternalLink className="h-3.5 w-3.5 ltr:ml-1.5 rtl:mr-1.5" />
@@ -588,7 +588,7 @@ export function NotificationSettings() {
                 variant="outline"
                 size="sm"
                 onClick={fetchAllLogs}
-                className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                className="border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
@@ -597,34 +597,34 @@ export function NotificationSettings() {
         </CardHeader>
         <CardContent>
           {docLogs.length === 0 ? (
-            <div className="text-center py-12 text-[#6B6B6B]">
+            <div className="text-center py-12 text-[#6B6B6B] dark:text-muted-foreground">
               <Mail className="h-10 w-10 mx-auto mb-3 text-[#C6A03B]" />
-              <p className="font-medium text-[#222222]">{t("hr:noNotificationsYet")}</p>
+              <p className="font-medium text-[#222222] dark:text-foreground">{t("hr:noNotificationsYet")}</p>
               <p className="text-sm mt-1">{t("hr:noNotificationsYetDesc", "Notification history will appear here")}</p>
             </div>
           ) : (
-            <div className="rounded-lg border border-[#E6E6E4] overflow-hidden">
+            <div className="rounded-lg border border-[#E6E6E4] dark:border-border overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-[#FAFAF8]">
-                    <TableHead className="font-semibold text-[#222222]">{t("hr:date")}</TableHead>
-                    <TableHead className="font-semibold text-[#222222]">{t("hr:recipient")}</TableHead>
-                    <TableHead className="font-semibold text-[#222222]">{t("hr:subject")}</TableHead>
-                    <TableHead className="font-semibold text-[#222222]">{t("hr:documents")}</TableHead>
-                    <TableHead className="font-semibold text-[#222222]">{t("hr:status")}</TableHead>
+                  <TableRow className="bg-[#FAFAF8] dark:bg-muted">
+                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:date")}</TableHead>
+                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:recipient")}</TableHead>
+                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:subject")}</TableHead>
+                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:documents")}</TableHead>
+                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {docLogs.map((log) => (
-                    <TableRow key={log.id} className="hover:bg-[#FAFAF8]">
-                      <TableCell className="text-sm text-[#555555]">
+                    <TableRow key={log.id} className="hover:bg-[#FAFAF8] dark:hover:bg-accent">
+                      <TableCell className="text-sm text-[#555555] dark:text-muted-foreground">
                         {log.sent_at ? format(new Date(log.sent_at), "MMM d, yyyy HH:mm") : "-"}
                       </TableCell>
-                      <TableCell className="text-sm text-[#555555]">{log.recipient_email}</TableCell>
-                      <TableCell className="text-sm text-[#555555] max-w-[200px] truncate">
+                      <TableCell className="text-sm text-[#555555] dark:text-muted-foreground">{log.recipient_email}</TableCell>
+                      <TableCell className="text-sm text-[#555555] dark:text-muted-foreground max-w-[200px] truncate">
                         {log.subject}
                       </TableCell>
-                      <TableCell className="text-sm text-[#555555]">
+                      <TableCell className="text-sm text-[#555555] dark:text-muted-foreground">
                         {Array.isArray(log.documents_included)
                           ? log.documents_included.length
                           : 0}
@@ -640,7 +640,7 @@ export function NotificationSettings() {
       </Card>
 
       {/* Threshold Alerts Card */}
-      <Card className="border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
+      <Card className="border-[#E6E6E4] dark:border-border shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-purple-500" />
@@ -648,16 +648,16 @@ export function NotificationSettings() {
               {t("hr:thresholdAlerts", "Expiry Threshold Alerts")}
             </CardTitle>
           </div>
-          <CardDescription className="text-sm text-[#777777] ltr:ml-7 rtl:mr-7">
+          <CardDescription className="text-sm text-[#777777] dark:text-muted-foreground ltr:ml-7 rtl:mr-7">
             {t("hr:thresholdAlertsDesc", "Send alerts when documents reach specific day thresholds before expiration")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Enable/Disable Toggle */}
-          <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-200">
+          <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200">
             <div className="space-y-0.5">
-              <Label className="text-base font-medium text-[#222222]">{t("hr:enableThresholdAlerts", "Enable Threshold Alerts")}</Label>
-              <p className="text-sm text-[#6B6B6B]">
+              <Label className="text-base font-medium text-[#222222] dark:text-foreground">{t("hr:enableThresholdAlerts", "Enable Threshold Alerts")}</Label>
+              <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground">
                 {t("hr:enableThresholdAlertsDesc", "Send alerts at specific days before document expiry (e.g., 90, 60, 30 days)")}
               </p>
             </div>
@@ -673,8 +673,8 @@ export function NotificationSettings() {
             <>
               {/* Threshold Checkboxes */}
               <div className="space-y-3">
-                <Label className="text-base font-medium text-[#222222]">{t("hr:selectThresholds", "Select Alert Thresholds")}</Label>
-                <p className="text-sm text-[#6B6B6B] mb-3">
+                <Label className="text-base font-medium text-[#222222] dark:text-foreground">{t("hr:selectThresholds", "Select Alert Thresholds")}</Label>
+                <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground mb-3">
                   {t("hr:selectThresholdsDesc", "Choose which day thresholds should trigger alerts. Each threshold sends only once per document.")}
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -688,7 +688,7 @@ export function NotificationSettings() {
                         className={`p-3 rounded-lg border text-sm font-medium transition-colors ${
                           isSelected
                             ? "bg-purple-100 border-purple-400 text-purple-700"
-                            : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                            : "bg-gray-50 dark:bg-muted border-gray-200 dark:border-border text-gray-600 dark:text-muted-foreground hover:bg-gray-100 dark:hover:bg-accent"
                         }`}
                       >
                         {label}
@@ -701,7 +701,7 @@ export function NotificationSettings() {
               {/* Recipient */}
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="threshold_recipient_name" className="text-[#555555]">{t("hr:recipientName")}</Label>
+                  <Label htmlFor="threshold_recipient_name" className="text-[#555555] dark:text-muted-foreground">{t("hr:recipientName")}</Label>
                   <Input
                     id="threshold_recipient_name"
                     value={thresholdSettings.recipient_name}
@@ -714,7 +714,7 @@ export function NotificationSettings() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="threshold_recipient_email" className="flex items-center gap-2 text-[#555555]">
+                  <Label htmlFor="threshold_recipient_email" className="flex items-center gap-2 text-[#555555] dark:text-muted-foreground">
                     <Mail className="h-4 w-4 text-purple-500" />
                     {t("hr:recipientEmail")}
                   </Label>
@@ -734,7 +734,7 @@ export function NotificationSettings() {
               {/* Send Time */}
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="threshold_send_time" className="flex items-center gap-2 text-[#555555]">
+                  <Label htmlFor="threshold_send_time" className="flex items-center gap-2 text-[#555555] dark:text-muted-foreground">
                     <Clock className="h-4 w-4 text-purple-500" />
                     {t("hr:sendTime")}
                   </Label>
@@ -750,7 +750,7 @@ export function NotificationSettings() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="threshold_timezone" className="text-[#555555]">{t("hr:timezone")}</Label>
+                  <Label htmlFor="threshold_timezone" className="text-[#555555] dark:text-muted-foreground">{t("hr:timezone")}</Label>
                   <Input
                     id="threshold_timezone"
                     value={thresholdSettings.timezone}
@@ -766,7 +766,7 @@ export function NotificationSettings() {
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t border-[#E6E6E4]">
+          <div className="flex gap-3 pt-4 border-t border-[#E6E6E4] dark:border-border">
             <Button
               onClick={handleSaveThresholdSettings}
               disabled={isSavingThreshold}
@@ -786,7 +786,7 @@ export function NotificationSettings() {
               variant="outline"
               onClick={handleTestThresholdAlert}
               disabled={isTestingThreshold || !thresholdSettings.enabled}
-              className="border-purple-300 hover:border-purple-400 hover:bg-purple-50"
+              className="border-purple-300 hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30"
             >
               {isTestingThreshold ? (
                 <>
@@ -805,7 +805,7 @@ export function NotificationSettings() {
       </Card>
 
       {/* Threshold Alert Logs */}
-      <Card className="border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
+      <Card className="border-[#E6E6E4] dark:border-border shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div>
@@ -815,7 +815,7 @@ export function NotificationSettings() {
                   {t("hr:thresholdAlertHistory", "Threshold Alert History")}
                 </CardTitle>
               </div>
-              <CardDescription className="text-sm text-[#777777] ltr:ml-7 rtl:mr-7 mt-1">
+              <CardDescription className="text-sm text-[#777777] dark:text-muted-foreground ltr:ml-7 rtl:mr-7 mt-1">
                 {t("hr:thresholdAlertHistoryDesc", "Recent threshold-based expiry alerts")}
               </CardDescription>
             </div>
@@ -823,7 +823,7 @@ export function NotificationSettings() {
               variant="outline"
               size="sm"
               onClick={fetchAllLogs}
-              className="border-[#E6E6E4] hover:border-purple-400 hover:bg-purple-50"
+              className="border-[#E6E6E4] dark:border-border hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30"
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -831,30 +831,30 @@ export function NotificationSettings() {
         </CardHeader>
         <CardContent>
           {thresholdLogs.length === 0 ? (
-            <div className="text-center py-12 text-[#6B6B6B]">
+            <div className="text-center py-12 text-[#6B6B6B] dark:text-muted-foreground">
               <AlertCircle className="h-10 w-10 mx-auto mb-3 text-purple-400" />
-              <p className="font-medium text-[#222222]">{t("hr:noThresholdAlertsYet", "No threshold alerts sent yet")}</p>
+              <p className="font-medium text-[#222222] dark:text-foreground">{t("hr:noThresholdAlertsYet", "No threshold alerts sent yet")}</p>
               <p className="text-sm mt-1">{t("hr:noThresholdAlertsYetDesc", "Threshold alert history will appear here")}</p>
             </div>
           ) : (
-            <div className="rounded-lg border border-[#E6E6E4] overflow-hidden">
+            <div className="rounded-lg border border-[#E6E6E4] dark:border-border overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-[#FAFAF8]">
-                    <TableHead className="font-semibold text-[#222222]">{t("hr:date")}</TableHead>
-                    <TableHead className="font-semibold text-[#222222]">{t("hr:recipient")}</TableHead>
-                    <TableHead className="font-semibold text-[#222222]">{t("hr:documents")}</TableHead>
-                    <TableHead className="font-semibold text-[#222222]">{t("hr:status")}</TableHead>
+                  <TableRow className="bg-[#FAFAF8] dark:bg-muted">
+                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:date")}</TableHead>
+                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:recipient")}</TableHead>
+                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:documents")}</TableHead>
+                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {thresholdLogs.map((log) => (
-                    <TableRow key={log.id} className="hover:bg-[#FAFAF8]">
-                      <TableCell className="text-sm text-[#555555]">
+                    <TableRow key={log.id} className="hover:bg-[#FAFAF8] dark:hover:bg-accent">
+                      <TableCell className="text-sm text-[#555555] dark:text-muted-foreground">
                         {log.sent_at ? format(new Date(log.sent_at), "MMM d, yyyy HH:mm") : "-"}
                       </TableCell>
-                      <TableCell className="text-sm text-[#555555]">{log.recipient_email}</TableCell>
-                      <TableCell className="text-sm text-[#555555]">
+                      <TableCell className="text-sm text-[#555555] dark:text-muted-foreground">{log.recipient_email}</TableCell>
+                      <TableCell className="text-sm text-[#555555] dark:text-muted-foreground">
                         {Array.isArray(log.documents_included)
                           ? log.documents_included.length
                           : 0}

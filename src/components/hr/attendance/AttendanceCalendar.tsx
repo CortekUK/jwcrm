@@ -213,7 +213,7 @@ export function AttendanceCalendar({
   };
 
   return (
-    <Card className="border-[#E6E6E4]">
+    <Card className="border-[#E6E6E4] dark:border-border">
       <CardHeader className="pb-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -230,7 +230,7 @@ export function AttendanceCalendar({
                 value={selectedEmployeeId || "all"}
                 onValueChange={handleEmployeeChange}
               >
-                <SelectTrigger className="w-48 border-[#E6E6E4]">
+                <SelectTrigger className="w-48 border-[#E6E6E4] dark:border-border">
                   <Users className="h-4 w-4 ltr:mr-2 rtl:ml-2 text-[#6B6B6B]" />
                   <SelectValue placeholder={t("calendar.allEmployees", "All Employees")} />
                 </SelectTrigger>
@@ -253,18 +253,18 @@ export function AttendanceCalendar({
                 variant="outline"
                 size="icon"
                 onClick={handlePreviousMonth}
-                className="h-9 w-9 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                className="h-9 w-9 border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
               >
                 <ChevronLeft className={`h-4 w-4 ${isRtl ? "rotate-180" : ""}`} />
               </Button>
-              <div className="w-36 text-center font-medium text-[#222222]">
+              <div className="w-36 text-center font-medium text-[#222222] dark:text-foreground">
                 {format(currentMonth, "MMMM yyyy")}
               </div>
               <Button
                 variant="outline"
                 size="icon"
                 onClick={handleNextMonth}
-                className="h-9 w-9 border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
+                className="h-9 w-9 border-[#E6E6E4] dark:border-border hover:border-[#C6A03B] hover:bg-[#FAFAF8] dark:hover:bg-accent"
               >
                 <ChevronRight className={`h-4 w-4 ${isRtl ? "rotate-180" : ""}`} />
               </Button>
@@ -281,8 +281,8 @@ export function AttendanceCalendar({
               key={index}
               className={`text-center text-xs font-semibold py-2 rounded ${
                 index === 5 || index === 6 
-                  ? "text-[#999999] bg-[#FAFAF8]" 
-                  : "text-[#555555]"
+                  ? "text-[#999999] dark:text-muted-foreground bg-[#FAFAF8] dark:bg-muted" 
+                  : "text-[#555555] dark:text-muted-foreground"
               }`}
             >
               {label}

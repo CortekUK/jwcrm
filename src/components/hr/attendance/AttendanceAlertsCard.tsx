@@ -245,7 +245,7 @@ export function AttendanceAlertsCard() {
 
   if (loading) {
     return (
-      <Card className="border-[#E6E6E4]">
+      <Card className="border-[#E6E6E4] dark:border-border">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -274,10 +274,10 @@ export function AttendanceAlertsCard() {
 
   if (alerts.length === 0) {
     return (
-      <Card className="border-[#E6E6E4]">
+      <Card className="border-[#E6E6E4] dark:border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-            <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-green-100 dark:bg-green-950/30 flex items-center justify-center">
               <Users className="h-4 w-4 text-green-600" />
             </div>
             {t("hr:attendanceAlerts.title")}
@@ -285,11 +285,11 @@ export function AttendanceAlertsCard() {
         </CardHeader>
         <CardContent>
           <div className="text-center py-6">
-            <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-3">
+            <div className="mx-auto w-12 h-12 rounded-full bg-green-100 dark:bg-green-950/30 flex items-center justify-center mb-3">
               <Users className="h-6 w-6 text-green-600" />
             </div>
-            <p className="text-[#222222] font-medium">{t("hr:attendanceAlerts.noAlerts")}</p>
-            <p className="text-sm text-[#6B6B6B] mt-1">{t("hr:attendanceAlerts.allGood")}</p>
+            <p className="text-[#222222] dark:text-foreground font-medium">{t("hr:attendanceAlerts.noAlerts")}</p>
+            <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground mt-1">{t("hr:attendanceAlerts.allGood")}</p>
           </div>
         </CardContent>
       </Card>
@@ -297,16 +297,16 @@ export function AttendanceAlertsCard() {
   }
 
   return (
-    <Card className="border-[#E6E6E4] border-l-4 border-l-orange-500">
+    <Card className="border-[#E6E6E4] dark:border-border border-l-4 border-l-orange-500">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-            <div className="h-8 w-8 rounded-lg bg-orange-100 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-orange-100 dark:bg-orange-950/30 flex items-center justify-center">
               <AlertTriangle className="h-4 w-4 text-orange-600" />
             </div>
             {t("hr:attendanceAlerts.title")}
           </CardTitle>
-          <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+          <Badge variant="outline" className="bg-orange-50 dark:bg-orange-950/30 text-orange-700 border-orange-200">
             {alerts.length} {alerts.length === 1 ? t("hr:attendanceAlerts.alert") : t("hr:attendanceAlerts.alerts")}
           </Badge>
         </div>
@@ -322,8 +322,8 @@ export function AttendanceAlertsCard() {
               className={cn(
                 "p-4 rounded-lg border transition-colors",
                 alert.severity === "critical"
-                  ? "bg-red-50 border-red-200 hover:bg-red-100"
-                  : "bg-amber-50 border-amber-200 hover:bg-amber-100"
+                  ? "bg-red-50 dark:bg-red-950/30 border-red-200 hover:bg-red-100 dark:hover:bg-red-950/50"
+                  : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 hover:bg-amber-100 dark:hover:bg-amber-950/50"
               )}
             >
               <div className="flex items-start justify-between gap-3">
@@ -331,7 +331,7 @@ export function AttendanceAlertsCard() {
                   {/* Alert type icon */}
                   <div className={cn(
                     "h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0",
-                    alert.severity === "critical" ? "bg-red-100" : "bg-amber-100"
+                    alert.severity === "critical" ? "bg-red-100 dark:bg-red-950/50" : "bg-amber-100 dark:bg-amber-950/50"
                   )}>
                     <AlertIcon className={cn(
                       "h-4 w-4",
@@ -342,7 +342,7 @@ export function AttendanceAlertsCard() {
                   {/* Alert content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-[#222222] truncate">
+                      <p className="font-semibold text-[#222222] dark:text-foreground truncate">
                         {alert.name}
                       </p>
                       {/* Trend indicator */}
@@ -363,12 +363,12 @@ export function AttendanceAlertsCard() {
                     {/* Secondary info & day pattern */}
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       {alert.secondaryInfo && (
-                        <span className="text-xs text-[#6B6B6B]">
+                        <span className="text-xs text-[#6B6B6B] dark:text-muted-foreground">
                           {alert.secondaryInfo}
                         </span>
                       )}
                       {alert.dayPattern && (
-                        <Badge variant="outline" className="text-xs bg-white/50 border-amber-300 text-amber-700">
+                        <Badge variant="outline" className="text-xs bg-white/50 dark:bg-amber-950/30 border-amber-300 text-amber-700">
                           {alert.dayPattern}
                         </Badge>
                       )}
@@ -382,8 +382,8 @@ export function AttendanceAlertsCard() {
                   className={cn(
                     "flex-shrink-0",
                     alert.severity === "critical"
-                      ? "bg-red-100 text-red-700 border-red-300"
-                      : "bg-amber-100 text-amber-700 border-amber-300"
+                      ? "bg-red-100 dark:bg-red-950/50 text-red-700 border-red-300"
+                      : "bg-amber-100 dark:bg-amber-950/50 text-amber-700 border-amber-300"
                   )}
                 >
                   {alert.severity === "critical" 

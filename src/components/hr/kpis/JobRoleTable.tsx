@@ -125,7 +125,7 @@ export function JobRoleTable({
             placeholder={t("hr:searchJobRoles")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B] ${isRtl ? "pr-10" : "pl-10"}`}
+            className={`border-[#E6E6E4] dark:border-border focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B] ${isRtl ? "pr-10" : "pl-10"}`}
           />
         </div>
         <Button
@@ -138,15 +138,15 @@ export function JobRoleTable({
       </div>
 
       {/* Table */}
-      <div className="border border-[#E6E6E4] rounded-lg overflow-hidden">
+      <div className="border border-[#E6E6E4] dark:border-border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-[#FAFAF8] hover:bg-[#FAFAF8]">
-              <TableHead className="font-semibold text-[#222222]">{t("hr:jobRoleName")}</TableHead>
-              <TableHead className="font-semibold text-[#222222]">{t("hr:department")}</TableHead>
-              <TableHead className="font-semibold text-[#222222] text-center">{t("hr:employeesAssigned")}</TableHead>
-              <TableHead className="font-semibold text-[#222222] text-center">{t("hr:kpisAssigned")}</TableHead>
-              <TableHead className={`font-semibold text-[#222222] ${isRtl ? "text-left" : "text-right"}`}>{t("hr:actions")}</TableHead>
+            <TableRow className="bg-[#FAFAF8] dark:bg-muted hover:bg-[#FAFAF8] dark:hover:bg-muted">
+              <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:jobRoleName")}</TableHead>
+              <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:department")}</TableHead>
+              <TableHead className="font-semibold text-[#222222] dark:text-foreground text-center">{t("hr:employeesAssigned")}</TableHead>
+              <TableHead className="font-semibold text-[#222222] dark:text-foreground text-center">{t("hr:kpisAssigned")}</TableHead>
+              <TableHead className={`font-semibold text-[#222222] dark:text-foreground ${isRtl ? "text-left" : "text-right"}`}>{t("hr:actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -154,17 +154,17 @@ export function JobRoleTable({
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-12">
                   <Briefcase className="h-10 w-10 text-[#C6A03B] mx-auto mb-3" />
-                  <p className="text-[#6B6B6B]">{t("hr:noJobRoles")}</p>
+                  <p className="text-[#6B6B6B] dark:text-muted-foreground">{t("hr:noJobRoles")}</p>
                 </TableCell>
               </TableRow>
             ) : (
               filteredRoles.map((role) => (
-                <TableRow key={role.id} className="hover:bg-[#FAFAF8]">
+                <TableRow key={role.id} className="hover:bg-[#FAFAF8] dark:hover:bg-accent">
                   <TableCell>
-                    <p className="font-medium text-[#222222]">{role.name}</p>
+                    <p className="font-medium text-[#222222] dark:text-foreground">{role.name}</p>
                   </TableCell>
                   <TableCell>
-                    <span className="text-[#6B6B6B]">
+                    <span className="text-[#6B6B6B] dark:text-muted-foreground">
                       {role.department?.name || "-"}
                     </span>
                   </TableCell>
@@ -172,7 +172,7 @@ export function JobRoleTable({
                     <span className={`inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-sm font-medium ${
                       role.employee_count > 0
                         ? "bg-[#E6F7F1] text-[#0C5536]"
-                        : "bg-gray-100 text-gray-600"
+                        : "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground"
                     }`}>
                       {role.employee_count}
                     </span>
@@ -183,7 +183,7 @@ export function JobRoleTable({
                       className={`inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-sm font-medium transition-colors hover:opacity-80 ${
                         role.kpi_count > 0
                           ? "bg-[#FFF9E6] text-[#C6A03B] cursor-pointer"
-                          : "bg-gray-100 text-gray-600 cursor-pointer"
+                          : "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground cursor-pointer"
                       }`}
                       title={t("hr:viewKPIs", "View KPIs")}
                     >
@@ -241,7 +241,7 @@ export function JobRoleTable({
       </div>
 
       {/* Results Count */}
-      <div className="text-sm text-[#6B6B6B]">
+      <div className="text-sm text-[#6B6B6B] dark:text-muted-foreground">
         {t("hr:showingResults", {
           count: filteredRoles.length,
           total: jobRoles.length,
@@ -265,7 +265,7 @@ export function JobRoleTable({
                     </span>
                   </div>
                 ) : (
-                  <span className="text-[#6B6B6B] mt-2 block">
+                  <span className="text-[#6B6B6B] dark:text-muted-foreground mt-2 block">
                     {t("hr:jobRoleDeleteNote")}
                   </span>
                 )}
@@ -276,7 +276,7 @@ export function JobRoleTable({
             <Button
               variant="outline"
               onClick={() => setDeleteModalOpen(false)}
-              className="border-[#E6E6E4]"
+              className="border-[#E6E6E4] dark:border-border"
             >
               {t("hr:cancel")}
             </Button>

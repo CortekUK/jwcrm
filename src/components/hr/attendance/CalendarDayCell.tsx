@@ -50,7 +50,7 @@ function getAttendanceIntensity(records: DayAttendanceData["records"]): {
   textColor: string;
 } {
   if (records.length === 0) {
-    return { bgColor: "bg-gray-50", textColor: "text-gray-400" };
+    return { bgColor: "bg-gray-50 dark:bg-muted", textColor: "text-gray-400" };
   }
 
   const presentCount = records.filter(
@@ -59,13 +59,13 @@ function getAttendanceIntensity(records: DayAttendanceData["records"]): {
   const rate = (presentCount / records.length) * 100;
 
   if (rate >= 90) {
-    return { bgColor: "bg-green-100", textColor: "text-green-800" };
+    return { bgColor: "bg-green-100 dark:bg-green-950/30", textColor: "text-green-800" };
   } else if (rate >= 75) {
-    return { bgColor: "bg-green-50", textColor: "text-green-700" };
+    return { bgColor: "bg-green-50 dark:bg-green-950/30", textColor: "text-green-700" };
   } else if (rate >= 50) {
-    return { bgColor: "bg-yellow-50", textColor: "text-yellow-700" };
+    return { bgColor: "bg-yellow-50 dark:bg-amber-950/30", textColor: "text-yellow-700" };
   } else {
-    return { bgColor: "bg-red-50", textColor: "text-red-700" };
+    return { bgColor: "bg-red-50 dark:bg-red-950/30", textColor: "text-red-700" };
   }
 }
 
@@ -129,8 +129,8 @@ export function CalendarDayCell({
   if (isWeekend) {
     return (
       <div
-        className={`h-16 md:h-20 flex flex-col items-center justify-center bg-gray-100 rounded-md ${
-          isClickable ? "cursor-pointer hover:bg-gray-200" : ""
+        className={`h-16 md:h-20 flex flex-col items-center justify-center bg-gray-100 dark:bg-muted rounded-md ${
+          isClickable ? "cursor-pointer hover:bg-gray-200 dark:hover:bg-accent" : ""
         }`}
         onClick={isClickable ? onClick : undefined}
         title={tooltipText}
@@ -145,8 +145,8 @@ export function CalendarDayCell({
   if (isHoliday) {
     return (
       <div
-        className={`h-16 md:h-20 flex flex-col items-center justify-center bg-amber-50 rounded-md border border-amber-200 ${
-          isClickable ? "cursor-pointer hover:bg-amber-100" : ""
+        className={`h-16 md:h-20 flex flex-col items-center justify-center bg-amber-50 dark:bg-amber-950/30 rounded-md border border-amber-200 ${
+          isClickable ? "cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/50" : ""
         }`}
         onClick={isClickable ? onClick : undefined}
         title={tooltipText}
@@ -161,7 +161,7 @@ export function CalendarDayCell({
   if (isFuture) {
     return (
       <div
-        className="h-16 md:h-20 flex flex-col items-center justify-center bg-gray-50 rounded-md"
+        className="h-16 md:h-20 flex flex-col items-center justify-center bg-gray-50 dark:bg-muted rounded-md"
         title={tooltipText}
       >
         <span className="text-sm font-medium text-gray-300">{day}</span>
@@ -175,8 +175,8 @@ export function CalendarDayCell({
     if (!record) {
       return (
         <div
-          className={`h-16 md:h-20 flex flex-col items-center justify-center bg-gray-50 rounded-md ${
-            isClickable ? "cursor-pointer hover:bg-gray-100" : ""
+          className={`h-16 md:h-20 flex flex-col items-center justify-center bg-gray-50 dark:bg-muted rounded-md ${
+            isClickable ? "cursor-pointer hover:bg-gray-100 dark:hover:bg-accent" : ""
           } ${isToday ? "ring-2 ring-[hsl(var(--jw-primary-green))]" : ""}`}
           onClick={isClickable ? onClick : undefined}
           title="No record"
@@ -189,29 +189,28 @@ export function CalendarDayCell({
     const config = statusConfig[record.status];
     const Icon = config.icon;
 
+    const statusBgClass =
+      record.status === "present"
+        ? "bg-green-100 dark:bg-green-950/30"
+        : record.status === "late"
+          ? "bg-orange-200 dark:bg-orange-950/30"
+          : record.status === "wfh"
+            ? "bg-blue-100 dark:bg-blue-950/30"
+            : record.status === "on_leave"
+              ? "bg-purple-100 dark:bg-purple-950/30"
+              : record.status === "sick_leave"
+                ? "bg-yellow-100 dark:bg-amber-950/30"
+                : "bg-red-100 dark:bg-red-950/30";
+
     return (
       <div
-        className={`h-16 md:h-20 flex flex-col items-center justify-center rounded-md transition-colors ${
+        className={`h-16 md:h-20 flex flex-col items-center justify-center rounded-md transition-colors ${statusBgClass} ${
           isClickable ? "cursor-pointer hover:opacity-80" : ""
         } ${isToday ? "ring-2 ring-[hsl(var(--jw-primary-green))]" : ""}`}
-        style={{
-          backgroundColor:
-            record.status === "present"
-              ? "#dcfce7"
-              : record.status === "late"
-                ? "#fed7aa"
-                : record.status === "wfh"
-                  ? "#dbeafe"
-                  : record.status === "on_leave"
-                    ? "#f3e8ff"
-                    : record.status === "sick_leave"
-                      ? "#fef9c3"
-                      : "#fee2e2",
-        }}
         onClick={isClickable ? onClick : undefined}
         title={tooltipText}
       >
-        <span className="text-sm font-medium text-gray-700">{day}</span>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{day}</span>
         <Icon className={`h-4 w-4 ${config.color} mt-1`} />
       </div>
     );

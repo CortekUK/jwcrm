@@ -211,7 +211,7 @@ export function AttendanceSummaryCard() {
 
   if (loading) {
     return (
-      <Card className="border-[#E6E6E4]">
+      <Card className="border-[#E6E6E4] dark:border-border">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -224,14 +224,14 @@ export function AttendanceSummaryCard() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="flex items-center gap-2 p-2 rounded bg-gray-50">
+              <div key={i} className="flex items-center gap-2 p-2 rounded bg-gray-50 dark:bg-muted">
                 <Skeleton className="h-4 w-4 rounded" />
                 <Skeleton className="h-4 w-16" />
                 <Skeleton className="h-4 w-6" />
               </div>
             ))}
           </div>
-          <div className="pt-2 border-t border-[#E6E6E4]">
+          <div className="pt-2 border-t border-[#E6E6E4] dark:border-border">
             <div className="flex items-center justify-between mb-2">
               <Skeleton className="h-4 w-28" />
               <Skeleton className="h-5 w-12 rounded-full" />
@@ -245,7 +245,7 @@ export function AttendanceSummaryCard() {
   }
 
   return (
-    <Card className="border-[#E6E6E4]">
+    <Card className="border-[#E6E6E4] dark:border-border">
       <CardHeader className="pb-2">
         <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
           <span className="flex items-center gap-2">
@@ -254,7 +254,7 @@ export function AttendanceSummaryCard() {
             </div>
             {t("attendanceWidget.todaysAttendance")}
           </span>
-          <span className="text-sm font-normal text-[#6B6B6B]">
+          <span className="text-sm font-normal text-[#6B6B6B] dark:text-muted-foreground">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
           </span>
         </CardTitle>
@@ -265,8 +265,8 @@ export function AttendanceSummaryCard() {
             <div className="mx-auto w-16 h-16 rounded-full bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center mb-3">
               <Clock className="h-8 w-8 text-[hsl(var(--jw-gold-accent))]" />
             </div>
-            <p className="text-[#222222] font-medium mb-1">{t("attendanceWidget.attendanceNotMarkedYet")}</p>
-            <p className="text-sm text-[#6B6B6B] mb-4">{t("attendanceWidget.markAttendanceHint")}</p>
+            <p className="text-[#222222] dark:text-foreground font-medium mb-1">{t("attendanceWidget.attendanceNotMarkedYet")}</p>
+            <p className="text-sm text-[#6B6B6B] dark:text-muted-foreground mb-4">{t("attendanceWidget.markAttendanceHint")}</p>
             <Button
               onClick={() => router.push("/admin/hr/attendance")}
               className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
@@ -285,10 +285,10 @@ export function AttendanceSummaryCard() {
                 const count = summary[status];
 
                 return (
-                  <div key={status} className="flex items-center gap-2 p-2 rounded bg-gray-50">
+                  <div key={status} className="flex items-center gap-2 p-2 rounded bg-gray-50 dark:bg-muted">
                     <Icon className={`h-4 w-4 ${config.color}`} />
-                    <span className="text-sm text-[#6B6B6B]">{config.label}:</span>
-                    <span className={`font-semibold ${count > 0 ? config.color : "text-[#222222]"}`}>
+                    <span className="text-sm text-[#6B6B6B] dark:text-muted-foreground">{config.label}:</span>
+                    <span className={`font-semibold ${count > 0 ? config.color : "text-[#222222] dark:text-foreground"}`}>
                       {count}
                     </span>
                   </div>
@@ -297,23 +297,23 @@ export function AttendanceSummaryCard() {
             </div>
 
             {/* Attendance rate */}
-            <div className="pt-2 border-t border-[#E6E6E4]">
+            <div className="pt-2 border-t border-[#E6E6E4] dark:border-border">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-[#6B6B6B]">{t("attendanceWidget.attendanceRate")}</span>
+                <span className="text-sm text-[#6B6B6B] dark:text-muted-foreground">{t("attendanceWidget.attendanceRate")}</span>
                 <Badge
                   variant="outline"
                   className={
                     attendanceRate >= 85
-                      ? "bg-green-50 text-green-600 border-green-200"
+                      ? "bg-green-50 dark:bg-green-950/30 text-green-600 border-green-200"
                       : attendanceRate >= 70
-                        ? "bg-yellow-50 text-yellow-600 border-yellow-200"
-                        : "bg-red-50 text-red-600 border-red-200"
+                        ? "bg-yellow-50 dark:bg-amber-950/30 text-yellow-600 border-yellow-200"
+                        : "bg-red-50 dark:bg-red-950/30 text-red-600 border-red-200"
                   }
                 >
                   {attendanceRate}%
                 </Badge>
               </div>
-              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-gray-200 dark:bg-muted rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all ${
                     attendanceRate >= 85
@@ -330,7 +330,7 @@ export function AttendanceSummaryCard() {
             {/* Action button */}
             <Button
               variant="outline"
-              className="w-full border-[#E6E6E4] hover:bg-[#FAFAF8]"
+              className="w-full border-[#E6E6E4] dark:border-border hover:bg-[#FAFAF8] dark:hover:bg-accent"
               onClick={() => router.push("/admin/hr/attendance")}
             >
               <CalendarCheck className="h-4 w-4 mr-2 text-[hsl(var(--jw-primary-green))]" />
@@ -339,10 +339,10 @@ export function AttendanceSummaryCard() {
 
             {/* Needs Attention Section */}
             {attentionList.length > 0 && (
-              <div className="pt-3 border-t border-[#E6E6E4]">
+              <div className="pt-3 border-t border-[#E6E6E4] dark:border-border">
                 <div className="flex items-center gap-2 mb-2">
                   <AlertTriangle className="h-4 w-4 text-orange-500" />
-                  <span className="text-sm font-medium text-[#222222]">
+                  <span className="text-sm font-medium text-[#222222] dark:text-foreground">
                     {t("attendanceWidget.needsAttention")} ({attentionList.length})
                   </span>
                 </div>
@@ -354,12 +354,12 @@ export function AttendanceSummaryCard() {
                         onClick={() => router.push(`/admin/hr/attendance/employee/${emp.id}`)}
                         className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
                           emp.severity === "critical"
-                            ? "bg-red-50 hover:bg-red-100 border border-red-200"
-                            : "bg-yellow-50 hover:bg-yellow-100 border border-yellow-200"
+                            ? "bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 border border-red-200"
+                            : "bg-yellow-50 dark:bg-amber-950/30 hover:bg-yellow-100 dark:hover:bg-amber-950/50 border border-yellow-200"
                         }`}
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-[#222222] truncate">
+                          <p className="text-sm font-medium text-[#222222] dark:text-foreground truncate">
                             {emp.name}
                           </p>
                           <p className={`text-xs ${
@@ -388,7 +388,7 @@ export function AttendanceSummaryCard() {
                             }`}
                           >
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-[#222222] truncate">
+                              <p className="text-sm font-medium text-[#222222] dark:text-foreground truncate">
                                 {emp.name}
                               </p>
                               <p className={`text-xs ${
@@ -407,7 +407,7 @@ export function AttendanceSummaryCard() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="w-full mt-2 text-xs text-[#6B6B6B] hover:text-[#222222]"
+                          className="w-full mt-2 text-xs text-[#6B6B6B] dark:text-muted-foreground hover:text-[#222222] dark:hover:text-foreground"
                         >
                           {attentionExpanded ? (
                             <>
