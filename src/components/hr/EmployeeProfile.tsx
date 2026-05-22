@@ -13,28 +13,26 @@ import {
   Mail,
   Phone,
   Calendar,
-  Banknote,
+  DollarSign,
   Building,
+  Edit,
+  UserX,
   FileText,
   Upload,
   AlertCircle,
   Download,
   Eye,
+  ClipboardList,
+  Target,
   History,
   ChevronDown,
   ChevronUp,
   Archive,
-  CreditCard,
-  FileCheck,
-  Plane,
-  Award,
-  UserX,
-  Target,
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { EmployeeDocumentUpload } from "./EmployeeDocumentUpload";
-import { CustomKPIList } from "./kpis/CustomKPIList";
+import { DeactivateModal } from "./DeactivateModal";
 
 interface Employee {
   id: string;
@@ -68,15 +66,31 @@ interface EmployeeProfileProps {
   documents: Document[];
   archivedDocuments?: Document[];
   onRefresh: () => void;
-  defaultTab?: "details" | "documents" | "custom-kpis";
+  defaultTab?: "details" | "documents";
 }
 
 export function EmployeeProfile({ employee, documents, archivedDocuments = [], onRefresh, defaultTab = "details" }: EmployeeProfileProps) {
   const { t } = useTranslation(["hr"]);
   const router = useRouter();
+  const [showDeactivate, setShowDeactivate] = useState(false);
   // Show upload form automatically if coming from create flow (defaultTab=documents)
   const [showUpload, setShowUpload] = useState(defaultTab === "documents");
   const [showHistory, setShowHistory] = useState(false);
+
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      active: "bg-[#E6F7F1] text-[#0C5536] border-[#0C5536]/20",
+      inactive: "bg-gray-100 text-gray-600 border-gray-300",
+      on_leave: "bg-[#FFF9E6] text-[#C6A03B] border-[#C6A03B]/20",
+      terminated: "bg-red-50 text-red-600 border-red-200",
+    };
+
+    return (
+      <Badge variant="outline" className={`${styles[status] || styles.inactive} text-sm`}>
+        {t(`hr:status.${status}`)}
+      </Badge>
+    );
+  };
 
   const getDocumentExpiryBadge = (expiryDate: string | null) => {
     if (!expiryDate) return null;
@@ -117,50 +131,83 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+        <div className="flex items-center gap-4">
+          <div className="h-16 w-16 rounded-full bg-[hsl(var(--jw-primary-green))] flex items-center justify-center text-white text-2xl font-bold">
+            {employee.full_name.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-[#222222]">{employee.full_name}</h1>
+            <p className="text-[#6B6B6B]">{employee.job_role?.name || t("hr:noJobRole")}</p>
+            {getStatusBadge(employee.employment_status)}
+          </div>
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/admin/hr/attendance/employee/${employee.id}`)}
+            className="border-[hsl(var(--jw-primary-green))] text-[hsl(var(--jw-primary-green))]"
+          >
+            <ClipboardList className="h-4 w-4 mr-2" />
+            {t("hr:viewAttendance")}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/admin/hr/kpis/evaluations/${employee.id}`)}
+            className="border-[hsl(var(--jw-gold-accent))] text-[hsl(var(--jw-gold-accent))]"
+          >
+            <Target className="h-4 w-4 mr-2" />
+            {t("hr:viewKPIs")}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/admin/hr/employees/${employee.id}/edit`)}
+            className="border-[hsl(var(--jw-primary-green))] text-[hsl(var(--jw-primary-green))]"
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            {t("hr:edit")}
+          </Button>
+          {employee.employment_status === "active" && (
+            <Button
+              variant="outline"
+              onClick={() => setShowDeactivate(true)}
+              className="border-red-500 text-red-500 hover:bg-red-50"
+            >
+              <UserX className="h-4 w-4 mr-2" />
+              {t("hr:deactivate")}
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Tabs */}
       <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className="bg-white border border-[#E6E6E4] p-1 h-auto rounded-lg shadow-sm">
-          <TabsTrigger 
-            value="details"
-            className="px-6 py-2.5 text-sm font-medium rounded-md data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"
-          >
-            {t("hr:details")}
-          </TabsTrigger>
-          <TabsTrigger
-            value="documents"
-            className="px-6 py-2.5 text-sm font-medium rounded-md data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"
-          >
+        <TabsList className="bg-[#FAFAF8] border border-[#E6E6E4]">
+          <TabsTrigger value="details">{t("hr:details")}</TabsTrigger>
+          <TabsTrigger value="documents">
             {t("hr:documents")}
             {documents.some((d) => d.expiry_date && differenceInDays(new Date(d.expiry_date), new Date()) <= 30) && (
-              <span className="ltr:ml-2 rtl:mr-2 h-5 w-5 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center">!</span>
+              <AlertCircle className="h-4 w-4 ml-1 text-orange-500" />
             )}
-          </TabsTrigger>
-          <TabsTrigger
-            value="custom-kpis"
-            className="px-6 py-2.5 text-sm font-medium rounded-md data-[state=active]:bg-[hsl(var(--jw-primary-green))] data-[state=active]:text-white data-[state=active]:shadow-sm transition-all"
-          >
-            {t("hr:customKpis")}
           </TabsTrigger>
         </TabsList>
 
         {/* Details Tab */}
-        <TabsContent value="details" className="mt-6">
+        <TabsContent value="details" className="mt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Personal Info */}
-            <Card className="border-[#E6E6E4] shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-                  <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
-                    <User className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
-                  </div>
+            <Card className="border-[#E6E6E4]">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <User className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                   {t("hr:personalInfo")}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1 pt-2">
+              <CardContent className="space-y-3">
                 <InfoRow icon={Mail} label={t("hr:email")} value={employee.email} />
-                <div className="border-t border-[#E6E6E4]/50" />
                 <InfoRow icon={Phone} label={t("hr:phone")} value={employee.phone} />
-                <div className="border-t border-[#E6E6E4]/50" />
                 <InfoRow
                   icon={Calendar}
                   label={t("hr:dateOfBirth")}
@@ -170,28 +217,23 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
             </Card>
 
             {/* Job Info */}
-            <Card className="border-[#E6E6E4] shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-                  <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
-                    <Briefcase className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
-                  </div>
+            <Card className="border-[#E6E6E4]">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Briefcase className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                   {t("hr:jobInfo")}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1 pt-2">
+              <CardContent className="space-y-3">
                 <InfoRow icon={Briefcase} label={t("hr:jobRole")} value={employee.job_role?.name} />
-                <div className="border-t border-[#E6E6E4]/50" />
                 <InfoRow icon={Building} label={t("hr:department")} value={employee.department?.name} />
-                <div className="border-t border-[#E6E6E4]/50" />
                 <InfoRow
                   icon={Calendar}
                   label={t("hr:startDate")}
                   value={format(new Date(employee.start_date), "MMM d, yyyy")}
                 />
-                <div className="border-t border-[#E6E6E4]/50" />
                 <InfoRow
-                  icon={Banknote}
+                  icon={DollarSign}
                   label={t("hr:salary")}
                   value={employee.salary ? `AED ${employee.salary.toLocaleString()}` : null}
                 />
@@ -199,75 +241,49 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
             </Card>
 
             {/* Document Expiry Status */}
-            <Card className="border-[#E6E6E4] md:col-span-2 shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-                  <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
-                    <FileText className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
-                  </div>
+            <Card className="border-[#E6E6E4] md:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                   {t("hr:documentExpiryStatus")}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {(["passport", "employment_visa", "emirates_id", "employment_contract", "certification"] as const).map((docType) => {
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {(["passport", "employment_visa", "emirates_id", "employment_contract"] as const).map((docType) => {
                     const doc = documents.find((d) => d.document_type === docType);
                     const hasExpiry = doc?.expiry_date;
                     const daysUntil = hasExpiry ? differenceInDays(new Date(doc.expiry_date!), new Date()) : null;
 
-                    // Document type icons
-                    const docIcons: Record<string, any> = {
-                      passport: Plane,
-                      employment_visa: FileCheck,
-                      emirates_id: CreditCard,
-                      employment_contract: FileText,
-                      certification: Award,
-                    };
-                    const DocIcon = docIcons[docType] || FileText;
-
-                    let statusColor = "bg-[#FAFAF8] border-[#E6E6E4]";
-                    let textColor = "text-[#9B9B9B]";
-                    let iconBgColor = "bg-gray-100";
-                    let iconColor = "text-gray-400";
+                    let statusColor = "bg-gray-100 border-gray-200";
+                    let textColor = "text-gray-500";
                     let statusText = t("hr:notUploaded");
 
                     if (doc) {
                       if (!hasExpiry) {
-                        statusColor = "bg-blue-50/50 border-blue-200";
+                        statusColor = "bg-blue-50 border-blue-200";
                         textColor = "text-blue-600";
-                        iconBgColor = "bg-blue-100";
-                        iconColor = "text-blue-500";
                         statusText = t("hr:noExpiry");
                       } else if (daysUntil !== null) {
                         if (daysUntil < 0) {
-                          statusColor = "bg-red-50 border-red-300";
+                          statusColor = "bg-red-100 border-red-300";
                           textColor = "text-red-600";
-                          iconBgColor = "bg-red-100";
-                          iconColor = "text-red-500";
                           statusText = t("hr:expired");
                         } else if (daysUntil <= 7) {
-                          statusColor = "bg-red-50/70 border-red-200";
+                          statusColor = "bg-red-50 border-red-200";
                           textColor = "text-red-600";
-                          iconBgColor = "bg-red-100";
-                          iconColor = "text-red-500";
                           statusText = `${daysUntil}d`;
                         } else if (daysUntil <= 14) {
-                          statusColor = "bg-orange-50/70 border-orange-200";
+                          statusColor = "bg-orange-50 border-orange-200";
                           textColor = "text-orange-600";
-                          iconBgColor = "bg-orange-100";
-                          iconColor = "text-orange-500";
                           statusText = `${daysUntil}d`;
                         } else if (daysUntil <= 30) {
-                          statusColor = "bg-yellow-50/70 border-yellow-200";
+                          statusColor = "bg-yellow-50 border-yellow-200";
                           textColor = "text-yellow-600";
-                          iconBgColor = "bg-yellow-100";
-                          iconColor = "text-yellow-500";
                           statusText = `${daysUntil}d`;
                         } else {
-                          statusColor = "bg-green-50/50 border-green-200";
+                          statusColor = "bg-green-50 border-green-200";
                           textColor = "text-green-600";
-                          iconBgColor = "bg-green-100";
-                          iconColor = "text-green-500";
                           statusText = format(new Date(doc.expiry_date!), "MMM d, yyyy");
                         }
                       }
@@ -276,19 +292,14 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
                     return (
                       <div
                         key={docType}
-                        className={`p-4 rounded-xl border-2 ${statusColor} min-h-[100px] flex flex-col transition-all hover:shadow-sm`}
+                        className={`p-3 rounded-lg border ${statusColor}`}
                       >
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className={`h-7 w-7 rounded-lg ${iconBgColor} flex items-center justify-center`}>
-                            <DocIcon className={`h-3.5 w-3.5 ${iconColor}`} />
-                          </div>
-                        </div>
-                        <p className="text-xs text-[#777777] mb-1 font-medium">{t(`hr:docType.${docType}`)}</p>
-                        <p className={`font-semibold text-sm ${textColor}`}>
+                        <p className="text-xs text-[#6B6B6B] mb-1">{t(`hr:docType.${docType}`)}</p>
+                        <p className={`font-medium ${textColor}`}>
                           {doc && hasExpiry ? format(new Date(doc.expiry_date!), "MMM d, yyyy") : statusText}
                         </p>
                         {doc && hasExpiry && daysUntil !== null && daysUntil >= 0 && daysUntil <= 30 && (
-                          <p className={`text-xs ${textColor} mt-1 opacity-80`}>
+                          <p className={`text-xs ${textColor} mt-1`}>
                             {daysUntil === 0 ? t("hr:expiresToday") : `${daysUntil} ${t("hr:daysLeft")}`}
                           </p>
                         )}
@@ -303,7 +314,7 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
             {employee.employment_status === "terminated" && (
               <Card className="border-red-200 bg-red-50 md:col-span-2">
                 <CardHeader>
-                  <CardTitle className="text-xl font-semibold text-red-600 flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+                  <CardTitle className="text-lg flex items-center gap-2 text-red-600">
                     <UserX className="h-5 w-5" />
                     {t("hr:terminationInfo")}
                   </CardTitle>
@@ -326,15 +337,13 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
         </TabsContent>
 
         {/* Documents Tab */}
-        <TabsContent value="documents" className="mt-6">
+        <TabsContent value="documents" className="mt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Document List */}
-            <Card className="border-[#E6E6E4] shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-                  <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
-                    <FileText className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
-                  </div>
+            <Card className="border-[#E6E6E4]">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                   {t("hr:uploadedDocuments")}
                 </CardTitle>
                 <Button
@@ -342,35 +351,30 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
                   onClick={() => setShowUpload(!showUpload)}
                   className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
                 >
-                  <Upload className="h-4 w-4 ltr:mr-1 rtl:ml-1" />
+                  <Upload className="h-4 w-4 mr-1" />
                   {t("hr:upload")}
                 </Button>
               </CardHeader>
-              <CardContent className="pt-4">
+              <CardContent>
                 {documents.length === 0 ? (
-                  <div className="text-center py-12 text-[#6B6B6B]">
-                    <div className="h-16 w-16 rounded-full bg-[#F8F6EC] flex items-center justify-center mx-auto mb-3">
-                      <FileText className="h-8 w-8 text-[#C6A03B]" />
-                    </div>
-                    <p className="font-medium">{t("hr:noDocuments")}</p>
-                    <p className="text-sm text-[#9B9B9B] mt-1">{t("hr:uploadDocumentsToGetStarted", "Upload documents to get started")}</p>
+                  <div className="text-center py-8 text-[#6B6B6B]">
+                    <FileText className="h-12 w-12 mx-auto mb-2 text-[#E6E6E4]" />
+                    <p>{t("hr:noDocuments")}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {documents.map((doc) => (
                       <div
                         key={doc.id}
-                        className="flex items-center justify-between p-3 bg-[#FAFAF8] rounded-xl border border-[#E6E6E4] hover:border-[hsl(var(--jw-gold-accent))]/50 transition-colors"
+                        className="flex items-center justify-between p-3 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4]"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg bg-white border border-[#E6E6E4] flex items-center justify-center">
-                            <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-                          </div>
+                          <FileText className="h-5 w-5 text-[#6B6B6B]" />
                           <div>
                             <p className="font-medium text-[#222222]">
                               {t(`hr:docType.${doc.document_type}`)}
                             </p>
-                            <p className="text-xs text-[#777777]">
+                            <p className="text-xs text-[#6B6B6B]">
                               {doc.expiry_date
                                 ? `${t("hr:expires")}: ${format(new Date(doc.expiry_date), "MMM d, yyyy")}`
                                 : t("hr:noExpiry")}
@@ -383,7 +387,7 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDownload(doc)}
-                            className="text-[#777777] hover:text-[#0C5536] hover:bg-[#F8F6EC]"
+                            className="text-[#6B6B6B] hover:text-[#0C5536] hover:bg-transparent"
                             title={t("hr:viewDocument")}
                           >
                             <Eye className="h-4 w-4" />
@@ -392,7 +396,7 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDownload(doc)}
-                            className="text-[#777777] hover:text-[#0C5536] hover:bg-[#F8F6EC]"
+                            className="text-[#6B6B6B] hover:text-[#0C5536] hover:bg-transparent"
                             title={t("hr:downloadDocument")}
                           >
                             <Download className="h-4 w-4" />
@@ -407,16 +411,14 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
 
             {/* Upload Form */}
             {showUpload && (
-              <Card className="border-[#E6E6E4] shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-                    <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-primary-green))]/10 flex items-center justify-center">
-                      <Upload className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
-                    </div>
+              <Card className="border-[#E6E6E4]">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Upload className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                     {t("hr:uploadNewDocument")}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-4">
+                <CardContent>
                   <EmployeeDocumentUpload
                     employeeId={employee.id}
                     existingDocuments={documents}
@@ -432,43 +434,39 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
 
           {/* Document History Section */}
           {archivedDocuments.length > 0 && (
-            <Card className="border-[#E6E6E4] mt-6 shadow-sm">
+            <Card className="border-[#E6E6E4] mt-6">
               <CardHeader
-                className="cursor-pointer hover:bg-[#FAFAF8] transition-colors rounded-t-lg"
+                className="cursor-pointer hover:bg-[#FAFAF8] transition-colors"
                 onClick={() => setShowHistory(!showHistory)}
               >
                 <CardTitle className="text-lg flex items-center justify-between">
                   <span className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                      <History className="h-4 w-4 text-[#777777]" />
-                    </div>
+                    <History className="h-5 w-5 text-[#6B6B6B]" />
                     {t("hr:documentHistory")}
-                    <Badge variant="outline" className="ml-2 text-[#777777] bg-gray-50">
+                    <Badge variant="outline" className="ml-2 text-[#6B6B6B]">
                       {archivedDocuments.length}
                     </Badge>
                   </span>
                   {showHistory ? (
-                    <ChevronUp className="h-5 w-5 text-[#777777]" />
+                    <ChevronUp className="h-5 w-5 text-[#6B6B6B]" />
                   ) : (
-                    <ChevronDown className="h-5 w-5 text-[#777777]" />
+                    <ChevronDown className="h-5 w-5 text-[#6B6B6B]" />
                   )}
                 </CardTitle>
               </CardHeader>
               {showHistory && (
-                <CardContent className="pt-0">
-                  <p className="text-sm text-[#777777] mb-4">
+                <CardContent>
+                  <p className="text-sm text-[#6B6B6B] mb-4">
                     {t("hr:documentHistoryDescription")}
                   </p>
                   <div className="space-y-3">
                     {archivedDocuments.map((doc) => (
                       <div
                         key={doc.id}
-                        className="flex items-center justify-between p-3 bg-gray-50/50 rounded-xl border border-gray-200"
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 opacity-75"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                            <Archive className="h-5 w-5 text-[#9B9B9B]" />
-                          </div>
+                          <Archive className="h-5 w-5 text-[#9B9B9B]" />
                           <div>
                             <p className="font-medium text-[#555555]">
                               {t(`hr:docType.${doc.document_type}`)}
@@ -487,14 +485,14 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[#9B9B9B] border-gray-300 bg-gray-50">
+                          <Badge variant="outline" className="text-[#9B9B9B] border-gray-300">
                             {t("hr:archived")}
                           </Badge>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDownload(doc)}
-                            className="text-[#9B9B9B] hover:text-[#777777] hover:bg-gray-100"
+                            className="text-[#9B9B9B] hover:text-[#6B6B6B] hover:bg-transparent"
                             title={t("hr:viewDocument")}
                           >
                             <Eye className="h-4 w-4" />
@@ -503,7 +501,7 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDownload(doc)}
-                            className="text-[#9B9B9B] hover:text-[#777777] hover:bg-gray-100"
+                            className="text-[#9B9B9B] hover:text-[#6B6B6B] hover:bg-transparent"
                             title={t("hr:downloadDocument")}
                           >
                             <Download className="h-4 w-4" />
@@ -517,29 +515,20 @@ export function EmployeeProfile({ employee, documents, archivedDocuments = [], o
             </Card>
           )}
         </TabsContent>
-
-        {/* Custom KPIs Tab */}
-        <TabsContent value="custom-kpis" className="mt-6">
-          <Card className="border-[#E6E6E4] shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl font-semibold text-[#0C5536] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-                <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                  <Target className="h-4 w-4 text-purple-600" />
-                </div>
-                {t("hr:individualGoals")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <CustomKPIList employeeId={employee.id} employeeName={employee.full_name} />
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
+
+      {/* Deactivate Modal */}
+      <DeactivateModal
+        open={showDeactivate}
+        onOpenChange={setShowDeactivate}
+        employee={employee}
+        onSuccess={onRefresh}
+      />
     </div>
   );
 }
 
-// Helper component for info rows with better visual hierarchy
+// Helper component for info rows
 function InfoRow({
   icon: Icon,
   label,
@@ -550,13 +539,11 @@ function InfoRow({
   value: string | null | undefined;
 }) {
   return (
-    <div className="flex items-start gap-3 py-2.5">
-      <div className="h-9 w-9 rounded-lg bg-[#F8F6EC] flex items-center justify-center flex-shrink-0">
-        <Icon className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
-      </div>
-      <div className="flex-1 min-w-0 pt-0.5">
-        <p className="text-xs text-[#777777] mb-0.5">{label}</p>
-        <p className="text-[#222222] font-medium truncate">{value || "-"}</p>
+    <div className="flex items-center gap-3">
+      <Icon className="h-4 w-4 text-[#6B6B6B] flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-[#6B6B6B]">{label}</p>
+        <p className="text-[#222222] truncate">{value || "-"}</p>
       </div>
     </div>
   );

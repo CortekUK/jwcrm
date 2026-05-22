@@ -1,34 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { stripe } from "@/integrations/stripe/server";
-import { Resend } from "resend";
 import { generateProposalPDF } from "@/lib/pdf/generateProposalPDF";
 import { generateInvoicePDFArabic } from "@/lib/pdf/generateInvoicePDFArabic";
-import { generateProposalContent, generateProposalSummary } from "@/lib/proposal-template";
+import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { leadId, amount, currency = "AED", proposalContent, leadEmail, leadName, useTemplate } = body;
-
-    // When using template mode, proposalContent is not required (will be generated)
-    if (!leadId || !amount) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+    // Resolve the calling user so we can route the email via their Outlook
+    // when connected. Falls back to the system Resend sender otherwise.
+    let callerId: string | null = null;
+    const authHeader = request.headers.get("authorization") || "";
+    const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (accessToken) {
+      const { data: userInfo } = await supabaseAdmin.auth.getUser(accessToken);
+      callerId = userInfo?.user?.id ?? null;
     }
 
-    if (!useTemplate && !proposalContent) {
+    const body = await request.json();
+    const { leadId, amount, currency = "USD", proposalContent, leadEmail, leadName } = body;
+
+    if (!leadId || !amount || !proposalContent) {
       return NextResponse.json(
-        { error: "Proposal content is required when not using template" },
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
@@ -51,23 +50,6 @@ export async function POST(request: NextRequest) {
     const effectiveEmail = leadEmail || lead.email;
     const effectiveName = leadName || lead.full_name;
 
-    // Calculate dates for proposal
-    const now = new Date();
-    const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
-    const validUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
-
-    // Generate proposal content from template if useTemplate is true
-    const finalProposalContent = useTemplate
-      ? generateProposalContent({
-          clientName: effectiveName,
-          price: amount,
-          currency: currency,
-          invoiceNumber: "PENDING", // Will be updated after insert
-          dueDate: dueDate,
-          validUntil: validUntil,
-        })
-      : proposalContent;
-
     // 2. Create proposal record (invoice_number is auto-generated)
     const { data: proposal, error: proposalError } = await supabaseAdmin
       .from("proposals")
@@ -75,7 +57,7 @@ export async function POST(request: NextRequest) {
         lead_id: leadId,
         amount,
         currency,
-        proposal_content: finalProposalContent,
+        proposal_content: proposalContent,
         status: "draft",
       })
       .select()
@@ -141,6 +123,10 @@ export async function POST(request: NextRequest) {
       .eq("id", leadId);
 
     // 6. Generate PDFs
+    const now = new Date();
+    const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+    const validUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
+
     // Generate Proposal PDF
     const proposalPDFBase64 = generateProposalPDF({
       invoiceNumber: proposal.invoice_number,
@@ -152,7 +138,7 @@ export async function POST(request: NextRequest) {
       clientCompany: lead.company_name,
       amount: amount,
       currency: currency,
-      proposalContent: finalProposalContent,
+      proposalContent: proposalContent,
     });
 
     // Generate Invoice PDF in Arabic
@@ -175,23 +161,16 @@ export async function POST(request: NextRequest) {
       currency: currency,
     }).format(amount);
 
-    // Test mode: all emails go to admin with original recipient in subject
-    const adminEmail = process.env.ADMIN_EMAIL || "aw736024@gmail.com";
-    const fromEmail = process.env.FROM_EMAIL || "onboarding@resend.dev";
-    const isTestMode = !process.env.PRODUCTION_EMAIL_MODE;
-
-    const recipientEmail = isTestMode ? adminEmail : effectiveEmail;
-    const subjectPrefix = isTestMode ? `[Original: ${effectiveEmail}] ` : "";
-
-    try {
-      await resend.emails.send({
-        from: fromEmail,
-        to: recipientEmail,
-        subject: `${subjectPrefix}Your Proposal & Invoice - ${proposal.invoice_number}`,
-        headers: {
-          "X-Entity-Ref-ID": proposal.id, // Disables click tracking
-        },
-        html: `
+    // Route email via the caller's Outlook when connected, else Resend.
+    const emailResult = await sendUserEmail(callerId, {
+      to: effectiveEmail,
+      subject: `Your Proposal & Invoice - ${proposal.invoice_number}`,
+      refId: proposal.id,
+      attachments: [
+        { content: proposalPDFBase64, filename: `Proposal-${proposal.invoice_number}.pdf` },
+        { content: invoicePDFBase64, filename: `Invoice-${proposal.invoice_number}.pdf` },
+      ],
+      html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background-color: #0C5536; padding: 20px; text-align: center;">
               <h1 style="color: #C6A03B; margin: 0;">Just Wills</h1>
@@ -249,46 +228,9 @@ export async function POST(request: NextRequest) {
             </div>
           </div>
         `,
-        attachments: [
-          {
-            content: proposalPDFBase64,
-            filename: `Proposal-${proposal.invoice_number}.pdf`,
-          },
-          {
-            content: invoicePDFBase64,
-            filename: `Invoice-${proposal.invoice_number}.pdf`,
-          },
-        ],
-      });
-    } catch (emailError) {
-      console.error("Error sending email:", emailError);
-      // Don't fail the request, just log the error
-    }
-
-    // 8. Log proposal_sent activity
-    const activityDescription = generateProposalSummary({
-      clientName: effectiveName,
-      price: amount,
-      currency: currency,
-      invoiceNumber: proposal.invoice_number,
     });
-
-    try {
-      await supabaseAdmin.from("lead_activities").insert({
-        type: "proposal_sent",
-        title: "Proposal Sent",
-        description: activityDescription,
-        lead_id: leadId,
-        metadata: {
-          proposal_id: proposal.id,
-          invoice_number: proposal.invoice_number,
-          amount: amount,
-          currency: currency,
-          recipient_email: effectiveEmail,
-        },
-      });
-    } catch (activityError) {
-      console.error("Error logging activity:", activityError);
+    if (!emailResult.ok) {
+      console.error("Error sending proposal email:", emailResult.error);
       // Don't fail the request, just log the error
     }
 
@@ -297,6 +239,7 @@ export async function POST(request: NextRequest) {
       proposalId: proposal.id,
       invoiceNumber: proposal.invoice_number,
       paymentUrl: session.url,
+      emailProvider: emailResult.provider,
     });
   } catch (error) {
     console.error("Error in send-proposal:", error);

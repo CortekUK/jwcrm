@@ -178,13 +178,18 @@ export function SendProposalDialog({
         });
       }
 
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
       const response = await fetch("/api/lead-management/send-proposal", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           leadId: lead.id,
           amount: amountNum,
-          currency: "AED",
+          currency: "USD",
           proposalContent,
           // Pass updated lead info to ensure email goes to correct address
           leadEmail: editedLead.email,
@@ -265,7 +270,7 @@ export function SendProposalDialog({
           .insert({
             lead_id: lead.id,
             amount: amountNum,
-            currency: "AED",
+            currency: "USD",
             proposal_content: proposalContent,
             status: "draft",
             invoice_number: `INV-${Date.now()}`,
@@ -297,7 +302,7 @@ export function SendProposalDialog({
         clientPhone: editedLead.phone || null,
         clientCompany: editedLead.company_name || null,
         amount: parseFloat(amount) || 0,
-        currency: "AED",
+        currency: "USD",
         proposalContent: proposalContent,
         createdAt: new Date(),
       }
@@ -307,18 +312,15 @@ export function SendProposalDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Send className="h-5 w-5 text-[#C6A03B]" />
-            <span className="text-[hsl(var(--jw-primary-green))]">{t("sendProposal")}</span>
-          </DialogTitle>
-          <DialogDescription className="ltr:ml-7 rtl:mr-7">
+          <DialogTitle>{t("sendProposal")}</DialogTitle>
+          <DialogDescription>
             {t("sendProposalTo", { name: lead?.full_name })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           {/* Lead Info (Editable) */}
-          <div className="p-4 bg-[#FAFAF8] border border-[#E6E6E4] rounded-lg space-y-4">
+          <div className="p-4 bg-gray-50 rounded-lg space-y-4">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">{t("clientInformation")}</Label>
               <Button
@@ -405,10 +407,10 @@ export function SendProposalDialog({
 
           {/* Amount */}
           <div className="space-y-2">
-            <Label htmlFor="amount">{t("amountAED", "Amount (AED)")} *</Label>
+            <Label htmlFor="amount">{t("amountUSD")} *</Label>
             <div className="relative">
-              <span className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-                AED
+              <span className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                $
               </span>
               <Input
                 id="amount"
@@ -416,7 +418,7 @@ export function SendProposalDialog({
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="ltr:pl-12 rtl:pr-12"
+                className="ltr:pl-7 rtl:pr-7"
                 min="0"
                 step="0.01"
               />
@@ -447,14 +449,13 @@ export function SendProposalDialog({
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2 border-t border-[#E6E6E4] pt-4 mt-4">
+        <DialogFooter className="flex-col sm:flex-row gap-2">
           <div className="flex gap-2 w-full sm:w-auto">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting || isSavingDraft}
-              className="border-[#E6E6E4] hover:bg-[#F5F5F3]"
             >
               {t("cancel")}
             </Button>
@@ -463,7 +464,6 @@ export function SendProposalDialog({
               variant="outline"
               onClick={handleSaveDraft}
               disabled={isSubmitting || isSavingDraft}
-              className="border-[#C6A03B] text-[#C6A03B] hover:bg-[#FFF9E6]"
             >
               {isSavingDraft ? (
                 <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />
@@ -479,16 +479,11 @@ export function SendProposalDialog({
               variant="secondary"
               onClick={() => setShowPreview(true)}
               disabled={isSubmitting || isSavingDraft}
-              className="bg-[#F5F5F5] hover:bg-[#E6E6E4] text-[#555555]"
             >
               <Eye className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
               {t("preview")}
             </Button>
-            <Button 
-              onClick={handleSubmit} 
-              disabled={isSubmitting || isSavingDraft}
-              className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
-            >
+            <Button onClick={handleSubmit} disabled={isSubmitting || isSavingDraft}>
               {isSubmitting ? (
                 <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />
               ) : (
