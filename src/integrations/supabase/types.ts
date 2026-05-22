@@ -333,35 +333,6 @@ export type Database = {
           },
         ]
       }
-      finance_roles: {
-        Row: {
-          id: string
-          user_id: string
-          role: string
-          created_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          role: string
-          created_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          role?: string
-          created_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "finance_roles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       job_roles: {
         Row: {
           created_at: string | null
@@ -387,125 +358,6 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      custom_kpi_evaluations: {
-        Row: {
-          achieved_value: number | null
-          created_at: string | null
-          custom_kpi_id: string
-          employee_id: string
-          evaluated_at: string | null
-          evaluated_by: string | null
-          id: string
-          month: number
-          notes: string | null
-          score: number | null
-          status: string | null
-          updated_at: string | null
-          year: number
-        }
-        Insert: {
-          achieved_value?: number | null
-          created_at?: string | null
-          custom_kpi_id: string
-          employee_id: string
-          evaluated_at?: string | null
-          evaluated_by?: string | null
-          id?: string
-          month: number
-          notes?: string | null
-          score?: number | null
-          status?: string | null
-          updated_at?: string | null
-          year: number
-        }
-        Update: {
-          achieved_value?: number | null
-          created_at?: string | null
-          custom_kpi_id?: string
-          employee_id?: string
-          evaluated_at?: string | null
-          evaluated_by?: string | null
-          id?: string
-          month?: number
-          notes?: string | null
-          score?: number | null
-          status?: string | null
-          updated_at?: string | null
-          year?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "custom_kpi_evaluations_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "custom_kpi_evaluations_custom_kpi_id_fkey"
-            columns: ["custom_kpi_id"]
-            isOneToOne: false
-            referencedRelation: "employee_custom_kpis"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      employee_custom_kpis: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          deadline: string | null
-          description: string | null
-          employee_id: string
-          id: string
-          is_archived: boolean
-          name: string
-          target_value: number
-          unit: string
-          updated_at: string | null
-          updated_by: string | null
-          weighting: number
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          deadline?: string | null
-          description?: string | null
-          employee_id: string
-          id?: string
-          is_archived?: boolean
-          name: string
-          target_value?: number
-          unit?: string
-          updated_at?: string | null
-          updated_by?: string | null
-          weighting?: number
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          deadline?: string | null
-          description?: string | null
-          employee_id?: string
-          id?: string
-          is_archived?: boolean
-          name?: string
-          target_value?: number
-          unit?: string
-          updated_at?: string | null
-          updated_by?: string | null
-          weighting?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "employee_custom_kpis_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -577,9 +429,10 @@ export type Database = {
         Row: {
           created_at: string | null
           description: string | null
+          employee_id: string | null
           id: string
           is_archived: boolean
-          job_role_id: string
+          job_role_id: string | null
           name: string
           target_value: number
           unit: string
@@ -590,9 +443,10 @@ export type Database = {
         Insert: {
           created_at?: string | null
           description?: string | null
+          employee_id?: string | null
           id?: string
           is_archived?: boolean
-          job_role_id: string
+          job_role_id?: string | null
           name: string
           target_value?: number
           unit?: string
@@ -603,9 +457,10 @@ export type Database = {
         Update: {
           created_at?: string | null
           description?: string | null
+          employee_id?: string | null
           id?: string
           is_archived?: boolean
-          job_role_id?: string
+          job_role_id?: string | null
           name?: string
           target_value?: number
           unit?: string
@@ -619,6 +474,13 @@ export type Database = {
             columns: ["job_role_id"]
             isOneToOne: false
             referencedRelation: "job_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpis_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -756,15 +618,11 @@ export type Database = {
           full_name: string
           id: string
           is_paid: boolean | null
-          needs_identified: string | null
-          next_steps: string | null
           notes: string | null
           paid_amount: number | null
           paid_at: string | null
           paid_currency: string | null
           phone: string | null
-          quoted_currency: string | null
-          quoted_price: number | null
           source: string | null
           source_id: string | null
           status: Database["public"]["Enums"]["lead_status"]
@@ -780,15 +638,11 @@ export type Database = {
           full_name: string
           id?: string
           is_paid?: boolean | null
-          needs_identified?: string | null
-          next_steps?: string | null
           notes?: string | null
           paid_amount?: number | null
           paid_at?: string | null
           paid_currency?: string | null
           phone?: string | null
-          quoted_currency?: string | null
-          quoted_price?: number | null
           source?: string | null
           source_id?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
@@ -804,15 +658,11 @@ export type Database = {
           full_name?: string
           id?: string
           is_paid?: boolean | null
-          needs_identified?: string | null
-          next_steps?: string | null
           notes?: string | null
           paid_amount?: number | null
           paid_at?: string | null
           paid_currency?: string | null
           phone?: string | null
-          quoted_currency?: string | null
-          quoted_price?: number | null
           source?: string | null
           source_id?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
@@ -930,7 +780,7 @@ export type Database = {
           employee_id: string
           end_date: string
           id: string
-          leave_type: string
+          leave_type: Database["public"]["Enums"]["leave_type"]
           reason: string | null
           start_date: string
           status: Database["public"]["Enums"]["leave_request_status"] | null
@@ -946,7 +796,7 @@ export type Database = {
           employee_id: string
           end_date: string
           id?: string
-          leave_type: string
+          leave_type: Database["public"]["Enums"]["leave_type"]
           reason?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["leave_request_status"] | null
@@ -962,7 +812,7 @@ export type Database = {
           employee_id?: string
           end_date?: string
           id?: string
-          leave_type?: string
+          leave_type?: Database["public"]["Enums"]["leave_type"]
           reason?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["leave_request_status"] | null
@@ -978,51 +828,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      leave_types: {
-        Row: {
-          id: string
-          slug: string
-          name: string
-          icon_name: string
-          color_class: string
-          bg_color_class: string
-          tracks_balance: boolean
-          balance_field_prefix: string | null
-          is_active: boolean
-          sort_order: number
-          created_at: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          id?: string
-          slug: string
-          name: string
-          icon_name?: string
-          color_class?: string
-          bg_color_class?: string
-          tracks_balance?: boolean
-          balance_field_prefix?: string | null
-          is_active?: boolean
-          sort_order?: number
-          created_at?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          id?: string
-          slug?: string
-          name?: string
-          icon_name?: string
-          color_class?: string
-          bg_color_class?: string
-          tracks_balance?: boolean
-          balance_field_prefix?: string | null
-          is_active?: boolean
-          sort_order?: number
-          created_at?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       profiles: {
         Row: {
@@ -1227,21 +1032,18 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          permission_level: Database["public"]["Enums"]["permission_level"]
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          permission_level?: Database["public"]["Enums"]["permission_level"]
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          permission_level?: Database["public"]["Enums"]["permission_level"]
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -1365,13 +1167,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_permission_level: {
-        Args: {
-          _user_id: string
-          _role: Database["public"]["Enums"]["app_role"]
-        }
-        Returns: Database["public"]["Enums"]["permission_level"]
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1381,17 +1176,9 @@ export type Database = {
       }
       invoke_kpi_monthly_notifications: { Args: never; Returns: undefined }
       invoke_kpi_quarterly_notifications: { Args: never; Returns: undefined }
-      is_head_for_role: {
-        Args: {
-          _user_id: string
-          _role: Database["public"]["Enums"]["app_role"]
-        }
-        Returns: boolean
-      }
     }
     Enums: {
       app_locale: "en" | "ar"
-      permission_level: "head" | "employee"
       app_role:
         | "client"
         | "admin"
@@ -1410,7 +1197,6 @@ export type Database = {
       lead_status:
         | "not_started"
         | "consultation"
-        | "consultation_completed"
         | "pending"
         | "won"
         | "lost"
@@ -1419,6 +1205,7 @@ export type Database = {
         | "qualified"
         | "negotiation"
       leave_request_status: "pending" | "approved" | "denied"
+      leave_type: "annual" | "sick" | "emergency" | "unpaid" | "working_from_abroad"
       notification_status: "sent" | "failed" | "skipped"
       notification_type:
         | "document_expiry_digest"
@@ -1565,7 +1352,6 @@ export const Constants = {
   public: {
     Enums: {
       app_locale: ["en", "ar"],
-      permission_level: ["head", "employee"],
       app_role: [
         "client",
         "admin",
@@ -1586,7 +1372,6 @@ export const Constants = {
       lead_status: [
         "not_started",
         "consultation",
-        "consultation_completed",
         "pending",
         "won",
         "lost",
@@ -1596,6 +1381,7 @@ export const Constants = {
         "negotiation",
       ],
       leave_request_status: ["pending", "approved", "denied"],
+      leave_type: ["annual", "sick", "emergency", "unpaid", "working_from_abroad"],
       notification_status: ["sent", "failed", "skipped"],
       notification_type: [
         "document_expiry_digest",

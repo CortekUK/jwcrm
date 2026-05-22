@@ -24,53 +24,12 @@ import {
   Loader2,
   MessageCircle,
   Bell,
-  History,
-  ClipboardCheck,
-  Coins,
-  ListChecks,
-  CheckCircle2,
-  Save,
-  Send,
-  PhoneOff,
-  FileText,
-  Receipt,
-  ChevronDown,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AddCommunicationDialog } from "@/components/lead-management/AddCommunicationDialog";
-import { EditCommunicationDialog } from "@/components/lead-management/EditCommunicationDialog";
 import { AddReminderDialog } from "@/components/lead-management/reminders/AddReminderDialog";
-import { LeadDocuments } from "@/components/lead-management/LeadDocuments";
-import { LeadNotes } from "@/components/lead-management/LeadNotes";
-import { QuickProposalDialog } from "@/components/lead-management/QuickProposalDialog";
-import { SendInvoiceDialog } from "@/components/lead-management/SendInvoiceDialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Lead } from "@/components/lead-management/LeadTable";
-import { useAuth } from "@/hooks/useAuth";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { LeadNotesSection } from "@/components/lead-management/LeadNotesSection";
+import { GenerateInvoiceDialog } from "@/components/lead-management/GenerateInvoiceDialog";
+import { Receipt } from "lucide-react";
 
 interface LeadData {
   id: string;
@@ -88,10 +47,6 @@ interface LeadData {
   paid_at: string | null;
   paid_amount: number | null;
   paid_currency: string | null;
-  needs_identified: string | null;
-  quoted_price: number | null;
-  quoted_currency: string | null;
-  next_steps: string | null;
   created_at: string;
   updated_at: string;
   source_data?: { id: string; name: string } | null;
@@ -104,7 +59,6 @@ interface Proposal {
   amount: number;
   currency: string;
   status: string;
-  proposal_content?: string | null;
   created_at: string;
   sent_at: string | null;
   paid_at: string | null;
@@ -116,7 +70,6 @@ interface Communication {
   notes: string | null;
   created_by: string | null;
   created_by_name: string | null;
-  call_outcome: string | null;
   communication_method: {
     id: string;
     name: string;
@@ -142,16 +95,6 @@ export default function LeadHistoryPage({
   const resolvedParams = use(params);
   const { t } = useTranslation("leadManagement");
   const router = useRouter();
-  const { profile } = useAuth();
-
-  // Role-based edit permission
-  const canEdit = profile?.roles?.some(r => ["lead_management", "admin", "superadmin"].includes(r)) ?? false;
-
-  // Edit/delete communication state
-  const [editingCommunicationId, setEditingCommunicationId] = useState<string | null>(null);
-  const [showEditCommunicationDialog, setShowEditCommunicationDialog] = useState(false);
-  const [deletingCommunicationId, setDeletingCommunicationId] = useState<string | null>(null);
-  const [isDeletingCommunication, setIsDeletingCommunication] = useState(false);
 
   const [lead, setLead] = useState<LeadData | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -160,16 +103,7 @@ export default function LeadHistoryPage({
   const [isLoading, setIsLoading] = useState(true);
   const [showCommunicationDialog, setShowCommunicationDialog] = useState(false);
   const [showReminderDialog, setShowReminderDialog] = useState(false);
-  const [showQuickProposalDialog, setShowQuickProposalDialog] = useState(false);
-  const [showSendInvoiceDialog, setShowSendInvoiceDialog] = useState(false);
-  
-  // Consultation outcome state
-  const [needsIdentified, setNeedsIdentified] = useState("");
-  const [quotedPrice, setQuotedPrice] = useState("");
-  const [quotedCurrency, setQuotedCurrency] = useState("AED");
-  const [nextSteps, setNextSteps] = useState("");
-  const [isSavingConsultation, setIsSavingConsultation] = useState(false);
-  const [isMarkingComplete, setIsMarkingComplete] = useState(false);
+  const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
 
   useEffect(() => {
     const fetchLeadHistory = async () => {
@@ -193,12 +127,6 @@ export default function LeadHistoryPage({
         setProposals(data.proposals);
         setCommunications(data.communications || []);
         setReminders(data.reminders || []);
-        
-        // Populate consultation outcome fields
-        setNeedsIdentified(data.lead.needs_identified || "");
-        setQuotedPrice(data.lead.quoted_price?.toString() || "");
-        setQuotedCurrency(data.lead.quoted_currency || "AED");
-        setNextSteps(data.lead.next_steps || "");
       } catch (error) {
         console.error("Error fetching lead history:", error);
         toast.error(t("failedToFetchLeadHistory"));
@@ -214,30 +142,24 @@ export default function LeadHistoryPage({
   const getStatusColor = (status: string) => {
     switch (status) {
       case "won":
-        return "bg-[#E6F7F1] text-[#0C5536] border-0";
+        return "bg-green-100 text-green-800";
       case "lost":
-        return "bg-[#FEECEC] text-[#C0392B] border-0";
+        return "bg-red-100 text-red-800";
       case "pending":
-        return "bg-[#FFF9E6] text-[#C6A03B] border-0";
+        return "bg-yellow-100 text-yellow-800";
       case "qualified":
-        return "bg-[#F3E8FF] text-[#7C3AED] border-0";
+        return "bg-purple-100 text-purple-800";
       case "negotiation":
-        return "bg-[#EEF2FF] text-[#4F46E5] border-0";
+        return "bg-indigo-100 text-indigo-800";
       case "meeting":
-        return "bg-[#E6F0FF] text-[#2563EB] border-0";
+        return "bg-blue-100 text-blue-800";
       case "consultation":
-        return "bg-[#E6F4FF] text-[#0369A1] border-0";
-      case "consultation_completed":
-        return "bg-[#DCFCE7] text-[#166534] border-0";
+        return "bg-cyan-100 text-cyan-800";
       case "hold":
-        return "bg-[#FFF4E6] text-[#D97706] border-0";
-      case "contacted":
-        return "bg-[#E6F7F1] text-[#0C5536] border-0";
-      case "unreachable":
-        return "bg-[#FEF2F2] text-[#991B1B] border-0";
+        return "bg-orange-100 text-orange-800";
       case "not_started":
       default:
-        return "bg-[#F5F5F5] text-[#6B6B6B] border-0";
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -245,7 +167,6 @@ export default function LeadHistoryPage({
     const statusMap: Record<string, string> = {
       not_started: t("notStarted"),
       consultation: t("consultation"),
-      consultation_completed: t("consultationCompleted", "Consultation Completed"),
       meeting: t("meeting"),
       hold: t("hold"),
       qualified: t("qualified"),
@@ -253,30 +174,9 @@ export default function LeadHistoryPage({
       pending: t("pending"),
       won: t("won"),
       lost: t("lost"),
-      unreachable: t("unreachable", "Unreachable"),
     };
     return statusMap[status] || status;
   };
-
-  // Compute failed attempt count for cadence indicator
-  const failedAttemptCount = (() => {
-    try {
-      const cadenceRaw = typeof window !== "undefined" ? localStorage.getItem("leadManagement_cadence") : null;
-      const cadence = cadenceRaw ? JSON.parse(cadenceRaw) : { failedOutcomes: ["no_answer", "voicemail", "busy", "wrong_number"], maxAttempts: 3 };
-      let consecutiveFails = 0;
-      const sorted = [...communications].sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime());
-      for (const comm of sorted) {
-        if (comm.call_outcome && cadence.failedOutcomes.includes(comm.call_outcome)) {
-          consecutiveFails++;
-        } else if (comm.call_outcome) {
-          break;
-        }
-      }
-      return { count: consecutiveFails, max: cadence.maxAttempts || 3 };
-    } catch {
-      return { count: 0, max: 3 };
-    }
-  })();
 
   const timelineEvents = lead
     ? buildTimelineEvents(
@@ -334,170 +234,10 @@ export default function LeadHistoryPage({
     fetchReminders();
   };
 
-  const handleProposalSent = () => {
-    // Refetch lead data to update status and proposals
-    const refetchData = async () => {
-      try {
-        const response = await fetch(
-          `/api/lead-management/leads/${resolvedParams.leadId}/history`
-        );
-        if (response.ok) {
-          const { data } = await response.json();
-          setLead(data.lead);
-          setProposals(data.proposals);
-        }
-      } catch (error) {
-        console.error("Error refetching data:", error);
-      }
-    };
-    refetchData();
-  };
-
-  const refetchAll = async () => {
-    try {
-      const response = await fetch(
-        `/api/lead-management/leads/${resolvedParams.leadId}/history`
-      );
-      if (response.ok) {
-        const { data } = await response.json();
-        setLead(data.lead);
-        setProposals(data.proposals);
-        setCommunications(data.communications || []);
-        setReminders(data.reminders || []);
-      }
-    } catch (error) {
-      console.error("Error refetching data:", error);
-    }
-  };
-
-  const handleEditCommunication = (communicationId: string) => {
-    setEditingCommunicationId(communicationId);
-    setShowEditCommunicationDialog(true);
-  };
-
-  const handleDeleteCommunication = (communicationId: string) => {
-    setDeletingCommunicationId(communicationId);
-  };
-
-  const confirmDeleteCommunication = async () => {
-    if (!deletingCommunicationId || !lead) return;
-    setIsDeletingCommunication(true);
-    try {
-      const response = await fetch(
-        `/api/lead-management/leads/${lead.id}/communications/${deletingCommunicationId}`,
-        { method: "DELETE" }
-      );
-      if (!response.ok) throw new Error("Failed to delete communication");
-      toast.success(t("communicationDeleted", "Communication deleted"));
-      setDeletingCommunicationId(null);
-      refetchAll();
-    } catch (error) {
-      console.error("Error deleting communication:", error);
-      toast.error(t("failedToDeleteCommunication", "Failed to delete communication"));
-    } finally {
-      setIsDeletingCommunication(false);
-    }
-  };
-
-  // Convert LeadData to Lead type for QuickProposalDialog
-  const leadForDialog: Lead | null = lead
-    ? {
-        id: lead.id,
-        full_name: lead.full_name,
-        email: lead.email,
-        phone: lead.phone,
-        company_name: lead.company_name,
-        notes: lead.notes,
-        source: lead.source,
-        source_id: lead.source_id,
-        assigned_to: lead.assigned_to,
-        assigned_at: lead.assigned_at,
-        status: lead.status as Lead["status"],
-        is_paid: lead.is_paid,
-        paid_at: lead.paid_at,
-        paid_amount: lead.paid_amount,
-        paid_currency: lead.paid_currency,
-        created_at: lead.created_at,
-        updated_at: lead.updated_at,
-      }
-    : null;
-
-  // Determine if the "Complete & Send Proposal" button should be shown
-  const canSendProposal = lead && !["won", "lost", "pending"].includes(lead.status);
-
-  const handleSaveConsultationOutcome = async () => {
-    if (!lead) return;
-    
-    setIsSavingConsultation(true);
-    try {
-      const response = await fetch(`/api/lead-management/leads/${lead.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          needs_identified: needsIdentified || null,
-          quoted_price: quotedPrice ? parseFloat(quotedPrice) : null,
-          quoted_currency: quotedCurrency,
-          next_steps: nextSteps || null,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save consultation outcome");
-      }
-
-      const { data } = await response.json();
-      setLead(data);
-      toast.success(t("consultationOutcomeSaved", "Consultation outcome saved"));
-    } catch (error) {
-      console.error("Error saving consultation outcome:", error);
-      toast.error(t("failedToSaveConsultationOutcome", "Failed to save consultation outcome"));
-    } finally {
-      setIsSavingConsultation(false);
-    }
-  };
-
-  const handleMarkConsultationComplete = async () => {
-    if (!lead) return;
-    
-    // Validate that required fields are filled
-    if (!needsIdentified.trim()) {
-      toast.error(t("needsIdentifiedRequired", "Please enter needs identified before marking complete"));
-      return;
-    }
-    
-    setIsMarkingComplete(true);
-    try {
-      const response = await fetch(`/api/lead-management/leads/${lead.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          needs_identified: needsIdentified || null,
-          quoted_price: quotedPrice ? parseFloat(quotedPrice) : null,
-          quoted_currency: quotedCurrency,
-          next_steps: nextSteps || null,
-          status: "consultation_completed",
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to mark consultation complete");
-      }
-
-      const { data } = await response.json();
-      setLead(data);
-      toast.success(t("consultationMarkedComplete", "Consultation marked as complete"));
-    } catch (error) {
-      console.error("Error marking consultation complete:", error);
-      toast.error(t("failedToMarkComplete", "Failed to mark consultation complete"));
-    } finally {
-      setIsMarkingComplete(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#C6A03B]" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -507,245 +247,91 @@ export default function LeadHistoryPage({
   }
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Hero Banner */}
-      <div className="bg-gradient-to-b from-white to-[#F8F6EC] border-b-2 border-[hsl(var(--jw-gold-accent))]/25 -mx-6 -mt-6 px-6 py-8 lg:-mx-8 lg:-mt-8 lg:px-8">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
-              className="h-9 w-9 rounded-full hover:bg-[hsl(var(--jw-gold-accent))]/10"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <History className="h-6 w-6 text-[hsl(var(--jw-gold-accent))]" />
-                <h1 className="text-2xl font-semibold text-[hsl(var(--jw-primary-green))]" style={{ fontFamily: 'Playfair Display, serif' }}>
-                  {lead.full_name}
-                </h1>
-                <Badge className={getStatusColor(lead.status)}>
-                  {getStatusLabel(lead.status)}
-                </Badge>
-                {failedAttemptCount.count > 0 && (
-                  <Badge variant="outline" className="border-[#E6E6E4] text-[#777777] gap-1">
-                    <PhoneOff className="h-3 w-3" />
-                    {t("attempts", "Attempts")}: {failedAttemptCount.count}/{failedAttemptCount.max}
-                  </Badge>
-                )}
-                {lead.is_paid && (
-                  <Badge className="bg-[#E6F7F1] text-[#0C5536] border-0">
-                    {t("paid")}
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-[#777777] ltr:ml-9 rtl:mr-9">{t("leadHistory")}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 ltr:ml-13 rtl:mr-13 lg:ml-0 lg:mr-0">
-            {canSendProposal && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
-                  >
-                    <Send className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-                    {t("actionsDropdown", "Actions")}
-                    <ChevronDown className="h-4 w-4 ltr:ml-2 rtl:mr-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setShowQuickProposalDialog(true)}>
-                    <FileText className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-                    {t("sendProposal")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowSendInvoiceDialog(true)}>
-                    <Receipt className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-                    {t("sendInvoice")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.back()}
+          className="h-8 w-8"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">
+              {lead.full_name}
+            </h1>
+            <Badge className={getStatusColor(lead.status)}>
+              {getStatusLabel(lead.status)}
+            </Badge>
+            {lead.is_paid && (
+              <Badge className="bg-emerald-100 text-emerald-800">
+                {t("paid")}
+              </Badge>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowCommunicationDialog(true)}
-              className="border-[#E6E6E4] hover:bg-[hsl(var(--jw-gold-accent))]/10 hover:border-[hsl(var(--jw-gold-accent))]"
-            >
-              <MessageCircle className="h-4 w-4 ltr:mr-2 rtl:ml-2 text-[hsl(var(--jw-primary-green))]" />
-              {t("addCommunication")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowReminderDialog(true)}
-              className="border-[#C6A03B] text-[#C6A03B] hover:bg-[#FFF9E6]"
-            >
-              <Bell className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-              {t("setReminder")}
-            </Button>
           </div>
+          <p className="text-muted-foreground">{t("leadHistory")}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCommunicationDialog(true)}
+          >
+            <MessageCircle className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+            {t("addCommunication")}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowReminderDialog(true)}
+          >
+            <Bell className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+            {t("setReminder")}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setShowInvoiceDialog(true)}
+            className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
+          >
+            <Receipt className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+            {t("generateInvoice")}
+          </Button>
         </div>
       </div>
 
-      {/* Consultation Outcome Card - Only show for consultation or earlier statuses */}
-      {lead.status !== "won" && lead.status !== "lost" && (
-        <Card className="border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ClipboardCheck className="h-5 w-5 text-[#C6A03B]" />
-                <CardTitle className="text-[hsl(var(--jw-primary-green))]">
-                  {t("consultationOutcome", "Consultation Outcome")}
-                </CardTitle>
-              </div>
-              {lead.status === "consultation_completed" && (
-                <Badge className="bg-[#DCFCE7] text-[#166534] border-0">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  {t("completed", "Completed")}
-                </Badge>
-              )}
-            </div>
-            <CardDescription className="ltr:ml-7 rtl:mr-7">
-              {t("consultationOutcomeDescription", "Record the outcomes from the consultation meeting")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              {/* Needs Identified */}
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="needs_identified" className="flex items-center gap-2 text-[#555555]">
-                  <ListChecks className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
-                  {t("needsIdentified", "Needs Identified")}
-                </Label>
-                <Textarea
-                  id="needs_identified"
-                  placeholder={t("needsIdentifiedPlaceholder", "Describe the client's needs identified during consultation...")}
-                  value={needsIdentified}
-                  onChange={(e) => setNeedsIdentified(e.target.value)}
-                  className="min-h-[100px] border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-[#C6A03B]/20"
-                />
-              </div>
-
-              {/* Quoted Price */}
-              <div className="space-y-2">
-                <Label htmlFor="quoted_price" className="flex items-center gap-2 text-[#555555]">
-                  <Coins className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
-                  {t("quotedPrice", "Quoted Price")}
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="quoted_price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={quotedPrice}
-                    onChange={(e) => setQuotedPrice(e.target.value)}
-                    className="flex-1 border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-[#C6A03B]/20"
-                  />
-                  <Select value={quotedCurrency} onValueChange={setQuotedCurrency}>
-                    <SelectTrigger className="w-24 border-[#E6E6E4]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="AED">AED</SelectItem>
-                      <SelectItem value="USD">USD</SelectItem>
-                      <SelectItem value="GBP">GBP</SelectItem>
-                      <SelectItem value="EUR">EUR</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Next Steps */}
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="next_steps" className="flex items-center gap-2 text-[#555555]">
-                  <ListChecks className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
-                  {t("nextSteps", "Next Steps")}
-                </Label>
-                <Textarea
-                  id="next_steps"
-                  placeholder={t("nextStepsPlaceholder", "Outline the agreed next steps...")}
-                  value={nextSteps}
-                  onChange={(e) => setNextSteps(e.target.value)}
-                  className="min-h-[80px] border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-[#C6A03B]/20"
-                />
-              </div>
-            </div>
-
-            <Separator className="bg-[#E6E6E4]" />
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-end">
-              <Button
-                variant="outline"
-                onClick={handleSaveConsultationOutcome}
-                disabled={isSavingConsultation}
-                className="border-[#E6E6E4] hover:bg-[hsl(var(--jw-gold-accent))]/10 hover:border-[hsl(var(--jw-gold-accent))]"
-              >
-                {isSavingConsultation ? (
-                  <Loader2 className="h-4 w-4 ltr:mr-2 rtl:ml-2 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-                )}
-                {t("saveDraft", "Save Draft")}
-              </Button>
-              {lead.status !== "consultation_completed" && (
-                <Button
-                  onClick={handleMarkConsultationComplete}
-                  disabled={isMarkingComplete || !needsIdentified.trim()}
-                  className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-primary-green))]/90 text-white"
-                >
-                  {isMarkingComplete ? (
-                    <Loader2 className="h-4 w-4 ltr:mr-2 rtl:ml-2 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-                  )}
-                  {t("markConsultationComplete", "Mark Consultation Complete")}
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Lead Details Card */}
-        <Card className="lg:col-span-1 border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-[#C6A03B]" />
-              <CardTitle className="text-[hsl(var(--jw-primary-green))]">{t("leadDetails")}</CardTitle>
-            </div>
-            <CardDescription className="ltr:ml-7 rtl:mr-7">
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle>{t("leadDetails")}</CardTitle>
+            <CardDescription>
               {t("created")}: {format(new Date(lead.created_at), "MMM d, yyyy")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Email */}
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-9 h-9 rounded-full bg-[#FFF9E6]">
-                <Mail className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50">
+                <Mail className="h-4 w-4 text-blue-600" />
               </div>
               <div>
-                <p className="text-xs text-[#777777]">{t("email")}</p>
-                <p className="text-sm font-medium text-[#222222]">{lead.email}</p>
+                <p className="text-xs text-muted-foreground">{t("email")}</p>
+                <p className="text-sm font-medium">{lead.email}</p>
               </div>
             </div>
 
             {/* Phone */}
             {lead.phone && (
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-9 h-9 rounded-full bg-[#FFF9E6]">
-                  <Phone className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50">
+                  <Phone className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-[#777777]">{t("phone")}</p>
-                  <p className="text-sm font-medium text-[#222222]">{lead.phone}</p>
+                  <p className="text-xs text-muted-foreground">{t("phone")}</p>
+                  <p className="text-sm font-medium">{lead.phone}</p>
                 </div>
               </div>
             )}
@@ -753,12 +339,12 @@ export default function LeadHistoryPage({
             {/* Company */}
             {lead.company_name && (
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-9 h-9 rounded-full bg-[#FFF9E6]">
-                  <Building className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-50">
+                  <Building className="h-4 w-4 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-[#777777]">{t("company")}</p>
-                  <p className="text-sm font-medium text-[#222222]">{lead.company_name}</p>
+                  <p className="text-xs text-muted-foreground">{t("company")}</p>
+                  <p className="text-sm font-medium">{lead.company_name}</p>
                 </div>
               </div>
             )}
@@ -766,12 +352,12 @@ export default function LeadHistoryPage({
             {/* Source */}
             {(lead.source_data?.name || lead.source) && (
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-9 h-9 rounded-full bg-[#FFF9E6]">
-                  <MapPin className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-yellow-50">
+                  <MapPin className="h-4 w-4 text-yellow-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-[#777777]">{t("source")}</p>
-                  <p className="text-sm font-medium text-[#222222]">
+                  <p className="text-xs text-muted-foreground">{t("source")}</p>
+                  <p className="text-sm font-medium">
                     {lead.source_data?.name ||
                       lead.source
                         ?.replace(/[_-]/g, " ")
@@ -781,23 +367,23 @@ export default function LeadHistoryPage({
               </div>
             )}
 
-            <Separator className="bg-[#E6E6E4]" />
+            <Separator />
 
             {/* Assigned To */}
             {lead.assigned_user && (
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-9 h-9 rounded-full bg-[#FFF9E6]">
-                  <User className="h-4 w-4 text-[hsl(var(--jw-primary-green))]" />
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50">
+                  <User className="h-4 w-4 text-indigo-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-[#777777]">
+                  <p className="text-xs text-muted-foreground">
                     {t("assignedTo")}
                   </p>
-                  <p className="text-sm font-medium text-[#222222]">
+                  <p className="text-sm font-medium">
                     {lead.assigned_user.full_name}
                   </p>
                   {lead.assigned_at && (
-                    <p className="text-xs text-[#999999]">
+                    <p className="text-xs text-muted-foreground">
                       {format(new Date(lead.assigned_at), "MMM d, yyyy")}
                     </p>
                   )}
@@ -808,12 +394,12 @@ export default function LeadHistoryPage({
             {/* Notes */}
             {lead.notes && (
               <>
-                <Separator className="bg-[#E6E6E4]" />
+                <Separator />
                 <div>
-                  <p className="text-xs text-[#777777] mb-1">
+                  <p className="text-xs text-muted-foreground mb-1">
                     {t("notes")}
                   </p>
-                  <p className="text-sm text-[#555555] whitespace-pre-wrap">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
                     {lead.notes}
                   </p>
                 </div>
@@ -823,35 +409,23 @@ export default function LeadHistoryPage({
         </Card>
 
         {/* Timeline Card */}
-        <Card className="lg:col-span-2 border-[#E6E6E4] shadow-[0_4px_10px_rgba(12,85,54,0.06)]">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <History className="h-5 w-5 text-[#C6A03B]" />
-              <CardTitle className="text-[hsl(var(--jw-primary-green))]">{t("timeline")}</CardTitle>
-            </div>
-            <CardDescription className="ltr:ml-7 rtl:mr-7">{t("timelineDescription")}</CardDescription>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>{t("timeline")}</CardTitle>
+            <CardDescription>{t("timelineDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
-            <LeadHistoryTimeline
-              events={timelineEvents}
-              isLoading={false}
-              canEdit={canEdit}
-              onEditCommunication={handleEditCommunication}
-              onDeleteCommunication={handleDeleteCommunication}
-            />
+            <LeadHistoryTimeline events={timelineEvents} isLoading={false} />
           </CardContent>
         </Card>
       </div>
 
       {/* Notes Section */}
-      <div className="mt-6">
-        <LeadNotes leadId={lead.id} />
-      </div>
-
-      {/* Documents Section */}
-      <div className="mt-6">
-        <LeadDocuments leadId={lead.id} leadName={lead.full_name} />
-      </div>
+      <LeadNotesSection
+        leadId={lead.id}
+        initialNotes={lead.notes}
+        updatedAt={lead.updated_at}
+      />
 
       {/* Dialogs */}
       <AddCommunicationDialog
@@ -869,56 +443,12 @@ export default function LeadHistoryPage({
         onSuccess={handleReminderAdded}
       />
 
-      <QuickProposalDialog
-        lead={leadForDialog}
-        open={showQuickProposalDialog}
-        onOpenChange={setShowQuickProposalDialog}
-        onSuccess={handleProposalSent}
-      />
-
-      <SendInvoiceDialog
-        lead={leadForDialog}
-        open={showSendInvoiceDialog}
-        onOpenChange={setShowSendInvoiceDialog}
-        onSuccess={handleProposalSent}
-      />
-
-      <EditCommunicationDialog
+      <GenerateInvoiceDialog
+        open={showInvoiceDialog}
+        onOpenChange={setShowInvoiceDialog}
         leadId={lead.id}
-        communicationId={editingCommunicationId}
-        open={showEditCommunicationDialog}
-        onOpenChange={setShowEditCommunicationDialog}
-        onSuccess={refetchAll}
+        leadName={lead.full_name}
       />
-
-      <AlertDialog open={!!deletingCommunicationId} onOpenChange={(open) => { if (!open) setDeletingCommunicationId(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("deleteCommunication", "Delete Communication")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("deleteCommunicationConfirm", "Are you sure you want to delete this communication entry? This action cannot be undone.")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingCommunication}>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteCommunication}
-              disabled={isDeletingCommunication}
-              className="bg-[#C0392B] hover:bg-[#A93226] text-white"
-            >
-              {isDeletingCommunication && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {t("delete", "Delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Footer */}
-      <div className="mt-12 pt-6 border-t border-[#E6E6E4] text-center">
-        <p className="text-xs text-[#777777]">
-          {t("legalNotice", "© 2024 Just Wills. All rights reserved.")}
-        </p>
-      </div>
     </div>
   );
 }

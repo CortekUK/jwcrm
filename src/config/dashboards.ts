@@ -14,9 +14,7 @@ import {
   Briefcase,
   Target,
   UserCog,
-
-  ClipboardCheck,
-  FileBarChart,
+  Receipt,
 } from "lucide-react";
 
 export type DashboardType = "admin" | "hr" | "finance" | "lead-management" | "client" | "salesperson";
@@ -52,7 +50,6 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     navItems: [
       { path: "/admin", labelKey: "admin:dashboard", icon: LayoutDashboard },
       { path: "/admin/wills", labelKey: "admin:wills", icon: FileText },
-      { path: "/admin/wills/reports", labelKey: "admin:reports.title", icon: FileBarChart },
       { path: "/admin/manage-users", labelKey: "admin:manageUsers", icon: Users },
     ],
   },
@@ -70,7 +67,6 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
       { path: "/hr/documents", labelKey: "hr:documents", icon: FolderOpen },
       { path: "/hr/attendance", labelKey: "hr:attendance", icon: Calendar },
       { path: "/hr/leave", labelKey: "hr:leave", icon: CalendarDays },
-      { path: "/hr/reports", labelKey: "hr:reports.titleAnalytics", icon: FileBarChart },
       { path: "/hr/settings", labelKey: "common:settings", icon: Settings },
     ],
   },
@@ -83,7 +79,6 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     layoutType: "header",
     navItems: [
       { path: "/finance", labelKey: "finance:dashboard", icon: LayoutDashboard },
-      { path: "/finance/reports", labelKey: "finance:reports.title", icon: FileBarChart },
       { path: "/finance/settings", labelKey: "common:settings", icon: Settings },
     ],
   },
@@ -95,9 +90,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     authPath: "/lead-management/auth",
     layoutType: "header",
     navItems: [
-      { path: "/lead-management", labelKey: "leadManagement:dashboard", icon: LayoutDashboard },
       { path: "/lead-management/leads", labelKey: "leadManagement:leads", icon: Users },
-      { path: "/lead-management/analytics", labelKey: "leadManagement:reports.title", icon: FileBarChart },
       { path: "/lead-management/settings", labelKey: "common:settings", icon: Settings },
     ],
   },
@@ -124,10 +117,8 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     authPath: "/admin/auth",
     layoutType: "header",
     navItems: [
-      { path: "/admin/salesperson", labelKey: "salesperson:dashboard", icon: LayoutDashboard },
       { path: "/admin/salesperson/leads", labelKey: "salesperson:myLeads", icon: Users },
       { path: "/admin/salesperson/calendar", labelKey: "salesperson:calendar", icon: Calendar },
-      { path: "/admin/salesperson/reports", labelKey: "salesperson:reports.title", icon: FileBarChart },
       { path: "/admin/salesperson/settings", labelKey: "common:settings", icon: Settings },
     ],
   },
@@ -202,7 +193,6 @@ const superadminNavItems: NavItem[] = [
 const adminNavItems: NavItem[] = [
   { path: "/admin", labelKey: "admin:dashboard", icon: LayoutDashboard },
   { path: "/admin/wills", labelKey: "admin:wills", icon: FileText },
-  { path: "/admin/wills/reports", labelKey: "admin:reports.title", icon: FileBarChart },
 ];
 
 // HR role nav items - all under /admin/hr
@@ -213,35 +203,29 @@ const hrNavItems: NavItem[] = [
   { path: "/admin/hr/documents", labelKey: "hr:documents", icon: FolderOpen },
   { path: "/admin/hr/job-roles", labelKey: "hr:jobRoles", icon: Briefcase },
   { path: "/admin/hr/kpis", labelKey: "hr:kpis", icon: Target },
-  { path: "/admin/hr/reviews", labelKey: "hr:performanceReviews", icon: ClipboardCheck },
   { path: "/admin/hr/attendance", labelKey: "hr:attendance", icon: Calendar },
   { path: "/admin/hr/leave", labelKey: "hr:leave", icon: CalendarDays },
-  { path: "/admin/hr/reports", labelKey: "hr:reports.titleAnalytics", icon: FileBarChart },
   { path: "/admin/hr/settings", labelKey: "common:settings", icon: Settings },
 ];
 
 // Finance role nav items - all under /admin/finance
 const financeNavItems: NavItem[] = [
   { path: "/admin/finance", labelKey: "finance:dashboard", icon: LayoutDashboard },
-  { path: "/admin/finance/reports", labelKey: "finance:reports.title", icon: FileBarChart },
   { path: "/admin/finance/settings", labelKey: "common:settings", icon: Settings },
 ];
 
-// Lead Management role nav items - all under /admin/lead-management
+// Lead Management role nav items - all under /admin/lead-management (no dashboard, just Leads and Settings)
 const leadManagementNavItems: NavItem[] = [
-  { path: "/admin/lead-management", labelKey: "leadManagement:dashboard", icon: LayoutDashboard },
   { path: "/admin/lead-management/leads", labelKey: "leadManagement:leads", icon: Users },
   { path: "/admin/lead-management/sources", labelKey: "leadManagement:sources", icon: FolderOpen },
-  { path: "/admin/lead-management/reports", labelKey: "leadManagement:reports.title", icon: FileBarChart },
   { path: "/admin/lead-management/settings", labelKey: "common:settings", icon: Settings },
 ];
 
-// Salesperson role nav items - dedicated salesperson dashboard
+// Salesperson role nav items - shares the unified leads pipeline with
+// lead management. Salespeople see only their assigned leads via RLS.
 const salespersonNavItems: NavItem[] = [
-  { path: "/admin/salesperson", labelKey: "salesperson:dashboard", icon: LayoutDashboard },
-  { path: "/admin/salesperson/leads", labelKey: "salesperson:myLeads", icon: Users },
+  { path: "/admin/lead-management/leads", labelKey: "salesperson:myLeads", icon: Users },
   { path: "/admin/salesperson/calendar", labelKey: "salesperson:calendar", icon: Calendar },
-  { path: "/admin/salesperson/reports", labelKey: "salesperson:reports.title", icon: FileBarChart },
   { path: "/admin/salesperson/settings", labelKey: "common:settings", icon: Settings },
 ];
 
@@ -294,9 +278,9 @@ export function getDefaultRouteForRole(role: UserRole): string {
     case "finance":
       return "/admin/finance";
     case "lead_management":
-      return "/admin/lead-management";
+      return "/admin/lead-management/leads";
     case "salesperson":
-      return "/admin/salesperson";
+      return "/admin/lead-management/leads";
     case "client":
       return "/client";
     default:

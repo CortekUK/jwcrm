@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LayoutDashboard, Users, Wallet, Target, ShieldCheck, UserCheck } from "lucide-react";
+import { LayoutDashboard, Users, DollarSign, Target, ShieldCheck, UserCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 
@@ -18,7 +18,7 @@ const ROLE_ICONS: Record<UserRole, React.ElementType> = {
   superadmin: ShieldCheck,
   admin: LayoutDashboard,
   hr: Users,
-  finance: Wallet,
+  finance: DollarSign,
   lead_management: Target,
   salesperson: UserCheck,
   client: LayoutDashboard,
@@ -41,8 +41,8 @@ const ROLE_DASHBOARD_ROUTES: Record<UserRole, string> = {
   admin: "/admin",
   hr: "/admin/hr",
   finance: "/admin/finance",
-  lead_management: "/admin/lead-management",
-  salesperson: "/admin/salesperson",
+  lead_management: "/admin/lead-management/leads",
+  salesperson: "/admin/lead-management/leads",
   client: "/client",
 };
 
@@ -50,11 +50,9 @@ interface RoleSwitcherProps {
   className?: string;
   /** Use "light" for light backgrounds (mobile header), "dark" for dark sidebar */
   variant?: "light" | "dark";
-  /** Compact mode - show only icon */
-  compact?: boolean;
 }
 
-export function RoleSwitcher({ className, variant = "dark", compact = false }: RoleSwitcherProps) {
+export function RoleSwitcher({ className, variant = "dark" }: RoleSwitcherProps) {
   const { selectedRole, setSelectedRole, availableRoles } = useSelectedRole();
   const { i18n } = useTranslation();
   const router = useRouter();
@@ -84,13 +82,6 @@ export function RoleSwitcher({ className, variant = "dark", compact = false }: R
     // Show static display for single role
     if (selectedRole) {
       const Icon = ROLE_ICONS[selectedRole];
-      if (compact) {
-        return (
-          <div className={`flex items-center justify-center p-2 rounded-lg ${bgColor} ${className}`}>
-            <Icon className="h-5 w-5 text-[#C6A03B]" />
-          </div>
-        );
-      }
       return (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${bgColor} overflow-hidden ${className}`}>
           <Icon className="h-4 w-4 shrink-0 text-[#C6A03B]" />
@@ -106,20 +97,18 @@ export function RoleSwitcher({ className, variant = "dark", compact = false }: R
   return (
     <Select value={selectedRole || undefined} onValueChange={(value) => handleRoleChange(value as UserRole)}>
       <SelectTrigger
-        className={`${compact ? "w-auto p-2" : "w-full"} ${triggerBg} ${textColor} ${triggerHover} transition-colors overflow-hidden ${className}`}
+        className={`w-full ${triggerBg} ${textColor} ${triggerHover} transition-colors overflow-hidden ${className}`}
       >
-        <div className={`flex items-center ${compact ? "justify-center" : "gap-2"} min-w-0 ${isRtl ? "flex-row-reverse" : ""}`}>
+        <div className={`flex items-center gap-2 min-w-0 ${isRtl ? "flex-row-reverse" : ""}`}>
           {selectedRole && (
             <>
               {(() => {
                 const Icon = ROLE_ICONS[selectedRole];
-                return <Icon className={`shrink-0 text-[#C6A03B] ${compact ? "h-5 w-5" : "h-4 w-4"}`} />;
+                return <Icon className="h-4 w-4 shrink-0 text-[#C6A03B]" />;
               })()}
-              {!compact && (
-                <span className="truncate text-sm">
-                  {ROLE_SHORT_NAMES[selectedRole][lang]}
-                </span>
-              )}
+              <span className="truncate text-sm">
+                {ROLE_SHORT_NAMES[selectedRole][lang]}
+              </span>
             </>
           )}
         </div>

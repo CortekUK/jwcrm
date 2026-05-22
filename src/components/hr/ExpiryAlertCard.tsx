@@ -20,7 +20,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslation } from "react-i18next";
@@ -39,14 +38,7 @@ import {
   Search,
   X,
   Filter,
-  MoreHorizontal,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { differenceInDays, format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
@@ -114,44 +106,44 @@ const getAlertConfig = (t: (key: string) => string): Record<
 > => ({
   expired: {
     icon: XCircle,
-    color: "text-red-700 dark:text-red-400",
-    bgColor: "bg-red-100 dark:bg-red-950/40",
-    borderColor: "border-red-300 dark:border-red-800",
+    color: "text-red-700",
+    bgColor: "bg-red-100",
+    borderColor: "border-red-300",
     label: t("alert.expired"),
   },
   critical: {
     icon: AlertCircle,
-    color: "text-red-600 dark:text-red-400",
-    bgColor: "bg-red-50 dark:bg-red-950/30",
-    borderColor: "border-red-200 dark:border-red-800",
+    color: "text-red-600",
+    bgColor: "bg-red-50",
+    borderColor: "border-red-200",
     label: t("alert.days0to7"),
   },
   urgent: {
     icon: AlertTriangle,
-    color: "text-orange-600 dark:text-orange-400",
-    bgColor: "bg-orange-50 dark:bg-orange-950/30",
-    borderColor: "border-orange-200 dark:border-orange-800",
+    color: "text-orange-600",
+    bgColor: "bg-orange-50",
+    borderColor: "border-orange-200",
     label: t("alert.days8to14"),
   },
   warning: {
     icon: Clock,
-    color: "text-yellow-600 dark:text-yellow-400",
-    bgColor: "bg-yellow-50 dark:bg-yellow-950/30",
-    borderColor: "border-yellow-200 dark:border-yellow-800",
+    color: "text-yellow-600",
+    bgColor: "bg-yellow-50",
+    borderColor: "border-yellow-200",
     label: t("alert.days15to30"),
   },
   advisory: {
     icon: Info,
-    color: "text-blue-600 dark:text-blue-400",
-    bgColor: "bg-blue-50 dark:bg-blue-950/30",
-    borderColor: "border-blue-200 dark:border-blue-800",
+    color: "text-blue-600",
+    bgColor: "bg-blue-50",
+    borderColor: "border-blue-200",
     label: t("alert.days31to90"),
   },
   in_progress: {
     icon: RefreshCw,
-    color: "text-sky-600 dark:text-sky-400",
-    bgColor: "bg-sky-50 dark:bg-sky-950/30",
-    borderColor: "border-sky-200 dark:border-sky-800",
+    color: "text-sky-600",
+    bgColor: "bg-sky-50",
+    borderColor: "border-sky-200",
     label: t("alert.in_progress"),
   },
 });
@@ -162,8 +154,8 @@ const DOCUMENT_TYPES = [
   { value: "passport", labelKey: "docType.passport" },
   { value: "employment_visa", labelKey: "docType.employment_visa" },
   { value: "emirates_id", labelKey: "docType.emirates_id" },
-  { value: "employment_contract", labelKey: "docType.employment_contract" },
-  { value: "certification", labelKey: "docType.certification" },
+  { value: "work_permit", labelKey: "filter.workPermit" },
+  { value: "medical_certificate", labelKey: "filter.medicalCertificate" },
 ];
 
 // Sort options
@@ -523,17 +515,15 @@ HR Department`;
 
   if (totalExpiring === 0 && grouped.in_progress.length === 0) {
     return (
-      <Card className="border-[#E6E6E4] dark:border-border">
+      <Card className="border-[#E6E6E4]">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-            <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
-              <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-            </div>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
             {t("hr:documentAlerts")}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-[#6B6B6B] dark:text-muted-foreground">
+          <div className="text-center py-8 text-[#6B6B6B]">
             <Clock className="h-12 w-12 mx-auto mb-2 text-[#E6E6E4]" />
             <p>{t("hr:noExpiringDocuments")}</p>
           </div>
@@ -550,17 +540,17 @@ HR Department`;
     return (
       <li
         key={doc.id}
-        className="text-sm p-2 rounded hover:bg-white/50 dark:hover:bg-white/5 border-b border-current/10 last:border-0"
+        className="text-sm p-2 rounded hover:bg-white/50 border-b border-current/10 last:border-0"
       >
         <div className="flex justify-between items-start gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-[#333333] dark:text-foreground truncate">{doc.employee_name}</span>
-              <span className="text-[#6B6B6B] dark:text-muted-foreground">-</span>
-              <span className="text-[#555555] dark:text-foreground">{t(`hr:docType.${doc.document_type}`)}</span>
+              <span className="font-medium text-[#333333] truncate">{doc.employee_name}</span>
+              <span className="text-[#6B6B6B]">-</span>
+              <span className="text-[#555555]">{t(`hr:docType.${doc.document_type}`)}</span>
               {isExpired && (
                 <Badge variant="destructive" className="text-xs">
-                  URGENT - Compliance Risk
+                  URGENT - Expired
                 </Badge>
               )}
             </div>
@@ -581,62 +571,88 @@ HR Department`;
               </div>
             )}
           </div>
-          <div className="flex items-center shrink-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                  onClick={() => router.push(`/admin/hr/employees/${doc.employee_id}?tab=documents`)}
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/admin/hr/employees/${doc.employee_id}?tab=documents`);
+              }}
+              title="View Documents"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+            {!isInProgress && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openUploadDialog(doc);
+                  }}
+                  title="Upload Renewed Document"
                 >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  {t("hr:viewDocuments")}
-                </DropdownMenuItem>
-                {!isInProgress && (
-                  <>
-                    <DropdownMenuItem
-                      onClick={() => openUploadDialog(doc)}
-                      className="text-green-600 focus:text-green-700"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      {t("hr:uploadRenewed")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => openReminderDialog(doc)}>
-                      <Mail className="h-4 w-4 mr-2" />
-                      {t("hr:sendReminder")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => openRenewalDialog(doc)}
-                      className="text-sky-600 focus:text-sky-700"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      {t("hr:markInProgress")}
-                    </DropdownMenuItem>
-                  </>
-                )}
-                {isInProgress && (
-                  <>
-                    <DropdownMenuItem
-                      onClick={() => handleMarkRenewalComplete(doc)}
-                      className="text-green-600 focus:text-green-700"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      {t("hr:markComplete")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleCancelRenewal(doc)}
-                      className="text-red-600 focus:text-red-700"
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      {t("hr:cancelRenewal")}
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <Upload className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openReminderDialog(doc);
+                  }}
+                  title="Send Reminder"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-sky-600 hover:text-sky-700 hover:bg-sky-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openRenewalDialog(doc);
+                  }}
+                  title="Mark as Renewal in Progress"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+
+              </>
+            )}
+            {isInProgress && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMarkRenewalComplete(doc);
+                  }}
+                  title="Mark as Complete"
+                >
+                  Complete
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancelRenewal(doc);
+                  }}
+                  title="Cancel Renewal"
+                >
+                  Cancel
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </li>
@@ -645,13 +661,11 @@ HR Department`;
 
   return (
     <>
-      <Card className="border-[#E6E6E4] dark:border-border">
+      <Card className="border-[#E6E6E4]">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B] flex items-center justify-between" style={{ fontFamily: 'Playfair Display, serif' }}>
+          <CardTitle className="text-lg flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
-                <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-              </div>
+              <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
               {t("hr:documentAlerts")}
             </span>
             <div className="flex items-center gap-2">
@@ -670,13 +684,13 @@ HR Department`;
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Filter, Sort, and Search Controls */}
-          <div className="flex flex-col gap-3 p-3 bg-gray-50 dark:bg-card rounded-lg border border-gray-200 dark:border-border">
+          <div className="flex flex-col gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex flex-wrap items-center gap-3">
               {/* Document Type Filter */}
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-gray-500" />
                 <Select value={documentTypeFilter} onValueChange={setDocumentTypeFilter}>
-                  <SelectTrigger className="w-[180px] h-9 bg-white dark:bg-card">
+                  <SelectTrigger className="w-[180px] h-9 bg-white">
                     <SelectValue placeholder={t("hr:filter.allDocuments")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -691,7 +705,7 @@ HR Department`;
 
               {/* Sort Options */}
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[180px] h-9 bg-white dark:bg-card">
+                <SelectTrigger className="w-[180px] h-9 bg-white">
                   <SelectValue placeholder={t("hr:sort.urgency")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -710,7 +724,7 @@ HR Department`;
                   placeholder={t("hr:filter.searchEmployee")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 bg-white dark:bg-card"
+                  className="pl-9 h-9 bg-white"
                 />
                 {searchQuery && (
                   <Button
@@ -734,7 +748,7 @@ HR Department`;
             </div>
 
             {/* Results Count */}
-            <div className="text-sm text-gray-600 dark:text-muted-foreground">
+            <div className="text-sm text-gray-600">
               {t("hr:filter.showingResults", { count: filteredCount, total: totalDocuments })}
             </div>
           </div>
@@ -776,7 +790,7 @@ HR Department`;
                 <ul className="space-y-1">
                   {docs.slice(0, 5).map((doc) => renderDocumentItem(doc, level))}
                   {docs.length > 5 && (
-                    <li className="text-sm text-[#6B6B6B] dark:text-muted-foreground pl-2 pt-1">
+                    <li className="text-sm text-[#6B6B6B] pl-2 pt-1">
                       +{docs.length - 5} {t("hr:more")}
                     </li>
                   )}
@@ -821,41 +835,21 @@ HR Department`;
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Submission Date</Label>
-              <DatePicker
-                date={renewalSubmittedAt ? new Date(renewalSubmittedAt + "T00:00:00") : undefined}
-                onDateChange={(date) => {
-                  if (date) {
-                    const year = date.getFullYear();
-                    const month = String(date.getMonth() + 1).padStart(2, "0");
-                    const day = String(date.getDate()).padStart(2, "0");
-                    setRenewalSubmittedAt(`${year}-${month}-${day}`);
-                  } else {
-                    setRenewalSubmittedAt("");
-                  }
-                }}
-                placeholder="Select submission date"
-                className="w-full"
-                clearable={false}
+              <Label htmlFor="submitted_at">Submission Date</Label>
+              <Input
+                id="submitted_at"
+                type="date"
+                value={renewalSubmittedAt}
+                onChange={(e) => setRenewalSubmittedAt(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
-              <Label>Expected Return Date (Optional)</Label>
-              <DatePicker
-                date={renewalExpectedAt ? new Date(renewalExpectedAt + "T00:00:00") : undefined}
-                onDateChange={(date) => {
-                  if (date) {
-                    const year = date.getFullYear();
-                    const month = String(date.getMonth() + 1).padStart(2, "0");
-                    const day = String(date.getDate()).padStart(2, "0");
-                    setRenewalExpectedAt(`${year}-${month}-${day}`);
-                  } else {
-                    setRenewalExpectedAt("");
-                  }
-                }}
-                placeholder="Select expected date"
-                className="w-full"
-                clearable={true}
+              <Label htmlFor="expected_at">Expected Return Date (Optional)</Label>
+              <Input
+                id="expected_at"
+                type="date"
+                value={renewalExpectedAt}
+                onChange={(e) => setRenewalExpectedAt(e.target.value)}
               />
             </div>
           </div>
@@ -904,9 +898,9 @@ HR Department`;
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label>To</Label>
-              <div className="text-sm p-2 bg-gray-50 dark:bg-card rounded border dark:border-border">
+              <div className="text-sm p-2 bg-gray-50 rounded border">
                 {reminderDoc?.employee_name}
-                <span className="text-[#6B6B6B] dark:text-muted-foreground ml-2">({reminderDoc?.employee_email || "No email"})</span>
+                <span className="text-[#6B6B6B] ml-2">({reminderDoc?.employee_email || "No email"})</span>
               </div>
             </div>
             <div className="grid gap-2">
@@ -983,7 +977,7 @@ HR Department`;
   );
 }
 
-// Summary table for dashboard stats - cleaner format
+// Summary cards for dashboard stats
 interface AlertSummaryCardsProps {
   documents: ExpiringDocument[];
 }
@@ -993,79 +987,30 @@ export function AlertSummaryCards({ documents }: AlertSummaryCardsProps) {
   const alertConfig = getAlertConfig(t);
   const grouped = groupByAlertLevel(documents);
 
-  const alertLevels: { level: AlertLevel; timeFrame: string }[] = [
-    { level: "expired", timeFrame: "Past Due" },
-    { level: "critical", timeFrame: "0-7 Days" },
-    { level: "urgent", timeFrame: "8-14 Days" },
-    { level: "warning", timeFrame: "15-30 Days" },
-    { level: "advisory", timeFrame: "31-90 Days" },
-  ];
-
-  const totalCount = alertLevels.reduce((sum, { level }) => sum + grouped[level].length, 0);
-
-  if (totalCount === 0) {
-    return null;
-  }
-
   return (
-    <Card className="border-[#E6E6E4] dark:border-border">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-          <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
-            <FileText className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
-          </div>
-          {t("hr:documentExpiryStatus")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="rounded-lg border border-[#E6E6E4] dark:border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-[#FAFAF8] dark:bg-card border-b border-[#E6E6E4] dark:border-border">
-                <th className="text-left px-4 py-2.5 font-semibold text-[#555555] dark:text-foreground">Status</th>
-                <th className="text-left px-4 py-2.5 font-semibold text-[#555555] dark:text-foreground">Time Frame</th>
-                <th className="text-right px-4 py-2.5 font-semibold text-[#555555] dark:text-foreground">Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {alertLevels.map(({ level, timeFrame }, index) => {
-                const config = alertConfig[level];
-                const count = grouped[level].length;
-                const hasItems = count > 0;
-                const isLast = index === alertLevels.length - 1;
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      {(["expired", "critical", "urgent", "warning", "advisory"] as AlertLevel[]).map((level) => {
+        const config = alertConfig[level];
+        const Icon = config.icon;
+        const count = grouped[level].length;
 
-                return (
-                  <tr 
-                    key={level} 
-                    className={`${!isLast ? "border-b border-[#E6E6E4] dark:border-border" : ""} ${hasItems ? config.bgColor : "bg-white dark:bg-card"} transition-colors`}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${hasItems ? config.color.replace('text-', 'bg-') : "bg-gray-300"}`} />
-                        <span className={`font-medium ${hasItems ? config.color : "text-[#777777] dark:text-muted-foreground"}`}>
-                          {t(`hr:alert.${level}`)}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-[#6B6B6B] dark:text-muted-foreground">
-                      {timeFrame}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={`inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full text-sm font-semibold ${
-                        hasItems 
-                          ? `${config.bgColor} ${config.color} border ${config.borderColor}` 
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-400"
-                      }`}>
-                        {count}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
+        return (
+          <Card key={level} className={`border ${config.borderColor} ${count > 0 ? config.bgColor : "bg-white"}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[#6B6B6B]">
+                    {t(`hr:alert.${level}`)}
+                  </p>
+                  <p className={`text-2xl font-bold ${count > 0 ? config.color : "text-[#222222]"}`}>{count}</p>
+                </div>
+                <Icon className={`h-8 w-8 ${count > 0 ? config.color : "text-[#E6E6E4]"}`} />
+              </div>
+              <p className="text-xs text-[#6B6B6B] mt-1">{config.label}</p>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
   );
 }
