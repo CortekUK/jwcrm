@@ -23,6 +23,7 @@ import { Lead } from "./LeadTable";
 import { InvoicePDFTemplate } from "./InvoicePDFTemplate";
 import { Loader2, Receipt, ChevronDown, ChevronUp, FileText, User, Mail } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SendInvoiceDialogProps {
   lead: Lead | null;
@@ -54,9 +55,14 @@ export function SendInvoiceDialog({
 
     setIsSubmitting(true);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
       const response = await fetch("/api/lead-management/send-invoice", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           leadId: lead.id,
           amount: amountNum,

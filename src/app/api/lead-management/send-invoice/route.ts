@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { stripe } from "@/integrations/stripe/server";
-import { Resend } from "resend";
 import { generateInvoicePDFArabic } from "@/lib/pdf/generateInvoicePDFArabic";
+import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(request: NextRequest) {
   try {
+    // Resolve caller from JWT so we can route through their Outlook when connected.
+    let callerId: string | null = null;
+    const authHeader = request.headers.get("authorization") || "";
+    const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (accessToken) {
+      const { data: userInfo } = await supabaseAdmin.auth.getUser(accessToken);
+      callerId = userInfo?.user?.id ?? null;
+    }
+
     const body = await request.json();
     const { leadId, amount, currency = "AED", description } = body;
 
@@ -123,28 +130,22 @@ export async function POST(request: NextRequest) {
       description: description || "خدمات صياغة الوصايا الاحترافية",
     });
 
-    // 6. Send email with invoice PDF attachment
+    // 6. Send email with invoice PDF attachment. Routed via caller's Outlook
+    //    when connected, else falls back to Resend (with the existing
+    //    test-mode behavior).
     const formattedAmount = new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency,
     }).format(amount);
 
-    const adminEmail = process.env.ADMIN_EMAIL || "aw736024@gmail.com";
-    const fromEmail = process.env.FROM_EMAIL || "onboarding@resend.dev";
-    const isTestMode = !process.env.PRODUCTION_EMAIL_MODE;
-
-    const recipientEmail = isTestMode ? adminEmail : effectiveEmail;
-    const subjectPrefix = isTestMode ? `[Original: ${effectiveEmail}] ` : "";
-
-    try {
-      await resend.emails.send({
-        from: fromEmail,
-        to: recipientEmail,
-        subject: `${subjectPrefix}Your Invoice - ${proposal.invoice_number}`,
-        headers: {
-          "X-Entity-Ref-ID": proposal.id,
-        },
-        html: `
+    const emailResult = await sendUserEmail(callerId, {
+      to: effectiveEmail,
+      subject: `Your Invoice - ${proposal.invoice_number}`,
+      refId: proposal.id,
+      attachments: [
+        { content: invoicePDFBase64, filename: `Invoice-${proposal.invoice_number}.pdf` },
+      ],
+      html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background-color: #0C5536; padding: 20px; text-align: center;">
               <h1 style="color: #C6A03B; margin: 0;">Just Wills</h1>
@@ -205,15 +206,9 @@ export async function POST(request: NextRequest) {
             </div>
           </div>
         `,
-        attachments: [
-          {
-            content: invoicePDFBase64,
-            filename: `Invoice-${proposal.invoice_number}.pdf`,
-          },
-        ],
-      });
-    } catch (emailError) {
-      console.error("Error sending email:", emailError);
+    });
+    if (!emailResult.ok) {
+      console.error("Error sending invoice email:", emailResult.error);
     }
 
     // 7. Log invoice_sent activity
@@ -230,6 +225,7 @@ export async function POST(request: NextRequest) {
           currency: currency,
           description: invoiceDescription,
           recipient_email: effectiveEmail,
+          email_provider: emailResult.provider,
         },
       });
     } catch (activityError) {
@@ -241,6 +237,7 @@ export async function POST(request: NextRequest) {
       proposalId: proposal.id,
       invoiceNumber: proposal.invoice_number,
       paymentUrl: session.url,
+      emailProvider: emailResult.provider,
     });
   } catch (error) {
     console.error("Error in send-invoice:", error);
