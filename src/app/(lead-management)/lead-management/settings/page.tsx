@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
+import { OutlookConnectionCard } from "@/components/integrations/OutlookConnectionCard";
 
 interface NotificationSettings {
   emailNewLeadAssigned: boolean;
@@ -353,6 +354,7 @@ export default function LeadManagementSettings() {
 
         {/* Account Tab */}
         <TabsContent value="account" className="space-y-6">
+          <OutlookConnectionCard />
           <Card className="border-[#E6E6E4]">
             <CardHeader className="pb-4">
               <div className="flex items-center gap-2">
