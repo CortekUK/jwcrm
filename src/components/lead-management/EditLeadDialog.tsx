@@ -225,9 +225,14 @@ export function EditLeadDialog({
 
       // If assignment changed, call the assign API
       if (assignmentChanged && !isSalesperson) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
         const response = await fetch(`/api/lead-management/leads/${lead.id}/assign`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
           body: JSON.stringify({ salesperson_id: data.assigned_to }),
         });
 

@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
+import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -63,6 +63,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Resolve actor if a JWT is present (intake forms may be unauthenticated;
+    // dashboard creation by a manager will be authenticated). When present,
+    // the assignment notification routes through their Outlook.
+    let callerId: string | null = null;
+    const authHeader = request.headers.get("authorization") || "";
+    const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (accessToken) {
+      const { data: userInfo } = await supabaseAdmin.auth.getUser(accessToken);
+      callerId = userInfo?.user?.id ?? null;
+    }
+
     const body = await request.json();
     const { full_name, email, phone, company_name, source_id, notes } = body;
 
@@ -169,20 +180,12 @@ export async function POST(request: NextRequest) {
       leadWithProfile = { ...lead, assigned_user: null };
     }
 
-    // Send enquiry confirmation email
-    // Note: Using Resend test account - all emails go to admin email
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    const adminEmail = process.env.ADMIN_EMAIL || "aw736024@gmail.com";
-    const fromEmail = process.env.FROM_EMAIL || "onboarding@resend.dev";
-
-    const recipientEmail = adminEmail;
-    const subjectPrefix = `[Original: ${lead.email}] `;
-
+    // Send enquiry confirmation email. Goes via caller's Outlook when
+    // authenticated and connected, else Resend.
     try {
-      await resend.emails.send({
-        from: `Just Wills <${fromEmail}>`,
-        to: recipientEmail,
-        subject: `${subjectPrefix}Thank You for Your Enquiry - Just Wills`,
+      const enquiryResult = await sendUserEmail(callerId, {
+        to: lead.email,
+        subject: `Thank You for Your Enquiry - Just Wills`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background-color: #0C5536; padding: 20px; text-align: center;">
@@ -231,13 +234,18 @@ export async function POST(request: NextRequest) {
           </div>
         `,
       });
-      console.log("Enquiry confirmation email sent to:", recipientEmail);
+      if (!enquiryResult.ok) {
+        console.error("Failed to send enquiry confirmation email:", enquiryResult.error);
+      } else {
+        console.log("Enquiry confirmation email sent via", enquiryResult.provider, "to:", lead.email);
+      }
     } catch (emailError) {
       // Log but don't fail the lead creation
       console.error("Failed to send enquiry confirmation email:", emailError);
     }
 
-    // Send notification email to assigned salesperson
+    // Send notification email to assigned salesperson — via creator's Outlook
+    // when authenticated and connected, else Resend.
     if (assignedTo) {
       try {
         // Get salesperson profile and email
@@ -254,10 +262,9 @@ export async function POST(request: NextRequest) {
         if (salespersonEmail) {
           const sourceName = lead.source_data?.name || "Unknown Source";
 
-          await resend.emails.send({
-            from: `Just Wills <${fromEmail}>`,
-            to: adminEmail, // Always send to admin (Resend test mode limitation)
-            subject: `[Original: ${salespersonEmail}] New Lead Assigned: ${lead.full_name}`,
+          const assignedNotifyResult = await sendUserEmail(callerId, {
+            to: salespersonEmail,
+            subject: `New Lead Assigned: ${lead.full_name}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background-color: #0C5536; padding: 20px; text-align: center;">
@@ -326,7 +333,11 @@ export async function POST(request: NextRequest) {
               </div>
             `,
           });
-          console.log("Lead assignment notification sent for salesperson:", salespersonEmail);
+          if (!assignedNotifyResult.ok) {
+            console.error("Failed to send salesperson notification email:", assignedNotifyResult.error);
+          } else {
+            console.log("Lead assignment notification sent via", assignedNotifyResult.provider, "to:", salespersonEmail);
+          }
         }
       } catch (salespersonEmailError) {
         // Log but don't fail the lead creation

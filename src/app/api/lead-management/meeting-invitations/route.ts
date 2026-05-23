@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import {
   generateGoogleCalendarLink,
   generateOutlookWebLink,
@@ -8,18 +7,28 @@ import {
   icsToBase64,
   MeetingDetails,
 } from "@/lib/calendar-links";
+import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(request: NextRequest) {
   try {
+    // Resolve the actor from the JWT so meeting invites go from their
+    // own Outlook mailbox when connected.
+    let callerId: string | null = null;
+    const authHeader = request.headers.get("authorization") || "";
+    const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (accessToken) {
+      const { data: userInfo } = await supabaseAdmin.auth.getUser(accessToken);
+      callerId = userInfo?.user?.id ?? null;
+    }
+
     const body = await request.json();
     const { leadId, title, startTime, endTime, location, description, userId } = body;
+    const actorUserId = callerId || userId || null;
 
     if (!leadId || !title || !startTime || !endTime) {
       return NextResponse.json(
@@ -100,30 +109,19 @@ export async function POST(request: NextRequest) {
         ? `${durationHours}h ${durationRemainingMinutes > 0 ? `${durationRemainingMinutes}m` : ""}`
         : `${durationMinutes}m`;
 
-    // Test mode: all emails go to admin with original recipient in subject
-    const adminEmail = process.env.ADMIN_EMAIL || "aw736024@gmail.com";
-    const fromEmail = process.env.FROM_EMAIL || "onboarding@resend.dev";
-    const isTestMode = !process.env.PRODUCTION_EMAIL_MODE;
-
-    const recipientEmail = isTestMode ? adminEmail : lead.email;
-    const subjectPrefix = isTestMode ? `[Original: ${lead.email}] ` : "";
-
-    // Send email with meeting invitation
-    try {
-      await resend.emails.send({
-        from: fromEmail,
-        to: recipientEmail,
-        subject: `${subjectPrefix}Meeting Invitation: ${title}`,
-        headers: {
-          "X-Entity-Ref-ID": leadId,
+    // Route the invite via the actor's Outlook when connected, else
+    // fall back to Resend.
+    const emailResult = await sendUserEmail(actorUserId, {
+      to: lead.email,
+      subject: `Meeting Invitation: ${title}`,
+      refId: leadId,
+      attachments: [
+        {
+          content: icsBase64,
+          filename: `meeting-${meetingDate.toISOString().split("T")[0]}.ics`,
         },
-        attachments: [
-          {
-            content: icsBase64,
-            filename: `meeting-${meetingDate.toISOString().split("T")[0]}.ics`,
-          },
-        ],
-        html: `
+      ],
+      html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <!-- Header: Just Wills branding -->
             <div style="background-color: #0C5536; padding: 20px; text-align: center;">
@@ -234,9 +232,9 @@ export async function POST(request: NextRequest) {
             </div>
           </div>
         `,
-      });
-    } catch (emailError) {
-      console.error("Error sending meeting invitation email:", emailError);
+    });
+    if (!emailResult.ok) {
+      console.error("Error sending meeting invitation email:", emailResult.error);
       return NextResponse.json(
         { error: "Failed to send meeting invitation email" },
         { status: 500 }
@@ -258,7 +256,7 @@ export async function POST(request: NextRequest) {
           communication_method_id: emailMethodId,
           scheduled_at: startTime,
           notes: meetingNotes,
-          created_by: userId || null,
+          created_by: actorUserId,
         });
 
       if (commError) {
@@ -270,8 +268,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Meeting invitation sent successfully",
-      testMode: isTestMode,
-      sentTo: recipientEmail,
+      emailProvider: emailResult.provider,
+      sentTo: lead.email,
     });
   } catch (error) {
     console.error("Error in POST /api/lead-management/meeting-invitations:", error);

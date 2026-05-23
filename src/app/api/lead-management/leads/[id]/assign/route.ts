@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
+import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,6 +12,16 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Resolve actor (the manager doing the assignment) so the notification
+    // to the new salesperson goes from their own Outlook when connected.
+    let callerId: string | null = null;
+    const authHeader = request.headers.get("authorization") || "";
+    const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (accessToken) {
+      const { data: userInfo } = await supabaseAdmin.auth.getUser(accessToken);
+      callerId = userInfo?.user?.id ?? null;
+    }
+
     const { id } = await params;
     const body = await request.json();
     const { salesperson_id } = body;
@@ -80,12 +90,9 @@ export async function PATCH(
       leadWithProfile = { ...updatedLead, assigned_user: null };
     }
 
-    // Send notification email to the new salesperson
+    // Send notification email to the new salesperson.
+    // Goes via the manager's Outlook when connected, else Resend.
     try {
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      const adminEmail = process.env.ADMIN_EMAIL || "aw736024@gmail.com";
-      const fromEmail = process.env.FROM_EMAIL || "onboarding@resend.dev";
-
       // Get salesperson profile and email
       const { data: salespersonProfile } = await supabaseAdmin
         .from("profiles")
@@ -100,10 +107,9 @@ export async function PATCH(
       if (salespersonEmail) {
         const sourceName = updatedLead.source_data?.name || "Unknown Source";
 
-        await resend.emails.send({
-          from: `Just Wills <${fromEmail}>`,
-          to: adminEmail, // Always send to admin (Resend test mode limitation)
-          subject: `[Original: ${salespersonEmail}] Lead Reassigned to You: ${updatedLead.full_name}`,
+        const emailResult = await sendUserEmail(callerId, {
+          to: salespersonEmail,
+          subject: `Lead Reassigned to You: ${updatedLead.full_name}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background-color: #0C5536; padding: 20px; text-align: center;">
@@ -172,7 +178,11 @@ export async function PATCH(
             </div>
           `,
         });
-        console.log("Lead reassignment notification sent for salesperson:", salespersonEmail);
+        if (!emailResult.ok) {
+          console.error("Failed to send salesperson notification email:", emailResult.error);
+        } else {
+          console.log("Lead reassignment notification sent via", emailResult.provider, "to:", salespersonEmail);
+        }
       }
     } catch (emailError) {
       // Log but don't fail the reassignment
