@@ -263,6 +263,19 @@ export function SignInForm({ dashboardType }: SignInFormProps) {
           </p>
         </div>
       )}
+
+      {dashboardType === "admin" && (
+        <div className="text-center">
+          <p className="text-[13px] text-[#555555] dark:text-muted-foreground">
+            <Link
+              href="/client/auth"
+              className="text-[#0C5536] dark:text-[#C6A03B] hover:underline font-medium"
+            >
+              Client Login
+            </Link>
+          </p>
+        </div>
+      )}
     </div>
   );
 }
