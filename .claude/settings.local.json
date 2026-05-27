@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(node *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"http://localhost:3000/admin/hr/kpis/evaluations/00000000-0000-0000-0000-000000000000\" --max-time 90)",
+      "Bash(curl -s -o /dev/null -w \"lead page %{http_code}\\\\n\" \"http://localhost:3000/admin/lead-management/leads/00000000-0000-0000-0000-000000000000\" --max-time 120)",
+      "Bash(curl -s -o /dev/null -w \"invoice route %{http_code}\\\\n\" -X POST \"http://localhost:3000/api/lead-management/leads/00000000-0000-0000-0000-000000000000/invoice\" -H \"Content-Type: application/json\" -d '{}' --max-time 60)",
+      "Bash(curl -s -o /dev/null -w \"salesperson/leads %{http_code}\\\\n\" \"http://localhost:3000/admin/salesperson/leads\" --max-time 60)",
+      "Bash(curl -s -o /dev/null -w \"lead-management/leads %{http_code}\\\\n\" \"http://localhost:3000/admin/lead-management/leads\" --max-time 60)",
+      "Bash(git -C D:/willsgenerator-main rev-parse --is-inside-work-tree)",
+      "Bash(git -C D:/willsgenerator-main remote -v)",
+      "Bash(git -C D:/willsgenerator-main branch --show-current)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
+}

@@ -243,7 +243,7 @@ export function SignInForm({ dashboardType }: SignInFormProps) {
 
       {/* Only show signup link for client dashboard */}
       {dashboardType === "client" && (
-        <div className="text-center">
+        <div className="text-center space-y-2">
           <p className="text-[13px] text-[#555555] dark:text-muted-foreground">
             {t("noAccount")}{" "}
             <Link
@@ -251,6 +251,14 @@ export function SignInForm({ dashboardType }: SignInFormProps) {
               className="text-[#0C5536] dark:text-[#C6A03B] hover:underline font-medium"
             >
               {t("signUp")}
+            </Link>
+          </p>
+          <p className="text-[13px] text-[#555555] dark:text-muted-foreground">
+            <Link
+              href="/admin/auth"
+              className="text-[#0C5536] dark:text-[#C6A03B] hover:underline font-medium"
+            >
+              Admin Login
             </Link>
           </p>
         </div>

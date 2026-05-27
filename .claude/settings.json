@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git fetch *)",
+      "Bash(git reset *)",
+      "Bash(git checkout *)",
+      "Bash(git check-ignore *)",
+      "Bash(git add *)",
+      "Bash(git -c user.email=claude@anthropic.com -c user.name=Claude commit --no-gpg-sign -m ' *)",
+      "Bash(git push *)",
+      "Bash(git merge *)",
+      "Bash(command -v pnpm)",
+      "Bash(pnpm --version)",
+      "Bash(rm -rf node_modules .next)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm run *)",
+      "Bash(echo \"exit=$?\")",
+      "Read(//tmp/**)",
+      "Bash(git -c user.email=\"claude@anthropic.com\" -c user.name=\"Claude\" commit --allow-empty --no-gpg-sign -m \"chore: trigger Vercel redeploy\")",
+      "Bash(git ls-tree *)",
+      "Bash(git -c user.email=\"claude@anthropic.com\" -c user.name=\"Claude\" commit --no-gpg-sign -m \"fix\\(build\\): add missing LeadNotesSection component imported by lead detail page\")",
+      "Bash(git -c user.email=\"claude@anthropic.com\" -c user.name=\"Claude\" commit --no-gpg-sign -m \"fix: route list-page Send Invoice through per-user Outlook \\(sendUserEmail\\)\")",
+      "Bash(git -c user.email=\"claude@anthropic.com\" -c user.name=\"Claude\" commit --no-gpg-sign -m \"feat: surface Outlook connection card on lead-management settings page\")"
+    ]
+  }
+}
