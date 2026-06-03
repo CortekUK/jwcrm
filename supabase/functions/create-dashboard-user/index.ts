@@ -139,6 +139,10 @@ Deno.serve(async (req) => {
     // Support both single role and multiple roles (for validation and logging)
     const userRolesToAssign: string[] = rolesToInsert.map(r => r.role);
 
+    // Primary role used to seed user_metadata so the handle_new_user trigger
+    // inserts the correct role (instead of defaulting to 'client').
+    const primaryRole: AppRole = rolesToInsert[0]?.role ?? 'client';
+
     // Validate required fields
     if (!fullName || !email) {
       return new Response(
@@ -208,7 +212,7 @@ Deno.serve(async (req) => {
       email_confirm: true, // Auto-confirm email
       user_metadata: {
         full_name: fullName,
-        role: role,
+        role: primaryRole,
         locale: locale,
       },
     });
@@ -242,9 +246,13 @@ Deno.serve(async (req) => {
       permission_level: r.permissionLevel || 'head',
     }));
 
+    // Upsert (not insert): the handle_new_user trigger has already inserted the
+    // primary role from user_metadata, so a plain insert would hit the
+    // UNIQUE (user_id, role) constraint and fail. onConflict updates the
+    // permission_level and tolerates the trigger's pre-existing row.
     const { error: roleError } = await supabase
       .from('user_roles')
-      .insert(roleInserts);
+      .upsert(roleInserts, { onConflict: 'user_id,role' });
 
     if (roleError) {
       console.error('Error inserting user roles:', roleError);
@@ -263,19 +271,19 @@ Deno.serve(async (req) => {
           const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
           const portalUrl = 'https://willsgenerator.vercel.app';
 
-          // Send to admin for testing/verification
-          const adminEmail = 'aw736024@gmail.com';
           const roleDisplay = userRolesToAssign.map(r => roleDisplayNames[r] || r).join(', ');
 
           console.log('=== EMAIL DEBUG INFO ===');
           console.log('Sending welcome email to:', email);
-          console.log('Also sending to admin:', adminEmail);
-          console.log('Role:', role, '- Display name:', roleDisplay);
+          console.log('Roles:', userRolesToAssign.join(', '), '- Display name:', roleDisplay);
           console.log('========================');
 
+          // NOTE: with the default onboarding@resend.dev sender, Resend only
+          // delivers to the account owner's verified address. Set a verified
+          // FROM_EMAIL domain so the credentials actually reach the client.
           const { data: emailData, error: sendError } = await resend.emails.send({
             from: fromEmail,
-            to: adminEmail,
+            to: email,
             subject: `Welcome to Just Wills - Your ${roleDisplay} Account Has Been Created`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
