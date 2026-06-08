@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { leadId, amount, currency = "USD", proposalContent, leadEmail, leadName } = body;
+    const { leadId, amount, currency = "AED", proposalContent, leadEmail, leadName } = body;
 
     if (!leadId || !amount || !proposalContent) {
       return NextResponse.json(

@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
           is_paid: true,
           paid_at: new Date().toISOString(),
           paid_amount: proposalData?.amount || session.amount_total ? (session.amount_total as number) / 100 : null,
-          paid_currency: proposalData?.currency || 'USD',
+          paid_currency: proposalData?.currency || 'AED',
           updated_at: new Date().toISOString(),
         })
         .eq('id', proposal.lead_id);

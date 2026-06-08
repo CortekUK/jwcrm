@@ -22,7 +22,9 @@
       "Bash(git ls-tree *)",
       "Bash(git -c user.email=\"claude@anthropic.com\" -c user.name=\"Claude\" commit --no-gpg-sign -m \"fix\\(build\\): add missing LeadNotesSection component imported by lead detail page\")",
       "Bash(git -c user.email=\"claude@anthropic.com\" -c user.name=\"Claude\" commit --no-gpg-sign -m \"fix: route list-page Send Invoice through per-user Outlook \\(sendUserEmail\\)\")",
-      "Bash(git -c user.email=\"claude@anthropic.com\" -c user.name=\"Claude\" commit --no-gpg-sign -m \"feat: surface Outlook connection card on lead-management settings page\")"
+      "Bash(git -c user.email=\"claude@anthropic.com\" -c user.name=\"Claude\" commit --no-gpg-sign -m \"feat: surface Outlook connection card on lead-management settings page\")",
+      "Bash(python3 -c \"import json,sys; print\\(json.dumps\\({'query': open\\('supabase/migrations/20260603000001_harden_handle_new_user_role_insert.sql'\\).read\\(\\)}\\)\\)\")",
+      "Bash(echo \"  <-- exit $?\")"
     ]
   }
 }

@@ -234,7 +234,7 @@ export function WillAnswersModal({ open, onOpenChange, answers, clientName }: Wi
                             <span className="text-muted-foreground">Estimated Value:</span>{' '}
                             {new Intl.NumberFormat('en-US', {
                               style: 'currency',
-                              currency: 'USD'
+                              currency: 'AED'
                             }).format(asset.estimated_value)}
                           </div>
                         )}

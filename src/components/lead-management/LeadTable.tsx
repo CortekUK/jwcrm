@@ -997,7 +997,7 @@ export function LeadTable({
                               <DropdownMenuItem
                                 key={option.value}
                                 onClick={() => onStatusChange(lead.id, option.value)}
-                                className="cursor-pointer hover:bg-[#F5F5F3]"
+                                className="cursor-pointer text-[#555555] hover:bg-[#F5F5F3] focus:text-white"
                               >
                                 <div className="flex items-center gap-2">
                                   <span className={`w-2 h-2 rounded-full ${
@@ -1013,7 +1013,7 @@ export function LeadTable({
                                     option.value === "won" ? "bg-[#0C5536]" :
                                     "bg-[#C0392B]"
                                   }`} />
-                                  <span className="text-[#555555]">{option.label}</span>
+                                  <span>{option.label}</span>
                                 </div>
                               </DropdownMenuItem>
                             ))}

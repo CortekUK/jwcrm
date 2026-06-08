@@ -36,7 +36,7 @@ export function GenerateInvoiceDialog({
 }: GenerateInvoiceDialogProps) {
   const { t } = useTranslation("leadManagement");
   const [amount, setAmount] = useState("");
-  const [currency] = useState("USD");
+  const [currency] = useState("AED");
   const [description, setDescription] = useState("Legal services");
   const [sendEmail, setSendEmail] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -126,9 +126,9 @@ export function GenerateInvoiceDialog({
         ) : (
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label htmlFor="invoice-amount">{t("amountUSD")} *</Label>
+              <Label htmlFor="invoice-amount">{t("amountAED", "Amount (AED)")} *</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">AED</span>
                 <Input
                   id="invoice-amount"
                   type="number"
@@ -136,7 +136,7 @@ export function GenerateInvoiceDialog({
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="pl-7"
+                  className="pl-12"
                   placeholder="0.00"
                 />
               </div>

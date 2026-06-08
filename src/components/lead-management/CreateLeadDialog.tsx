@@ -44,7 +44,7 @@ type LeadFormValues = {
   full_name: string;
   email: string;
   phone: string;
-  company_name: string;
+  company_name?: string;
   source_id: string;
   notes?: string;
 };
@@ -72,7 +72,7 @@ export function CreateLeadDialog({
       /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,4}[-\s\.]?[0-9]{1,9}$/,
       t("invalidPhone")
     ),
-    company_name: z.string().min(1, t("companyRequired")),
+    company_name: z.string().optional(),
     source_id: z.string().min(1, t("sourceRequired")),
     notes: z.string().optional(),
   });
@@ -199,7 +199,7 @@ export function CreateLeadDialog({
                 name="company_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[#555555]">{t("company")} <span className="text-[#C0392B]">*</span></FormLabel>
+                    <FormLabel className="text-[#555555]">{t("company")}</FormLabel>
                     <FormControl>
                       <Input 
                         placeholder={t("company")} 

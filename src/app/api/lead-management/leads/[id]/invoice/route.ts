@@ -53,7 +53,7 @@ export async function POST(
 
     const body = await request.json().catch(() => ({}));
     const amount = Number(body.amount);
-    const currency = (body.currency || "USD").toString().toUpperCase();
+    const currency = (body.currency || "AED").toString().toUpperCase();
     const description = (body.description || "Legal services").toString();
     const sendEmail = body.sendEmail !== false; // default true
 

@@ -368,6 +368,7 @@ export default function ManageUsersPage() {
                             };
                             const getRoleLabel = (r: string) => {
                               switch (r) {
+                                case 'superadmin': return t('admin:superAdmin');
                                 case 'admin': return t('admin:administrator');
                                 case 'hr': return t('admin:hr');
                                 case 'finance': return t('admin:finance');

@@ -189,7 +189,7 @@ export function SendProposalDialog({
         body: JSON.stringify({
           leadId: lead.id,
           amount: amountNum,
-          currency: "USD",
+          currency: "AED",
           proposalContent,
           // Pass updated lead info to ensure email goes to correct address
           leadEmail: editedLead.email,
@@ -270,7 +270,7 @@ export function SendProposalDialog({
           .insert({
             lead_id: lead.id,
             amount: amountNum,
-            currency: "USD",
+            currency: "AED",
             proposal_content: proposalContent,
             status: "draft",
             invoice_number: `INV-${Date.now()}`,
@@ -302,7 +302,7 @@ export function SendProposalDialog({
         clientPhone: editedLead.phone || null,
         clientCompany: editedLead.company_name || null,
         amount: parseFloat(amount) || 0,
-        currency: "USD",
+        currency: "AED",
         proposalContent: proposalContent,
         createdAt: new Date(),
       }
@@ -407,10 +407,10 @@ export function SendProposalDialog({
 
           {/* Amount */}
           <div className="space-y-2">
-            <Label htmlFor="amount">{t("amountUSD")} *</Label>
+            <Label htmlFor="amount">{t("amountAED", "Amount (AED)")} *</Label>
             <div className="relative">
-              <span className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                $
+              <span className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+                AED
               </span>
               <Input
                 id="amount"
@@ -418,7 +418,7 @@ export function SendProposalDialog({
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="ltr:pl-7 rtl:pr-7"
+                className="ltr:pl-12 rtl:pr-12"
                 min="0"
                 step="0.01"
               />
