@@ -9,6 +9,7 @@ import { createClient } from "@supabase/supabase-js";
 import { stripe } from "@/integrations/stripe/server";
 import { generateInvoicePDF } from "@/lib/pdf/generateInvoicePDF";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
+import { companyDetails } from "@/config/company";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -115,7 +116,7 @@ export async function POST(
             price_data: {
               currency: currency.toLowerCase(),
               product_data: {
-                name: "Just Wills - Legal Services",
+                name: `${companyDetails.legalName} - Legal Services`,
                 description: `Invoice ${proposal.invoice_number} for ${lead.full_name}`,
               },
               unit_amount: Math.round(amount * 100),
@@ -175,12 +176,18 @@ export async function POST(
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background-color: #0C5536; padding: 20px; text-align: center;">
-              <h1 style="color: #C6A03B; margin: 0;">Just Wills</h1>
+              <h1 style="color: #C6A03B; margin: 0; font-size: 22px;">${companyDetails.legalName}</h1>
+              <p style="color: #E6E6E4; margin: 5px 0 0 0; font-size: 12px;">Tax Invoice &middot; ${companyDetails.invoiceCity}</p>
             </div>
             <div style="padding: 30px; background-color: #FAFAF8;">
               <h2 style="color: #0C5536; margin-top: 0;">Dear ${lead.full_name},</h2>
               <p>Please find attached your invoice <strong>${proposal.invoice_number}</strong> for <strong>${formattedAmount}</strong>.</p>
               ${paymentUrl ? `<div style="text-align:center; margin: 30px 0;"><a href="${paymentUrl}" style="background-color:#0C5536;color:#fff;padding:14px 36px;border-radius:6px;text-decoration:none;font-weight:bold;">Pay ${formattedAmount} now</a></div>` : ""}
+            </div>
+            <div style="background-color: #222222; padding: 15px; text-align: center;">
+              <p style="color: #666666; margin: 0; font-size: 11px;">
+                TRN: ${companyDetails.trn} &middot; ${companyDetails.invoiceEmail}
+              </p>
             </div>
           </div>
         `,

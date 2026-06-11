@@ -115,7 +115,7 @@ export function SendInvoiceDialog({
             </span>
           </DialogTitle>
           <DialogDescription>
-            {t("sendInvoiceDescription")}
+            {t("sendInvoiceDescription", { name: lead?.full_name ?? "" })}
           </DialogDescription>
         </DialogHeader>
 
@@ -183,7 +183,7 @@ export function SendInvoiceDialog({
               <Button
                 type="button"
                 variant="ghost"
-                className="w-full justify-between p-3 h-auto border border-[#E6E6E4] rounded-lg hover:bg-[#FAFAF8]"
+                className="w-full justify-between p-3 h-auto border border-[#E6E6E4] rounded-lg text-[#222222] hover:bg-[#FAFAF8] hover:text-[#222222]"
               >
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-[#C6A03B]" />

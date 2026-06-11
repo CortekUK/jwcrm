@@ -4,6 +4,7 @@ import { stripe } from "@/integrations/stripe/server";
 import { generateProposalPDF } from "@/lib/pdf/generateProposalPDF";
 import { generateInvoicePDFArabic } from "@/lib/pdf/generateInvoicePDFArabic";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
+import { companyDetails } from "@/config/company";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency: currency.toLowerCase(),
             product_data: {
-              name: "Just Wills - Legal Services",
+              name: `${companyDetails.legalName} - Legal Services`,
               description: `Proposal ${proposal.invoice_number} for ${effectiveName}`,
             },
             unit_amount: Math.round(amount * 100),
@@ -173,8 +174,8 @@ export async function POST(request: NextRequest) {
       html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background-color: #0C5536; padding: 20px; text-align: center;">
-              <h1 style="color: #C6A03B; margin: 0;">Just Wills</h1>
-              <p style="color: #E6E6E4; margin: 5px 0 0 0; font-size: 12px;">Professional Will Drafting Services</p>
+              <h1 style="color: #C6A03B; margin: 0; font-size: 22px;">${companyDetails.legalName}</h1>
+              <p style="color: #E6E6E4; margin: 5px 0 0 0; font-size: 12px;">Professional Will Drafting Services &middot; ${companyDetails.invoiceCity}</p>
             </div>
             <div style="padding: 30px; background-color: #FAFAF8;">
               <h2 style="color: #0C5536; margin-top: 0;">Dear ${effectiveName},</h2>
@@ -220,10 +221,10 @@ export async function POST(request: NextRequest) {
             </div>
             <div style="background-color: #222222; padding: 15px; text-align: center;">
               <p style="color: #E6E6E4; margin: 0; font-size: 12px;">
-                &copy; ${new Date().getFullYear()} Just Wills. All rights reserved.
+                &copy; ${new Date().getFullYear()} ${companyDetails.legalName}. All rights reserved.
               </p>
               <p style="color: #666666; margin: 5px 0 0 0; font-size: 11px;">
-                Questions? Contact us at support@justwills.ae
+                TRN: ${companyDetails.trn} &middot; Questions? Contact us at ${companyDetails.invoiceEmail}
               </p>
             </div>
           </div>
