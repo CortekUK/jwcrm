@@ -17,534 +17,297 @@ export type InvoiceData = {
   description?: string;
 };
 
-// Colors (normalized 0-1 for pdf-lib)
-const PRIMARY_COLOR = rgb(12 / 255, 85 / 255, 54 / 255); // #0C5536
-const GOLD_COLOR = rgb(198 / 255, 160 / 255, 59 / 255); // #C6A03B
-const TEXT_COLOR = rgb(34 / 255, 34 / 255, 34 / 255); // #222222
-const GRAY_COLOR = rgb(102 / 255, 102 / 255, 102 / 255); // #666666
-const LIGHT_GRAY = rgb(245 / 255, 245 / 255, 245 / 255); // #F5F5F5
-const WHITE = rgb(1, 1, 1);
+// Grayscale palette to match the official JW Legal Consultants tax invoice
+const BLACK = rgb(0, 0, 0);
+const TEXT = rgb(0.08, 0.08, 0.08);
+const GRAY = rgb(0.35, 0.35, 0.35);
+const HEADER_FILL = rgb(0.925, 0.925, 0.925);
+const LABEL_FILL = rgb(0.87, 0.87, 0.87);
+const TRN_FILL = rgb(0.745, 0.745, 0.745);
 
-// Arabic text constants
-const AR = {
-  invoice: "فاتورة",
-  invoiceNumber: "رقم الفاتورة",
-  invoiceDate: "تاريخ الفاتورة",
-  dueDate: "تاريخ الاستحقاق",
-  currency: "العملة",
-  billTo: "فاتورة إلى",
-  description: "الوصف",
-  serviceDescription: "خدمات صياغة الوصايا الاحترافية",
-  legalServices: "إعداد المستندات القانونية والاستشارات",
-  quantity: "الكمية",
-  price: "السعر",
-  amount: "المبلغ",
-  subtotal: "المجموع الفرعي",
-  vat: "ضريبة القيمة المضافة",
-  totalDue: "المبلغ المستحق",
-  paymentInfo: "معلومات الدفع",
-  paymentTerms: "شروط الدفع: مستحق عند الاستلام",
-  paymentMethod: "طريقة الدفع: الدفع الآمن عبر الإنترنت",
-  paymentInstructions: "يرجى استخدام رابط الدفع المرفق في بريدك الإلكتروني",
-  thankYou: "شكراً لتعاملكم معنا",
-  companyName: "جست ويلز",
-};
+const MM = 2.83465; // points per millimetre
+const mm = (v: number) => v * MM;
 
 export async function generateInvoicePDFArabic(data: InvoiceData): Promise<string> {
   const pdfDoc = await PDFDocument.create();
-
-  // Register fontkit for custom fonts
   pdfDoc.registerFontkit(fontkit);
 
-  // Load Arabic font
-  let arabicFont;
-  let hasArabicFont = false;
-
+  // Load Arabic font (for the TRN label)
+  let arabicFont: Awaited<ReturnType<typeof pdfDoc.embedFont>> | null = null;
   try {
     const fontPath = path.join(process.cwd(), "src/lib/pdf/fonts/Cairo-Regular.ttf");
-    const fontBytes = fs.readFileSync(fontPath);
-    arabicFont = await pdfDoc.embedFont(fontBytes);
-    hasArabicFont = true;
+    arabicFont = await pdfDoc.embedFont(fs.readFileSync(fontPath));
   } catch (error) {
     console.warn("Arabic font not loaded, using fallback:", error);
   }
 
-  // Load standard font as fallback
-  const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontItalic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
-  // Create page
-  const page = pdfDoc.addPage([595.28, 841.89]); // A4 size in points
+  // Logo (reuse existing brand logo)
+  let logoImg: Awaited<ReturnType<typeof pdfDoc.embedPng>> | null = null;
+  try {
+    const logoBytes = fs.readFileSync(path.join(process.cwd(), "src/assets/justwills.png"));
+    logoImg = await pdfDoc.embedPng(logoBytes);
+  } catch (error) {
+    console.warn("Logo not loaded:", error);
+  }
+
+  const page = pdfDoc.addPage([595.28, 841.89]); // A4 in points
   const { width, height } = page.getSize();
-  const margin = 56.7; // 20mm in points
 
-  // Helper function to draw text
-  const drawText = (
-    text: string,
-    x: number,
-    y: number,
-    options: {
-      font?: typeof helvetica;
-      size?: number;
-      color?: typeof PRIMARY_COLOR;
-      align?: "left" | "center" | "right";
-      isArabic?: boolean;
-    } = {}
-  ) => {
-    const {
-      font = helvetica,
-      size = 10,
-      color = TEXT_COLOR,
-      align = "left",
-      isArabic = false,
-    } = options;
+  const ML = mm(12);
+  const RIGHTX = width - ML;
+  const CW = RIGHTX - ML;
 
-    const useFont = isArabic && hasArabicFont && arabicFont ? arabicFont : font;
-    const textWidth = useFont.widthOfTextAtSize(text, size);
+  // ----- helpers -----
+  const fmt = (n: number) =>
+    new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  const formatDate = (date: Date) =>
+    new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
 
-    let xPos = x;
-    if (align === "center") {
-      xPos = x - textWidth / 2;
-    } else if (align === "right") {
-      xPos = x - textWidth;
-    }
-
-    page.drawText(text, {
-      x: xPos,
-      y,
-      size,
-      font: useFont,
-      color,
-    });
+  type TextOpts = {
+    size?: number;
+    bold?: boolean;
+    italic?: boolean;
+    color?: typeof TEXT;
+    align?: "left" | "center" | "right";
+    arabic?: boolean;
   };
 
-  // Helper to draw rectangle
-  const drawRect = (
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    color: typeof PRIMARY_COLOR
-  ) => {
+  // topMm = distance of the text baseline from the top of the page
+  const txt = (str: string, xPt: number, topMm: number, opts: TextOpts = {}) => {
+    const { size = 10, bold = false, italic = false, color = TEXT, align = "left", arabic = false } = opts;
+    const useFont = arabic && arabicFont ? arabicFont : bold ? fontBold : italic ? fontItalic : font;
+    const w = useFont.widthOfTextAtSize(str, size);
+    let x = xPt;
+    if (align === "center") x = xPt - w / 2;
+    else if (align === "right") x = xPt - w;
+    page.drawText(str, { x, y: height - mm(topMm), size, font: useFont, color });
+  };
+
+  // x/top/w/h all in mm from the top-left
+  const box = (xMm: number, topMm: number, wMm: number, hMm: number, fill?: typeof HEADER_FILL) => {
     page.drawRectangle({
-      x,
-      y,
-      width: w,
-      height: h,
-      color,
+      x: mm(xMm),
+      y: height - mm(topMm + hMm),
+      width: mm(wMm),
+      height: mm(hMm),
+      ...(fill ? { color: fill } : {}),
+      borderColor: BLACK,
+      borderWidth: 0.8,
     });
   };
 
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: data.currency,
-    }).format(amount);
-  };
-
-  // Format date
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }).format(date);
-  };
-
-  // Calculate VAT
+  // ----- totals -----
   const subtotal = data.amount;
   const vatAmount = subtotal * (companyDetails.vatRate / 100);
   const total = subtotal + vatAmount;
 
-  let y = height - margin;
+  // =========================================================================
+  // TITLE
+  // =========================================================================
+  txt("TAX INVOICE", width / 2, 13, { size: 16, bold: true, align: "center" });
 
-  // ========== HEADER SECTION ==========
-  // Green header background
-  drawRect(0, height - 127.56, width, 127.56, PRIMARY_COLOR); // 45mm in points
+  // =========================================================================
+  // HEADER (logo + company address)
+  // =========================================================================
+  const headerTop = 18;
+  const headerH = 28;
+  box(12, headerTop, CW / MM, headerH, HEADER_FILL);
 
-  // Company name (right side for RTL)
-  drawText(companyDetails.name.toUpperCase(), width - margin, height - 51, {
-    font: helveticaBold,
-    size: 24,
-    color: WHITE,
-    align: "right",
-  });
-
-  // Company details
-  drawText(companyDetails.address, width - margin, height - 74, {
-    size: 9,
-    color: WHITE,
-    align: "right",
-  });
-  drawText(`TRN: ${companyDetails.trn}`, width - margin, height - 91, {
-    size: 9,
-    color: WHITE,
-    align: "right",
-  });
-  drawText(companyDetails.email, width - margin, height - 108, {
-    size: 9,
-    color: WHITE,
-    align: "right",
-  });
-
-  // INVOICE title (left side)
-  if (hasArabicFont && arabicFont) {
-    drawText(AR.invoice, margin + 60, height - 62, {
-      font: arabicFont,
-      size: 28,
-      color: GOLD_COLOR,
-      align: "left",
-      isArabic: true,
-    });
-  } else {
-    drawText("INVOICE", margin, height - 62, {
-      font: helveticaBold,
-      size: 28,
-      color: GOLD_COLOR,
-      align: "left",
-    });
-  }
-
-  // Invoice number
-  drawText(data.invoiceNumber, margin, height - 91, {
-    size: 11,
-    color: WHITE,
-    align: "left",
-  });
-
-  y = height - 156; // 55mm from top
-
-  // ========== INVOICE DETAILS BOX ==========
-  drawRect(margin, y - 79.37, width - 2 * margin, 79.37, LIGHT_GRAY); // 28mm height
-
-  // Invoice Date
-  drawText("Invoice Date:", width - margin - 14, y - 22.68, {
-    size: 9,
-    color: GRAY_COLOR,
-    align: "right",
-  });
-  drawText(formatDate(data.invoiceDate), width - margin - 14, y - 39.69, {
-    font: helveticaBold,
-    size: 10,
-    color: TEXT_COLOR,
-    align: "right",
-  });
-
-  // Due Date
-  drawText("Due Date:", width - margin - 156, y - 22.68, {
-    size: 9,
-    color: GRAY_COLOR,
-    align: "right",
-  });
-  drawText(formatDate(data.dueDate), width - margin - 156, y - 39.69, {
-    font: helveticaBold,
-    size: 10,
-    color: GOLD_COLOR,
-    align: "right",
-  });
-
-  // Currency
-  drawText("Currency:", width - margin - 298, y - 22.68, {
-    size: 9,
-    color: GRAY_COLOR,
-    align: "right",
-  });
-  drawText(data.currency, width - margin - 298, y - 39.69, {
-    font: helveticaBold,
-    size: 10,
-    color: TEXT_COLOR,
-    align: "right",
-  });
-
-  y -= 107.72; // Move down
-
-  // ========== BILL TO SECTION ==========
-  drawRect(width - margin - 198.43, y, 198.43, 19.84, PRIMARY_COLOR);
-
-  if (hasArabicFont && arabicFont) {
-    drawText(AR.billTo, width - margin - 8.5, y + 5.67, {
-      font: arabicFont,
-      size: 10,
-      color: WHITE,
-      align: "right",
-      isArabic: true,
-    });
-  } else {
-    drawText("BILL TO", width - margin - 8.5, y + 5.67, {
-      font: helveticaBold,
-      size: 10,
-      color: WHITE,
-      align: "right",
-    });
-  }
-
-  y -= 34;
-
-  // Client details
-  drawText(data.clientName, width - margin, y, {
-    font: helveticaBold,
-    size: 12,
-    color: TEXT_COLOR,
-    align: "right",
-  });
-  y -= 17;
-
-  drawText(data.clientEmail, width - margin, y, {
-    size: 10,
-    color: GRAY_COLOR,
-    align: "right",
-  });
-  y -= 14;
-
-  if (data.clientPhone) {
-    drawText(data.clientPhone, width - margin, y, {
-      size: 10,
-      color: GRAY_COLOR,
-      align: "right",
-    });
-    y -= 14;
-  }
-
-  if (data.clientCompany) {
-    drawText(data.clientCompany, width - margin, y, {
-      size: 10,
-      color: GRAY_COLOR,
-      align: "right",
-    });
-    y -= 14;
-  }
-
-  y -= 28;
-
-  // ========== TABLE HEADER ==========
-  drawRect(margin, y - 28.35, width - 2 * margin, 28.35, PRIMARY_COLOR);
-
-  // RTL: Description on right, Amount on left
-  if (hasArabicFont && arabicFont) {
-    drawText(AR.description, width - margin - 8.5, y - 19.84, {
-      font: arabicFont,
-      size: 9,
-      color: WHITE,
-      align: "right",
-      isArabic: true,
-    });
-    drawText(AR.quantity, width / 2, y - 19.84, {
-      font: arabicFont,
-      size: 9,
-      color: WHITE,
-      align: "center",
-      isArabic: true,
-    });
-    drawText(AR.price, margin + 155.91, y - 19.84, {
-      font: arabicFont,
-      size: 9,
-      color: WHITE,
-      align: "center",
-      isArabic: true,
-    });
-    drawText(AR.amount, margin + 8.5, y - 19.84, {
-      font: arabicFont,
-      size: 9,
-      color: WHITE,
-      align: "left",
-      isArabic: true,
-    });
-  } else {
-    drawText("DESCRIPTION", width - margin - 8.5, y - 19.84, {
-      font: helveticaBold,
-      size: 9,
-      color: WHITE,
-      align: "right",
-    });
-    drawText("QTY", width / 2, y - 19.84, {
-      font: helveticaBold,
-      size: 9,
-      color: WHITE,
-      align: "center",
-    });
-    drawText("PRICE", margin + 155.91, y - 19.84, {
-      font: helveticaBold,
-      size: 9,
-      color: WHITE,
-      align: "center",
-    });
-    drawText("AMOUNT", margin + 8.5, y - 19.84, {
-      font: helveticaBold,
-      size: 9,
-      color: WHITE,
-      align: "left",
-    });
-  }
-
-  y -= 28.35;
-
-  // ========== TABLE ROW ==========
-  // Draw line at bottom
-  page.drawLine({
-    start: { x: margin, y: y - 42.52 },
-    end: { x: width - margin, y: y - 42.52 },
-    thickness: 0.5,
-    color: rgb(230 / 255, 230 / 255, 228 / 255),
-  });
-
-  // Service description
-  const description = data.description || (hasArabicFont ? AR.serviceDescription : "Professional Will Drafting Services");
-  drawText(description, width - margin - 8.5, y - 17, {
-    size: 10,
-    color: TEXT_COLOR,
-    align: "right",
-    isArabic: hasArabicFont,
-  });
-
-  const secondaryDesc = hasArabicFont ? AR.legalServices : "Legal document preparation and consultation";
-  drawText(secondaryDesc, width - margin - 8.5, y - 31.18, {
-    size: 8,
-    color: GRAY_COLOR,
-    align: "right",
-    isArabic: hasArabicFont,
-  });
-
-  drawText("1", width / 2, y - 22.68, {
-    size: 10,
-    color: TEXT_COLOR,
-    align: "center",
-  });
-  drawText(formatCurrency(subtotal), margin + 155.91, y - 22.68, {
-    size: 10,
-    color: TEXT_COLOR,
-    align: "center",
-  });
-  drawText(formatCurrency(subtotal), margin + 8.5, y - 22.68, {
-    font: helveticaBold,
-    size: 10,
-    color: TEXT_COLOR,
-    align: "left",
-  });
-
-  y -= 56.69;
-
-  // ========== TOTALS SECTION ==========
-  // Subtotal
-  const subtotalLabel = hasArabicFont ? AR.subtotal + ":" : "Subtotal:";
-  drawText(subtotalLabel, margin + 255.12, y, {
-    size: 10,
-    color: GRAY_COLOR,
-    align: "right",
-    isArabic: hasArabicFont,
-  });
-  drawText(formatCurrency(subtotal), margin, y, {
-    size: 10,
-    color: TEXT_COLOR,
-    align: "left",
-  });
-  y -= 19.84;
-
-  // VAT
-  const vatLabel = hasArabicFont ? `${AR.vat} (${companyDetails.vatRate}%):` : `VAT (${companyDetails.vatRate}%):`;
-  drawText(vatLabel, margin + 255.12, y, {
-    size: 10,
-    color: GRAY_COLOR,
-    align: "right",
-    isArabic: hasArabicFont,
-  });
-  drawText(formatCurrency(vatAmount), margin, y, {
-    size: 10,
-    color: TEXT_COLOR,
-    align: "left",
-  });
-  y -= 28.35;
-
-  // Total box
-  drawRect(margin - 14.17, y - 34.02, 297.64, 34.02, PRIMARY_COLOR);
-
-  const totalLabel = hasArabicFont ? AR.totalDue + ":" : "TOTAL DUE:";
-  drawText(totalLabel, margin + 255.12, y - 22.68, {
-    font: hasArabicFont && arabicFont ? arabicFont : helveticaBold,
-    size: 11,
-    color: WHITE,
-    align: "right",
-    isArabic: hasArabicFont,
-  });
-  drawText(formatCurrency(total), margin - 5.67, y - 22.68, {
-    font: helveticaBold,
-    size: 13,
-    color: GOLD_COLOR,
-    align: "left",
-  });
-
-  y -= 70.87;
-
-  // ========== PAYMENT INFO SECTION ==========
-  drawRect(margin, y - 99.21, width - 2 * margin, 99.21, LIGHT_GRAY);
-
-  const paymentTitle = hasArabicFont ? AR.paymentInfo : "PAYMENT INFORMATION";
-  drawText(paymentTitle, width - margin - 14.17, y - 22.68, {
-    font: hasArabicFont && arabicFont ? arabicFont : helveticaBold,
-    size: 10,
-    color: PRIMARY_COLOR,
-    align: "right",
-    isArabic: hasArabicFont,
-  });
-
-  const paymentLine1 = hasArabicFont ? AR.paymentTerms : "Payment Terms: Due upon receipt";
-  const paymentLine2 = hasArabicFont ? AR.paymentMethod : "Payment Method: Secure online payment via Stripe";
-  const paymentLine3 = hasArabicFont ? AR.paymentInstructions : "Please use the payment link provided in your email to complete the transaction.";
-
-  drawText(paymentLine1, width - margin - 14.17, y - 45.35, {
-    size: 9,
-    color: TEXT_COLOR,
-    align: "right",
-    isArabic: hasArabicFont,
-  });
-  drawText(paymentLine2, width - margin - 14.17, y - 62.36, {
-    size: 9,
-    color: TEXT_COLOR,
-    align: "right",
-    isArabic: hasArabicFont,
-  });
-  drawText(paymentLine3, width - margin - 14.17, y - 79.37, {
-    size: 9,
-    color: TEXT_COLOR,
-    align: "right",
-    isArabic: hasArabicFont,
-  });
-
-  y -= 127.56;
-
-  // ========== FOOTER ==========
-  // Thank you
-  const thankYou = hasArabicFont ? AR.thankYou : "Thank you for your business!";
-  drawText(thankYou, width / 2, y, {
-    font: hasArabicFont && arabicFont ? arabicFont : helveticaBold,
-    size: 12,
-    color: PRIMARY_COLOR,
-    align: "center",
-    isArabic: hasArabicFont,
-  });
-
-  // Footer line
-  page.drawLine({
-    start: { x: margin, y: 56.69 },
-    end: { x: width - margin, y: 56.69 },
-    thickness: 2.83,
-    color: GOLD_COLOR,
-  });
-
-  // Footer text
-  drawText(
-    `${companyDetails.name} | ${companyDetails.website} | ${companyDetails.email}`,
-    width / 2,
-    34.02,
-    {
-      size: 8,
-      color: GRAY_COLOR,
-      align: "center",
+  if (logoImg) {
+    const maxW = mm(44);
+    const maxH = mm(20);
+    const ratio = logoImg.width / logoImg.height;
+    let lw = maxW;
+    let lh = maxW / ratio;
+    if (lh > maxH) {
+      lh = maxH;
+      lw = maxH * ratio;
     }
-  );
+    page.drawImage(logoImg, {
+      x: ML + mm(3),
+      y: height - mm(headerTop + headerH) + (mm(headerH) - lh) / 2,
+      width: lw,
+      height: lh,
+    });
+  } else {
+    txt("JW LEGAL CONSULTANTS", ML + mm(4), headerTop + 16, { size: 14, bold: true });
+  }
 
-  // Save and return base64
-  const pdfBytes = await pdfDoc.save();
-  const base64 = Buffer.from(pdfBytes).toString("base64");
+  let ay = headerTop + 6;
+  companyDetails.invoiceAddressLines.forEach((line) => {
+    txt(line, RIGHTX - mm(3), ay, { size: 7.5, align: "right" });
+    ay += 4;
+  });
+  txt(`PHONE: ${companyDetails.invoicePhone}`, RIGHTX - mm(3), ay, { size: 7.5, align: "right" });
+  ay += 4;
+  txt(`EMAIL: ${companyDetails.invoiceEmail}`, RIGHTX - mm(3), ay, { size: 7.5, align: "right" });
+
+  // =========================================================================
+  // BILL TO / INVOICE DETAILS GRID
+  // =========================================================================
+  const gridTop = headerTop + headerH; // 46
+  const gridH = 30;
+  const midMm = 12 + 93;
+
+  // Left: BILL TO
+  box(12, gridTop, 93, gridH);
+  txt("BILL TO:", ML + mm(3), gridTop + 7, { size: 10, bold: true });
+  txt(data.clientName, ML + mm(3), gridTop + 15, { size: 10, bold: true });
+  let by = gridTop + 21;
+  txt(data.clientEmail, ML + mm(3), by, { size: 8.5, color: GRAY });
+  by += 5;
+  if (data.clientCompany) {
+    txt(data.clientCompany, ML + mm(3), by, { size: 8.5, color: GRAY });
+    by += 5;
+  }
+  if (data.clientPhone) {
+    txt(data.clientPhone, ML + mm(3), by, { size: 8.5, color: GRAY });
+  }
+
+  // Right: Invoice No / Date / Reference
+  const rLabelW = 35;
+  const rW = (RIGHTX - mm(midMm)) / MM; // remaining width in mm
+  const rowH = 10;
+  box(midMm, gridTop, rLabelW, rowH, LABEL_FILL);
+  box(midMm + rLabelW, gridTop, rW - rLabelW, rowH);
+  txt("Invoice No.", mm(midMm) + mm(2), gridTop + 6.5, { size: 9, bold: true });
+  txt(data.invoiceNumber, mm(midMm + rLabelW) + mm(2), gridTop + 6.5, { size: 9, bold: true });
+  box(midMm, gridTop + rowH, rLabelW, rowH, LABEL_FILL);
+  box(midMm + rLabelW, gridTop + rowH, rW - rLabelW, rowH);
+  txt("Date", mm(midMm) + mm(2), gridTop + rowH + 6.5, { size: 9, bold: true });
+  txt(formatDate(data.invoiceDate), mm(midMm + rLabelW) + mm(2), gridTop + rowH + 6.5, { size: 9 });
+  box(midMm, gridTop + 2 * rowH, rW, gridH - 2 * rowH);
+  txt(`Reference:  ${data.clientName}`, mm(midMm) + mm(2), gridTop + 2 * rowH + 6.5, { size: 9, bold: true });
+
+  // =========================================================================
+  // LINE ITEMS TABLE
+  // =========================================================================
+  const tableTop = gridTop + gridH; // 76
+  const descW = 120;
+  const costW = 33;
+  const priceW = CW / MM - descW - costW;
+  const costX = 12 + descW;
+  const priceX = 12 + descW + costW;
+  const costMid = mm(costX + costW / 2);
+  const priceMid = mm(priceX + priceW / 2);
+
+  const thH = 9;
+  box(12, tableTop, descW, thH, LABEL_FILL);
+  box(costX, tableTop, costW, thH, LABEL_FILL);
+  box(priceX, tableTop, priceW, thH, LABEL_FILL);
+  txt("DESCRIPTION", mm(12 + descW / 2), tableTop + 6, { size: 9, bold: true, align: "center" });
+  txt("COST", costMid, tableTop + 6, { size: 9, bold: true, align: "center" });
+  txt("NET PRICE AED", priceMid, tableTop + 6, { size: 9, bold: true, align: "center" });
+
+  // Row 1 — Will (UAE)
+  const row1Top = tableTop + thH;
+  const rowH1 = 30;
+  box(12, row1Top, descW, rowH1);
+  box(costX, row1Top, costW, rowH1);
+  box(priceX, row1Top, priceW, rowH1);
+  txt("Will (UAE)", ML + mm(4), row1Top + 9, { size: 10, bold: true });
+  txt("X", costMid, row1Top + 9, { size: 10, bold: true, align: "center" });
+  txt(fmt(subtotal), priceMid, row1Top + 9, { size: 10, align: "center" });
+
+  // Row 2 — Notarization Fee (informational)
+  const row2Top = row1Top + rowH1;
+  const rowH2 = 30;
+  box(12, row2Top, descW, rowH2);
+  box(costX, row2Top, costW, rowH2);
+  box(priceX, row2Top, priceW, rowH2);
+  txt("Notarization Fee", ML + mm(4), row2Top + 8, { size: 9.5, bold: true });
+  txt("(Includes legalization, PRO Services)", ML + mm(38), row2Top + 8, { size: 8.5, italic: true, color: GRAY });
+  let ny = row2Top + 14;
+  companyDetails.notarizationNote.forEach((line) => {
+    txt(line, ML + mm(4), ny, { size: 8.5 });
+    ny += 5;
+  });
+  txt("X", costMid, row2Top + 9, { size: 10, bold: true, align: "center" });
+
+  // =========================================================================
+  // BANK DETAILS + TOTALS
+  // =========================================================================
+  const lowerTop = row2Top + rowH2; // 145
+  const totLabelMid = mm(costX + costW / 2);
+  const totValMid = mm(priceX + priceW / 2);
+
+  const tr1 = 12;
+  const tr2 = 10;
+  const tr3 = 10;
+  const tr4 = 16;
+  const tr5 = 16;
+
+  const drawTotal = (top: number, h: number, label: string[], value: string, emphasize = false) => {
+    box(costX, top, costW, h, LABEL_FILL);
+    box(priceX, top, priceW, h);
+    const lblSize = label.length > 1 ? 8 : 9;
+    const startTop = top + h / 2 - (label.length - 1) * 1.6 + 0.6;
+    label.forEach((ln, i) => {
+      txt(ln, totLabelMid, startTop + i * 3.2, { size: lblSize, bold: true, align: "center" });
+    });
+    txt(value, totValMid, top + h / 2 + 1.2, { size: emphasize ? 10 : 9, bold: true, align: "center" });
+  };
+
+  drawTotal(lowerTop, tr1, ["SUB-TOTAL"], fmt(subtotal));
+  drawTotal(lowerTop + tr1, tr2, [`${companyDetails.vatRate}% VAT`], fmt(vatAmount));
+  drawTotal(lowerTop + tr1 + tr2, tr3, ["TOTAL"], `${fmt(total)} AED`);
+  drawTotal(lowerTop + tr1 + tr2 + tr3, tr4, ["PAYMENT", "REQUIRED INCL", "VAT"], `${fmt(total)} AED`, true);
+  drawTotal(lowerTop + tr1 + tr2 + tr3 + tr4, tr5, ["BALANCE", "AMOUNT"], `${fmt(total)} AED`, true);
+
+  // Bank details box (left)
+  const bankH = tr1 + tr2 + tr3;
+  box(12, lowerTop, descW, bankH);
+  let ky = lowerTop + 5;
+  txt("Please draw your cheque payable to:", ML + mm(3), ky, { size: 8 });
+  ky += 4;
+  txt(companyDetails.bank.payee, ML + mm(3), ky, { size: 8, bold: true });
+  ky += 5;
+  txt(`Bank: ${companyDetails.bank.name}`, ML + mm(3), ky, { size: 7.5 });
+  ky += 3.5;
+  txt(`Payee: ${companyDetails.bank.payee}`, ML + mm(3), ky, { size: 7.5 });
+  ky += 3.5;
+  txt(`Account : ${companyDetails.bank.account}`, ML + mm(3), ky, { size: 7.5 });
+  ky += 3.5;
+  txt(`Swift Code: ${companyDetails.bank.swift}`, ML + mm(3), ky, { size: 7.5 });
+  ky += 3.5;
+  txt(`IBAN# ${companyDetails.bank.iban}`, ML + mm(3), ky, { size: 7.5 });
+
+  // TRN box (left) — with Arabic label
+  const trnTop = lowerTop + bankH;
+  const trnH = tr4 + tr5;
+  box(12, trnTop, descW, trnH, TRN_FILL);
+  if (arabicFont) {
+    txt("رقم التسجيل الضريبي / TRN#", mm(12 + descW / 2), trnTop + trnH / 2 - 2, {
+      size: 11,
+      bold: true,
+      align: "center",
+      arabic: true,
+    });
+  } else {
+    txt("Tax Registration No. / TRN#", mm(12 + descW / 2), trnTop + trnH / 2 - 2, {
+      size: 11,
+      bold: true,
+      align: "center",
+    });
+  }
+  txt(companyDetails.trn, mm(12 + descW / 2), trnTop + trnH / 2 + 6, { size: 13, bold: true, align: "center" });
+
+  // =========================================================================
+  // FOOTER
+  // =========================================================================
+  page.drawLine({
+    start: { x: ML, y: height - mm(277) },
+    end: { x: RIGHTX, y: height - mm(277) },
+    thickness: 0.8,
+    color: BLACK,
+  });
+  txt(companyDetails.legalName, width / 2, 283, { size: 11, bold: true, align: "center" });
+  txt(companyDetails.invoiceCity, width / 2, 288, { size: 8.5, color: GRAY, align: "center" });
+
+  const base64 = await pdfDoc.saveAsBase64();
   return base64;
 }
