@@ -108,7 +108,7 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
   // =========================================================================
   // TITLE
   // =========================================================================
-  txt("TAX INVOICE", width / 2, 13, { size: 16, bold: true, align: "center" });
+  txt("INVOICE", width / 2, 13, { size: 16, bold: true, align: "center" });
 
   // =========================================================================
   // HEADER (logo + company address)
@@ -155,17 +155,17 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
 
   // Left: BILL TO
   box(12, gridTop, 93, gridH);
-  txt("BILL TO:", ML + mm(3), gridTop + 7, { size: 10, bold: true });
-  txt(data.clientName, ML + mm(3), gridTop + 15, { size: 10, bold: true });
-  let by = gridTop + 21;
-  txt(data.clientEmail, ML + mm(3), by, { size: 8.5, color: GRAY });
-  by += 5;
+  txt("BILL TO:", ML + mm(3), gridTop + 6, { size: 10, bold: true });
+  txt(data.clientName, ML + mm(3), gridTop + 12, { size: 10, bold: true });
+  let by = gridTop + 17;
+  txt(data.clientEmail, ML + mm(3), by, { size: 8, color: GRAY });
+  by += 4.2;
   if (data.clientCompany) {
-    txt(data.clientCompany, ML + mm(3), by, { size: 8.5, color: GRAY });
-    by += 5;
+    txt(data.clientCompany, ML + mm(3), by, { size: 8, color: GRAY });
+    by += 4.2;
   }
   if (data.clientPhone) {
-    txt(data.clientPhone, ML + mm(3), by, { size: 8.5, color: GRAY });
+    txt(data.clientPhone, ML + mm(3), by, { size: 8, color: GRAY });
   }
 
   // Right: Invoice No / Date / Reference

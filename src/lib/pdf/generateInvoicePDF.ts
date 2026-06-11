@@ -68,7 +68,7 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.setTextColor(...TEXT);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("TAX INVOICE", pageWidth / 2, 14, { align: "center" });
+  doc.text("INVOICE", pageWidth / 2, 14, { align: "center" });
 
   // =========================================================================
   // HEADER (logo + company address)
@@ -123,18 +123,19 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.setTextColor(...TEXT);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text("BILL TO:", M + 3, gridY + 7);
+  doc.text("BILL TO:", M + 3, gridY + 6);
   doc.setFontSize(10);
-  doc.text(data.clientName, M + 3, gridY + 15);
+  doc.text(data.clientName, M + 3, gridY + 12);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(...GRAY);
-  let by = gridY + 21;
-  doc.text(data.clientEmail, M + 3, by);
-  by += 5;
+  const billW = midX - M - 6; // available width inside the cell
+  let by = gridY + 17;
+  doc.text(doc.splitTextToSize(data.clientEmail, billW)[0], M + 3, by);
+  by += 4.2;
   if (data.clientCompany) {
-    doc.text(data.clientCompany, M + 3, by);
-    by += 5;
+    doc.text(doc.splitTextToSize(data.clientCompany, billW)[0], M + 3, by);
+    by += 4.2;
   }
   if (data.clientPhone) {
     doc.text(data.clientPhone, M + 3, by);

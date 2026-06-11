@@ -59,7 +59,7 @@ export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
       <tr>
         <td style="padding:24px;">
           <!-- Title -->
-          <div style="text-align:center;font-size:20px;font-weight:bold;color:#141414;margin-bottom:12px;">TAX INVOICE</div>
+          <div style="text-align:center;font-size:20px;font-weight:bold;color:#141414;margin-bottom:12px;">INVOICE</div>
 
           <!-- Header: company address -->
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #000000;background-color:#ececec;">

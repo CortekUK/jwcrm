@@ -99,7 +99,7 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
 
         {/* Title */}
         <div style={{ textAlign: "center", fontSize: "20px", fontWeight: "bold", marginBottom: "10px" }}>
-          TAX INVOICE
+          INVOICE
         </div>
 
         {/* Header: logo + company address */}
