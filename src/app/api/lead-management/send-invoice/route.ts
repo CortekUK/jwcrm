@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { stripe } from "@/integrations/stripe/server";
 import { generateInvoicePDFArabic } from "@/lib/pdf/generateInvoicePDFArabic";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
-import { companyDetails } from "@/config/company";
+import { buildInvoiceEmailHTML } from "@/lib/email/invoiceEmailTemplate";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -146,67 +146,16 @@ export async function POST(request: NextRequest) {
       attachments: [
         { content: invoicePDFBase64, filename: `Invoice-${proposal.invoice_number}.pdf` },
       ],
-      html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: #0C5536; padding: 20px; text-align: center;">
-              <h1 style="color: #C6A03B; margin: 0; font-size: 22px;">${companyDetails.legalName}</h1>
-              <p style="color: #E6E6E4; margin: 5px 0 0 0; font-size: 12px;">Tax Invoice &middot; ${companyDetails.invoiceCity}</p>
-            </div>
-            <div style="padding: 30px; background-color: #FAFAF8;">
-              <h2 style="color: #0C5536; margin-top: 0;">Dear ${effectiveName},</h2>
-              <p style="color: #222222; line-height: 1.6;">
-                Please find attached your <strong>Invoice</strong> for the services described below.
-              </p>
-
-              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <td style="padding: 8px 0; color: #666666;">Invoice Number:</td>
-                    <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #222222;">${proposal.invoice_number}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; color: #666666;">Description:</td>
-                    <td style="padding: 8px 0; text-align: right; color: #222222;">${invoiceDescription}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; color: #666666;">Amount Due:</td>
-                    <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0C5536; font-size: 18px;">${formattedAmount}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; color: #666666;">Due Date:</td>
-                    <td style="padding: 8px 0; text-align: right; color: #222222;">${dueDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
-                  </tr>
-                </table>
-              </div>
-
-              <div style="background-color: #FFF8E7; border: 1px solid #C6A03B; border-radius: 8px; padding: 15px; margin: 20px 0;">
-                <p style="margin: 0; color: #8B6914; font-size: 14px;">
-                  <strong>Attachment:</strong><br/>
-                  📄 Invoice-${proposal.invoice_number}.pdf
-                </p>
-              </div>
-
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${session.url}" style="background-color: #0C5536; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 5px; display: inline-block; font-size: 16px; font-weight: bold;">
-                  Pay ${formattedAmount} Now
-                </a>
-              </div>
-
-              <p style="color: #6B6B6B; font-size: 13px; text-align: center;">
-                Click the button above to securely complete your payment via Stripe.<br/>
-                Your invoice can be used for tax and accounting purposes.
-              </p>
-            </div>
-            <div style="background-color: #222222; padding: 15px; text-align: center;">
-              <p style="color: #E6E6E4; margin: 0; font-size: 12px;">
-                &copy; ${new Date().getFullYear()} ${companyDetails.legalName}. All rights reserved.
-              </p>
-              <p style="color: #666666; margin: 5px 0 0 0; font-size: 11px;">
-                TRN: ${companyDetails.trn} &middot; Questions? Contact us at ${companyDetails.invoiceEmail}
-              </p>
-            </div>
-          </div>
-        `,
+      html: buildInvoiceEmailHTML({
+        invoiceNumber: proposal.invoice_number,
+        invoiceDate: now,
+        clientName: effectiveName,
+        clientEmail: effectiveEmail,
+        clientPhone: lead.phone,
+        clientCompany: lead.company_name,
+        amount: amount,
+        paymentUrl: session.url,
+      }),
     });
     if (!emailResult.ok) {
       console.error("Error sending invoice email:", emailResult.error);
