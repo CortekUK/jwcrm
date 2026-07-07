@@ -119,6 +119,20 @@ export function SignInForm({ dashboardType }: SignInFormProps) {
         title: t("toast:auth.signInSuccess"),
       });
 
+      // Login-driven attendance: mark present if this user is a tracked
+      // employee. Fire-and-forget so it never blocks or delays the redirect.
+      try {
+        const token = authData.session?.access_token;
+        if (token) {
+          void fetch("/api/hr/attendance/checkin", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        }
+      } catch {
+        /* attendance is best-effort; never block login */
+      }
+
       // For admin dashboard, redirect to role-specific page
       if (dashboardType === "admin") {
         router.push(getDefaultRouteForRoles(userRoles));

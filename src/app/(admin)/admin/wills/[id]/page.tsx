@@ -338,6 +338,32 @@ export default function AdminWillDetail() {
     },
   });
 
+  // Amendment history: every draft PDF uploaded for this will
+  const { data: docVersions } = useQuery({
+    queryKey: ["will-doc-versions", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("will_document_versions")
+        .select("*")
+        .eq("will_id", id)
+        .order("version_number", { ascending: false });
+      return (data || []) as Array<{
+        id: string;
+        version_number: number;
+        pdf_path: string;
+        created_at: string;
+      }>;
+    },
+  });
+
+  const openVersionPdf = async (pdfPath: string) => {
+    const { data } = await supabase.storage
+      .from("wills")
+      .createSignedUrl(pdfPath, 600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+  };
+
   const handleSendExecutorEmails = async () => {
     if (!will || !id) return;
 
@@ -646,15 +672,18 @@ export default function AdminWillDetail() {
         if (!will?.pdf_path) {
           throw new Error("Cannot release draft: No PDF uploaded. Please upload a PDF first.");
         }
+        // Reviewer gate: a draft must be reviewed (marked Draft Ready) before it
+        // can be released to the client.
+        const reviewed = Boolean((will as any)?.reviewed_at) || will?.status === 'draft_ready';
+        if (!reviewed) {
+          throw new Error("Cannot release draft: it must be reviewed and marked 'Draft Ready' first.");
+        }
       }
 
-      // Validation: Can only finalize if current status is draft_released AND client has approved
+      // Validation: a will can be finalized once a draft document exists.
       if (status === 'finalized') {
-        if (will?.status !== 'draft_released') {
-          throw new Error("Cannot finalize: Will must be in 'Draft Released' status first.");
-        }
-        if (will?.client_approval_status !== 'approved') {
-          throw new Error("Cannot finalize: Client must approve the draft before finalizing.");
+        if (!will?.pdf_path) {
+          throw new Error("Cannot finalize: No document exists yet. Generate or upload a draft PDF first.");
         }
       }
 
@@ -674,9 +703,19 @@ export default function AdminWillDetail() {
       // Prepare update object
       const updateData: any = { status };
 
-      // Auto-set visible_to_client when moving to draft_released
+      // Reviewer gate: when a draft is approved as ready, record who reviewed it,
+      // when, and any reviewer notes. This is the "Freya checks the drafter's will"
+      // checkpoint that must happen before it can be released to the client.
+      if (status === 'draft_ready') {
+        updateData.reviewer_user_id = user.id;
+        updateData.reviewed_at = new Date().toISOString();
+        if (notes) updateData.reviewer_notes = notes;
+      }
+
+      // Auto-set visible_to_client + stamp release time when moving to draft_released
       if (status === 'draft_released' && will?.pdf_path) {
         updateData.visible_to_client = true;
+        updateData.released_at = new Date().toISOString();
       }
 
       // Clear client approval when moving away from draft_released
@@ -918,6 +957,49 @@ export default function AdminWillDetail() {
     }
   };
 
+  const [generatingDraft, setGeneratingDraft] = useState(false);
+  const [genJurisdiction, setGenJurisdiction] = useState<"abu_dhabi" | "dubai">(
+    ((will as any)?.answers?.jurisdiction as "abu_dhabi" | "dubai") || "abu_dhabi"
+  );
+
+  const handleGenerateFromTemplate = async () => {
+    if (!id) return;
+    setGeneratingDraft(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const response = await fetch(`/api/wills/${id}/generate-draft`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ jurisdiction: genJurisdiction }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to generate draft");
+      }
+      setPdfUrl(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin-will-detail", id] });
+      await queryClient.invalidateQueries({ queryKey: ["will-doc-versions", id] });
+      toast({
+        title: t('toast:admin.pdfUploadedSuccessfully'),
+        description: t('admin:draftGeneratedFromTemplate', 'Draft generated from template'),
+        className:
+          "bg-[hsl(var(--jw-primary-green))] text-white border-[hsl(var(--jw-gold-accent))]",
+      });
+    } catch (error: any) {
+      toast({
+        title: t('toast:error'),
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingDraft(false);
+    }
+  };
+
   const handlePdfUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -940,7 +1022,7 @@ export default function AdminWillDetail() {
       let fileToUpload = file;
 
       if (will.status !== 'finalized') {
-        console.log('📝 Adding DRAFT watermark to PDF (status:', will.status, ')');
+        console.log('📝 Adding JUST WILLS watermark to PDF (status:', will.status, ')');
 
         try {
           // Dynamically import pdf-lib
@@ -1022,6 +1104,27 @@ export default function AdminWillDetail() {
 
       console.log('✅ Database updated successfully');
 
+      // Record this upload as a new document version (amendment history).
+      // Old PDFs keep their unique storage path, so every draft stays downloadable.
+      try {
+        const { data: lastVersion } = await (supabase as any)
+          .from("will_document_versions")
+          .select("version_number")
+          .eq("will_id", id)
+          .order("version_number", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const nextVersion = (lastVersion?.version_number ?? 0) + 1;
+        await (supabase as any).from("will_document_versions").insert({
+          will_id: id,
+          version_number: nextVersion,
+          pdf_path: fileName,
+          uploaded_by: user?.id ?? null,
+        });
+      } catch (versionErr) {
+        console.error('Could not record document version:', versionErr);
+      }
+
       toast({
         title: t('toast:admin.pdfUploadedSuccessfully'),
         description: t('toast:admin.draftPdfAvailable'),
@@ -1035,6 +1138,9 @@ export default function AdminWillDetail() {
       // Invalidate and refetch
       await queryClient.invalidateQueries({
         queryKey: ["admin-will-detail", id],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["will-doc-versions", id],
       });
 
       // Load the new PDF URL
@@ -1322,7 +1428,7 @@ export default function AdminWillDetail() {
                   </SelectItem>
                   <SelectItem
                     value="finalized"
-                    disabled={will.status !== 'draft_released' || will.client_approval_status !== 'approved'}
+                    disabled={!will.pdf_path}
                   >
                     <span className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-[#083D29]" />
@@ -1346,6 +1452,83 @@ export default function AdminWillDetail() {
                 <Printer className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
                 {t('admin:generatePdf')}
               </Button>
+
+              {/* Generate the will draft from the JW legal template */}
+              <div className="mt-3 rounded-md border border-[#EAEAE8] bg-white p-3">
+                <p className="text-xs font-semibold text-[hsl(var(--jw-primary-green))] mb-2">
+                  {t('admin:generateFromTemplate', 'Generate Draft from Template')}
+                </p>
+                <Select
+                  value={genJurisdiction}
+                  onValueChange={(v) => setGenJurisdiction(v as "abu_dhabi" | "dubai")}
+                >
+                  <SelectTrigger className="h-9 text-sm mb-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="abu_dhabi">{t('admin:abuDhabiTemplate', 'Abu Dhabi template')}</SelectItem>
+                    <SelectItem value="dubai">{t('admin:dubaiTemplate', 'Dubai template')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  className="w-full h-9 border-[hsl(var(--jw-primary-green))] text-[hsl(var(--jw-primary-green))] hover:bg-[rgba(12,85,54,0.06)]"
+                  disabled={generatingDraft}
+                  onClick={handleGenerateFromTemplate}
+                >
+                  {generatingDraft ? (
+                    <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                  )}
+                  {t('admin:generateDraft', 'Generate Draft')}
+                </Button>
+              </div>
+
+              {/* Reviewer checkpoint info (Freya's review before release) */}
+              {(will as any)?.reviewed_at && (
+                <div className="mt-3 rounded-md border border-[#EAEAE8] bg-[#FAFAF8] p-3 text-xs">
+                  <div className="flex items-center gap-1 font-semibold text-[hsl(var(--jw-primary-green))]">
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    {t('admin:reviewedBy', 'Reviewed')}
+                  </div>
+                  <p className="mt-1 text-[#777777]">
+                    {format(new Date((will as any).reviewed_at), "PPP 'at' h:mm a")}
+                  </p>
+                  {(will as any)?.reviewer_notes && (
+                    <p className="mt-1 text-[#444444] whitespace-pre-wrap">
+                      {(will as any).reviewer_notes}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Amendment history: previous draft versions */}
+              {docVersions && docVersions.length > 0 && (
+                <div className="mt-3 rounded-md border border-[#EAEAE8] bg-white p-3 text-xs">
+                  <div className="font-semibold text-[hsl(var(--jw-primary-green))] mb-2">
+                    {t('admin:versionHistory', 'Draft Version History')}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {docVersions.map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => openVersionPdf(v.pdf_path)}
+                        className="flex items-center justify-between gap-2 text-left hover:text-[hsl(var(--jw-primary-green))]"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <FileText className="h-3.5 w-3.5" />
+                          {t('admin:versionLabel', { defaultValue: 'v{{n}}', n: v.version_number })}
+                        </span>
+                        <span className="text-[#999999]">
+                          {format(new Date(v.created_at), "MMM d, yyyy h:mm a")}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

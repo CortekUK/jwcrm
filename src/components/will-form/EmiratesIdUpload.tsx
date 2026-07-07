@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 import { processImageFile } from "@/utils/imageProcessing";
 import { toast } from "@/hooks/use-toast";
 import { createWorker } from "tesseract.js";
-import { extractEmiratesIdFromText } from "@/lib/emirates-id-utils";
+import { extractEmiratesIdFromText, extractNameFromEmiratesIdText } from "@/lib/emirates-id-utils";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EmiratesIdUploadProps {
@@ -25,6 +25,7 @@ interface EmiratesIdUploadProps {
   onEmiratesIdPathChange: (path: string | undefined) => void;
   onEmiratesIdNumberChange?: (number: string) => void;
   onEmiratesIdDataChange?: (data: { path?: string; number?: string }) => void;
+  onNameExtracted?: (name: string) => void;
   onFileMetadataUpdate?: (metadata: any) => void;
   willId?: string;
   uploadPath: string; // e.g., "executor-1-0-emirates"
@@ -41,6 +42,7 @@ export function EmiratesIdUpload({
   onEmiratesIdPathChange,
   onEmiratesIdNumberChange,
   onEmiratesIdDataChange,
+  onNameExtracted,
   onFileMetadataUpdate,
   willId,
   uploadPath,
@@ -119,6 +121,15 @@ export function EmiratesIdUpload({
       } = await worker.recognize(file);
 
       const emiratesId = extractEmiratesIdFromText(text);
+
+      // Also try to pull the name off the ID so it can pre-fill the person's
+      // name field (the parent decides whether to apply it).
+      if (onNameExtracted) {
+        const extractedName = extractNameFromEmiratesIdText(text);
+        if (extractedName) {
+          onNameExtracted(extractedName);
+        }
+      }
 
       if (emiratesId) {
         setExtractedNumber(emiratesId);

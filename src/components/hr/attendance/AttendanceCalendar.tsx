@@ -23,7 +23,7 @@ import {
   startOfDay,
   addMonths,
   subMonths,
-  isFriday,
+  isSunday,
   isSaturday,
 } from "date-fns";
 import Holidays from "date-holidays";
@@ -138,7 +138,7 @@ export function AttendanceCalendar({
 
     daysInMonth.forEach((day) => {
       const dateStr = format(day, "yyyy-MM-dd");
-      const isWeekend = isFriday(day) || isSaturday(day);
+      const isWeekend = isSaturday(day) || isSunday(day);
       const holidayName = holidaysInMonth.get(dateStr);
       const isHoliday = !!holidayName;
       const isFuture = isAfter(startOfDay(day), startOfDay(today));

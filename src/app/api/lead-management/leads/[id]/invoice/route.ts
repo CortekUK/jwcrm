@@ -11,6 +11,7 @@ import { generateInvoicePDF } from "@/lib/pdf/generateInvoicePDF";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 import { companyDetails } from "@/config/company";
 import { buildInvoiceEmailHTML } from "@/lib/email/invoiceEmailTemplate";
+import { normalizeLineItems, lineItemsSubtotal } from "@/lib/pdf/invoiceLineItems";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -54,10 +55,14 @@ export async function POST(
     }
 
     const body = await request.json().catch(() => ({}));
-    const amount = Number(body.amount);
+    const rawAmount = Number(body.amount);
     const currency = (body.currency || "AED").toString().toUpperCase();
     const description = (body.description || "Legal services").toString();
     const sendEmail = body.sendEmail !== false; // default true
+
+    // Itemised charges → subtotal is their sum (falls back to the flat amount).
+    const items = normalizeLineItems(body.line_items, rawAmount);
+    const amount = lineItemsSubtotal(items);
 
     if (!leadId || !Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json(
@@ -95,6 +100,7 @@ export async function POST(
         amount,
         currency,
         proposal_content: `<p>${escapeHtml(description)}</p>`,
+        line_items: items,
         status: "sent",
         sent_at: new Date().toISOString(),
       })
@@ -160,6 +166,7 @@ export async function POST(
       amount,
       currency,
       description,
+      lineItems: items,
     });
 
     // 4. Send email (best effort). Goes via the caller's Outlook if they
@@ -182,6 +189,7 @@ export async function POST(
           clientPhone: lead.phone,
           clientCompany: lead.company_name,
           amount,
+          lineItems: items,
           paymentUrl,
         }),
         attachments: [

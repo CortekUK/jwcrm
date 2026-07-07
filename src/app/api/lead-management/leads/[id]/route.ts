@@ -68,6 +68,7 @@ export async function PATCH(
       "email",
       "phone",
       "company_name",
+      "lead_type",
       "notes",
       "source_id",
       "status",

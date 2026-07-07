@@ -4,6 +4,7 @@ import { stripe } from "@/integrations/stripe/server";
 import { generateInvoicePDFArabic } from "@/lib/pdf/generateInvoicePDFArabic";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 import { buildInvoiceEmailHTML } from "@/lib/email/invoiceEmailTemplate";
+import { normalizeLineItems, lineItemsSubtotal } from "@/lib/pdf/invoiceLineItems";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { leadId, amount, currency = "AED", description } = body;
+    const { leadId, amount, currency = "AED", description, line_items } = body;
 
     if (!leadId || !amount) {
       return NextResponse.json(
@@ -30,6 +31,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Itemised charges (court fee / drafting / POA etc.). The subtotal is their
+    // sum; falls back to the flat amount when no items are supplied.
+    const items = normalizeLineItems(line_items, amount);
+    const subtotalAmount = lineItemsSubtotal(items);
 
     // 1. Get lead details
     const { data: lead, error: leadError } = await supabaseAdmin
@@ -56,9 +62,10 @@ export async function POST(request: NextRequest) {
       .from("proposals")
       .insert({
         lead_id: leadId,
-        amount,
+        amount: subtotalAmount,
         currency,
         proposal_content: null,
+        line_items: items,
         status: "draft",
       })
       .select()
@@ -86,7 +93,7 @@ export async function POST(request: NextRequest) {
               name: "Just Wills - Legal Services",
               description: `Invoice ${proposal.invoice_number} for ${effectiveName}`,
             },
-            unit_amount: Math.round(amount * 100),
+            unit_amount: Math.round(subtotalAmount * 100),
           },
           quantity: 1,
         },
@@ -126,9 +133,10 @@ export async function POST(request: NextRequest) {
       clientEmail: effectiveEmail,
       clientPhone: lead.phone,
       clientCompany: lead.company_name,
-      amount: amount,
+      amount: subtotalAmount,
       currency: currency,
       description: description || "خدمات صياغة الوصايا الاحترافية",
+      lineItems: items,
     });
 
     // 6. Send email with invoice PDF attachment. Routed via caller's Outlook
@@ -153,8 +161,9 @@ export async function POST(request: NextRequest) {
         clientEmail: effectiveEmail,
         clientPhone: lead.phone,
         clientCompany: lead.company_name,
-        amount: amount,
+        amount: subtotalAmount,
         paymentUrl: session.url,
+        lineItems: items,
       }),
     });
     if (!emailResult.ok) {

@@ -48,6 +48,7 @@ import {
   X,
   CheckCircle,
   XCircle,
+  Clock,
 } from "lucide-react";
 import { WillAnswersModal } from "@/components/admin/WillAnswersModal";
 import { CreateClientModal } from "@/components/admin/CreateClientModal";
@@ -78,6 +79,28 @@ interface Will {
 }
 
 const ITEMS_PER_PAGE = 20;
+
+// Target turnaround (calendar days) for finishing a draft once submitted.
+const DRAFT_SLA_DAYS = 5;
+
+// Statuses where the will is still actively being drafted (not yet draft-ready).
+const DRAFTING_STATUSES: WillStatus[] = [
+  "in_progress",
+  "awaiting_review",
+  "under_review",
+];
+
+function getDraftAge(will: Will): {
+  drafting: boolean;
+  days: number;
+  overdue: boolean;
+} {
+  const start = will.submitted_at || will.created_at;
+  const startMs = new Date(start).getTime();
+  const days = Math.max(0, Math.floor((Date.now() - startMs) / 86400000));
+  const drafting = DRAFTING_STATUSES.includes(will.status);
+  return { drafting, days, overdue: drafting && days >= DRAFT_SLA_DAYS };
+}
 
 export default function AdminWillsPage() {
   return (
@@ -471,6 +494,7 @@ function AdminWillsContent() {
                           <ArrowUpDown className="h-4 w-4" />
                         </Button>
                       </TableHead>
+                      <TableHead className="font-medium text-sm ltr:text-left rtl:text-right text-[hsl(var(--jw-primary-green))] border-s border-[#EAEAE8]">{t('admin:draftAgeColumn', 'Draft Age')}</TableHead>
                       <TableHead className="font-medium text-sm ltr:text-left rtl:text-right text-[hsl(var(--jw-primary-green))] border-s border-[#EAEAE8]">{t('admin:statusColumn')}</TableHead>
                       <TableHead className="ltr:text-left rtl:text-right font-medium text-sm text-[hsl(var(--jw-primary-green))] border-s border-[#EAEAE8]">{t('admin:pdfColumn')}</TableHead>
                       <TableHead className="ltr:text-left rtl:text-right font-medium text-sm text-[hsl(var(--jw-primary-green))] border-s border-[#EAEAE8]">{t('admin:actionsColumn')}</TableHead>
@@ -496,6 +520,34 @@ function AdminWillsContent() {
                         </TableCell>
                         <TableCell className="text-[#777777] border-s border-[#EAEAE8]">
                           {formatDateTime(will.created_at, locale)}
+                        </TableCell>
+                        <TableCell className="border-s border-[#EAEAE8]">
+                          {(() => {
+                            const age = getDraftAge(will);
+                            if (!age.drafting) {
+                              return (
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
+                                  <CheckCircle className="h-3 w-3" />
+                                  {t('admin:draftDoneBadge', 'Drafted')}
+                                </span>
+                              );
+                            }
+                            return (
+                              <span
+                                className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded w-fit ${
+                                  age.overdue
+                                    ? 'bg-red-100 text-red-700'
+                                    : age.days >= DRAFT_SLA_DAYS - 2
+                                      ? 'bg-amber-100 text-amber-700'
+                                      : 'bg-green-100 text-green-700'
+                                }`}
+                                title={t('admin:draftSlaHint', { defaultValue: 'Target: {{sla}} days', sla: DRAFT_SLA_DAYS })}
+                              >
+                                <Clock className="h-3 w-3" />
+                                {t('admin:daysOpen', { defaultValue: '{{count}}d / {{sla}}d', count: age.days, sla: DRAFT_SLA_DAYS })}
+                              </span>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="border-s border-[#EAEAE8]">
                           <div className="flex flex-col gap-2">

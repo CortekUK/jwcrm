@@ -611,7 +611,7 @@ export function NotificationSettings() {
                     <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:recipient")}</TableHead>
                     <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:subject")}</TableHead>
                     <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:documents")}</TableHead>
-                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:status")}</TableHead>
+                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:statusLabel")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -844,7 +844,7 @@ export function NotificationSettings() {
                     <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:date")}</TableHead>
                     <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:recipient")}</TableHead>
                     <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:documents")}</TableHead>
-                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:status")}</TableHead>
+                    <TableHead className="font-semibold text-[#222222] dark:text-foreground">{t("hr:statusLabel")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

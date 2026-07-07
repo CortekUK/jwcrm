@@ -111,6 +111,8 @@ export function WillMultiStepForm({ willFormHook, onManualSaveReady }: WillMulti
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [stepErrors, setStepErrors] = useState<Record<number, number>>({});
   const hasLoadedRef = useRef(false); // Use ref instead of state to prevent re-renders
+  // Holds the latest validation errors so the "please fix" toast can list them.
+  const lastErrorsRef = useRef<Record<string, string>>({});
 
   // Debug: Track currentStep changes
   useEffect(() => {
@@ -514,13 +516,14 @@ export function WillMultiStepForm({ willFormHook, onManualSaveReady }: WillMulti
       
       // Clear errors for this step if validation passes
       if (!silent) {
+        lastErrorsRef.current = {};
         setStepErrors(prev => {
           const newErrors = { ...prev };
           delete newErrors[step];
           return newErrors;
         });
       }
-      
+
       return true;
     } catch (error: any) {
       // ADD DETAILED LOGGING
@@ -554,10 +557,11 @@ export function WillMultiStepForm({ willFormHook, onManualSaveReady }: WillMulti
       }
       
       if (!silent) {
+        lastErrorsRef.current = validationErrors;
         setErrors(validationErrors);
         setStepErrors(prev => ({ ...prev, [step]: errorCount }));
       }
-      
+
       return false;
     }
   };
@@ -669,15 +673,51 @@ export function WillMultiStepForm({ willFormHook, onManualSaveReady }: WillMulti
     }
   }, [answers, willLoading, willRecord, completedSteps]);
 
+  // Show a validation toast that actually lists what needs fixing, so the
+  // person can read and act on it instead of a generic "please fix errors".
+  const showValidationToast = (fallbackDescription: string) => {
+    const messages = Array.from(
+      new Set(Object.values(lastErrorsRef.current))
+    ).filter(Boolean);
+
+    if (messages.length === 0) {
+      toast({
+        title: t('toast:validationError'),
+        description: fallbackDescription,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const MAX_SHOWN = 6;
+    const shown = messages.slice(0, MAX_SHOWN);
+    const remaining = messages.length - shown.length;
+
+    toast({
+      title: t('toast:will.fixToContinueTitle', { count: messages.length }),
+      description: (
+        <div className="mt-1">
+          <ul className="list-disc space-y-1 pl-4">
+            {shown.map((msg, i) => (
+              <li key={i}>{msg}</li>
+            ))}
+          </ul>
+          {remaining > 0 && (
+            <p className="mt-1.5 opacity-90">
+              {t('toast:will.andMoreIssues', { count: remaining })}
+            </p>
+          )}
+        </div>
+      ),
+      variant: "destructive",
+    });
+  };
+
   const handleNext = () => {
     console.log('🔵 handleNext called - currentStep:', currentStep);
 
     if (!validateStep(currentStep)) {
-      toast({
-        title: t('toast:validationError'),
-        description: t('toast:will.pleaseFixErrors'),
-        variant: "destructive",
-      });
+      showValidationToast(t('toast:will.pleaseFixErrors'));
       return;
     }
 
@@ -753,11 +793,7 @@ export function WillMultiStepForm({ willFormHook, onManualSaveReady }: WillMulti
 
   const handleSubmit = async () => {
     if (!validateStep(currentStep)) {
-      toast({
-        title: t('toast:validationError'),
-        description: t('toast:will.completeAllConfirmations'),
-        variant: "destructive",
-      });
+      showValidationToast(t('toast:will.completeAllConfirmations'));
       return;
     }
 
@@ -1202,6 +1238,8 @@ export function WillMultiStepForm({ willFormHook, onManualSaveReady }: WillMulti
               onConfirmationsChange={(confirmations) => setAnswers({ ...answers, confirmations })}
               pdfLanguage={answers.pdf_language || 'english'}
               onPdfLanguageChange={(language) => setAnswers({ ...answers, pdf_language: language })}
+              jurisdiction={answers.jurisdiction || 'abu_dhabi'}
+              onJurisdictionChange={(jurisdiction) => setAnswers({ ...answers, jurisdiction })}
               onEditStep={setCurrentStep}
               errors={errors}
             />

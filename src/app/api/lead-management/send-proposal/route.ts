@@ -51,6 +51,27 @@ export async function POST(request: NextRequest) {
     const effectiveEmail = leadEmail || lead.email;
     const effectiveName = leadName || lead.full_name;
 
+    // Resolve the assigned account manager (falls back to the default contact).
+    // Name comes from the profile; email lives on auth.users.
+    let accountManagerName = companyDetails.defaultContactName;
+    let accountManagerEmail = companyDetails.invoiceEmail;
+    if (lead.assigned_to) {
+      const { data: managerProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", lead.assigned_to)
+        .single();
+      if (managerProfile?.full_name) {
+        accountManagerName = managerProfile.full_name;
+      }
+      const { data: managerAuth } = await supabaseAdmin.auth.admin.getUserById(
+        lead.assigned_to
+      );
+      if (managerAuth?.user?.email) {
+        accountManagerEmail = managerAuth.user.email;
+      }
+    }
+
     // 2. Create proposal record (invoice_number is auto-generated)
     const { data: proposal, error: proposalError } = await supabaseAdmin
       .from("proposals")
@@ -162,6 +183,17 @@ export async function POST(request: NextRequest) {
       currency: currency,
     }).format(amount);
 
+    // Build the "What to Expect" process timeline block
+    const timelineRows = companyDetails.processTimeline
+      .map(
+        (step) => `
+                  <tr>
+                    <td style="padding: 10px 12px 10px 0; vertical-align: top; white-space: nowrap; color: #0C5536; font-weight: bold; font-size: 13px;">${step.title}</td>
+                    <td style="padding: 10px 0; color: #444444; font-size: 13px; line-height: 1.5;">${step.detail}</td>
+                  </tr>`
+      )
+      .join("");
+
     // Route email via the caller's Outlook when connected, else Resend.
     const emailResult = await sendUserEmail(callerId, {
       to: effectiveEmail,
@@ -197,6 +229,13 @@ export async function POST(request: NextRequest) {
                     <td style="padding: 8px 0; color: #666666;">Due Date:</td>
                     <td style="padding: 8px 0; text-align: right; color: #222222;">${dueDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
                   </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #666666;">Account Manager:</td>
+                    <td style="padding: 8px 0; text-align: right; color: #222222;">
+                      <span style="font-weight: bold;">${accountManagerName}</span><br/>
+                      <a href="mailto:${accountManagerEmail}" style="color: #0C5536; font-size: 13px; text-decoration: none;">${accountManagerEmail}</a>
+                    </td>
+                  </tr>
                 </table>
               </div>
 
@@ -217,6 +256,18 @@ export async function POST(request: NextRequest) {
               <p style="color: #6B6B6B; font-size: 13px; text-align: center;">
                 Click the button above to securely complete your payment via Stripe.<br/>
                 Your invoice can be used for tax and accounting purposes.
+              </p>
+
+              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 25px 0 10px 0;">
+                <h3 style="color: #0C5536; margin: 0 0 12px 0; font-size: 16px;">What to Expect — Process Timeline</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  ${timelineRows}
+                </table>
+              </div>
+
+              <p style="color: #444444; font-size: 14px; line-height: 1.6; margin: 18px 0 0 0;">
+                If you have any questions, please contact <strong>${accountManagerName}</strong> at
+                <a href="mailto:${accountManagerEmail}" style="color: #0C5536; text-decoration: none;">${accountManagerEmail}</a>.
               </p>
             </div>
             <div style="background-color: #222222; padding: 15px; text-align: center;">

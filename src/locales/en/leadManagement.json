@@ -15,6 +15,9 @@
   "email": "Email",
   "phone": "Phone",
   "company": "Company",
+  "leadType": "Lead Type",
+  "individual": "Individual",
+  "corporate": "Corporate",
   "source": "Source",
   "notes": "Notes",
   "status": "Status",
@@ -49,7 +52,6 @@
   "invoiceNumber": "Invoice Number",
   "proposalSent": "Proposal Sent",
   "paymentReceived": "Payment Received",
-
   "sourceWebsite": "Website",
   "sourceReferral": "Referral",
   "sourceSocialMedia": "Social Media",
@@ -57,7 +59,6 @@
   "sourceColdCall": "Cold Call",
   "sourceEvent": "Event",
   "sourceOther": "Other",
-
   "createNewLead": "Create New Lead",
   "createLeadDescription": "Add a new lead to your pipeline. Fill in the details below.",
   "editLeadDescription": "Update the lead information below.",
@@ -67,7 +68,6 @@
   "additionalNotes": "Any additional notes about this lead...",
   "selectSource": "Select source",
   "selectStatus": "Select status",
-
   "nameMin": "Name must be at least 2 characters",
   "emailRequired": "Email is required",
   "invalidEmail": "Invalid email address",
@@ -75,7 +75,6 @@
   "invalidPhone": "Invalid phone number format",
   "companyRequired": "Company name is required",
   "sourceRequired": "Source is required",
-
   "sendProposalTo": "Create and send a proposal to {{name}}",
   "sendInvoiceDescription": "Create and send an invoice to {{name}}",
   "clientInformation": "Client Information",
@@ -107,7 +106,6 @@
   "openStripeCheckout": "Open Stripe checkout link",
   "emailInvoiceToClient": "Email this invoice to the client",
   "notSignedIn": "You are not signed in",
-
   "proposalsFor": "Proposals for {{name}}",
   "viewAndDownload": "View and download proposals and invoices sent to this lead.",
   "noProposalsFound": "No proposals found for this lead.",
@@ -124,11 +122,9 @@
   "download": "Download",
   "invoice": "Invoice",
   "paymentLink": "Payment Link",
-
   "areYouSure": "Are you sure?",
   "permanentlyDeleteWarning": "This will permanently delete the lead \"{{name}}\" and all associated proposals. This action cannot be undone.",
   "delete": "Delete",
-
   "failedToFetchLeads": "Failed to fetch leads",
   "failedToCreateLead": "Failed to create lead",
   "failedToUpdateLead": "Failed to update lead",
@@ -139,14 +135,12 @@
   "invoiceDownloaded": "Invoice PDF downloaded",
   "failedToGeneratePDF": "Failed to generate PDF",
   "settings": "Settings",
-
   "saveDraft": "Save Draft",
   "preview": "Preview",
   "draftSaved": "Draft saved successfully",
   "failedToSaveDraft": "Failed to save draft",
   "previewProposal": "Preview Proposal",
   "previewProposalDescription": "Review your proposal before sending it to the client.",
-
   "sources": "Sources",
   "sourcesDescription": "Manage lead sources and assign salespeople to handle leads from each source.",
   "createSource": "Create Source",
@@ -183,7 +177,6 @@
   "loadingSources": "Loading sources...",
   "noSourcesAvailable": "No sources available. Create sources first.",
   "description": "Description",
-
   "leadHistory": "Lead History",
   "viewHistory": "View History",
   "timeline": "Activity Timeline",
@@ -192,7 +185,6 @@
   "leadNotFound": "Lead not found",
   "failedToFetchLeadHistory": "Failed to fetch lead history",
   "accessDenied": "Access denied",
-
   "eventCreated": "Lead Created",
   "eventCreatedDescription": "Lead was added to the system.",
   "eventAssigned": "Assigned to Salesperson",
@@ -203,7 +195,6 @@
   "eventProposalSentDescription": "Proposal {{invoiceNumber}} was sent to client.",
   "eventPaymentReceived": "Payment Received",
   "eventPaymentReceivedDescription": "Payment for {{invoiceNumber}} was received.",
-
   "salespersonView": "Salesperson View",
   "viewingSalesperson": "Viewing leads assigned to {{name}}.",
   "assignedLeads": "Assigned Leads",
@@ -213,13 +204,10 @@
   "inProgressLeads": "In Progress",
   "conversionRate": "Conversion Rate",
   "totalRevenue": "Total Revenue",
-
   "selectSalesperson": "Select salesperson",
   "reassignLead": "Reassign Lead",
   "leadReassigned": "Lead reassigned successfully",
-
   "consultation": "Consultation",
-
   "communication": "Communication",
   "addCommunication": "Add Communication",
   "addCommunicationDescription": "Log a communication with this lead.",
@@ -237,7 +225,6 @@
   "eventCommunication": "{{method}} Communication",
   "eventCommunicationDescription": "Communication with lead.",
   "unknown": "Unknown",
-
   "reminder": "Reminder",
   "reminders": "Reminders",
   "remindersDescription": "Manage your reminders and follow-ups.",
@@ -252,9 +239,7 @@
   "remindAt": "Remind At",
   "reminderCreated": "Reminder created successfully",
   "failedToCreateReminder": "Failed to create reminder",
-
   "sendMeetingInvite": "Meeting Invite",
-
   "yourTimezone": "Your timezone",
   "quickPresets": "Quick Presets",
   "in30Min": "In 30 min",
@@ -293,10 +278,13 @@
   "newReminderDue": "You have a reminder due",
   "viewReminders": "View Reminders",
   "forLead": "For: {{name}}",
-
   "saving": "Saving...",
   "unsavedChanges": "Unsaved changes",
   "lastEdited": "Last edited",
   "addNotesPlaceholder": "Add notes about this lead...",
-  "failedToSaveNotes": "Failed to save notes"
+  "failedToSaveNotes": "Failed to save notes",
+  "additionalAssignees": "Additional Assignees",
+  "invoiceItems": "Invoice Items",
+  "itemDescription": "Description (e.g. Court Fee, POA, MOFA & MOJ)",
+  "addItem": "Add item"
 }

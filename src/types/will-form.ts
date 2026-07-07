@@ -2,6 +2,10 @@ export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed';
 
 export type WillType = 'general' | 'specific';
 
+// Which JW legal template the will document follows. Abu Dhabi and Dubai use
+// different clause wording (age of majority, jurisdiction clause, court block).
+export type WillJurisdiction = 'abu_dhabi' | 'dubai';
+
 export type AssetCategory = 'property' | 'bank' | 'investments' | 'business' | 'vehicle' | 'crypto' | 'personal';
 
 export type BeneficiaryType = 'residue' | 'specific';
@@ -174,7 +178,8 @@ export interface Asset {
   category: AssetCategory;
   description: string;
   location?: string;
-  beneficiary_name?: string; // Link to beneficiary
+  beneficiary_name?: string; // Legacy single link + joined display value (kept in sync with beneficiary_names)
+  beneficiary_names?: string[]; // Link to one or more beneficiaries
   documents?: AssetDocument[]; // File uploads
   photo_path?: string; // Photo upload
   estimated_value?: number; // Estimated value
@@ -182,6 +187,7 @@ export interface Asset {
 
 export interface Answers {
   will_type?: WillType; // NEW: defaults to 'general'
+  jurisdiction?: WillJurisdiction; // Which template (Abu Dhabi vs Dubai) to generate
   personal: {
     full_name: string;
     contact_number: string;
@@ -241,6 +247,7 @@ export interface Answers {
 
 export const INITIAL_ANSWERS: Answers = {
   will_type: 'general', // Default to general will
+  jurisdiction: 'abu_dhabi', // Default to Abu Dhabi template
   personal: {
     full_name: '',
     contact_number: '',

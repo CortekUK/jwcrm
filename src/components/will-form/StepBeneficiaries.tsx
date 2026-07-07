@@ -27,6 +27,7 @@ import type { Beneficiary } from "@/types/will-form";
 import { BeneficiaryDocUpload } from "./BeneficiaryDocUpload";
 import { DocumentUploadSection } from "./DocumentUploadSection";
 import { EmiratesIdUpload } from "./EmiratesIdUpload";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "@/hooks/use-toast";
 import { StepTitle } from "./StepTitle";
@@ -50,9 +51,19 @@ const RELATIONSHIP_OPTIONS = [
   { value: "Parent", labelKey: "parent" },
   { value: "Sibling", labelKey: "sibling" },
   { value: "Grandchild", labelKey: "grandchild" },
+  { value: "Niece", labelKey: "niece" },
+  { value: "Nephew", labelKey: "nephew" },
+  { value: "In-law", labelKey: "inLaw" },
   { value: "Friend", labelKey: "friend" },
   { value: "Charity", labelKey: "charity" },
+  { value: "Other", labelKey: "other" },
 ];
+
+// Values that come from the predefined dropdown. Anything else stored in
+// `relationship` is treated as a free-text "Other" relation.
+const KNOWN_RELATIONSHIP_VALUES = RELATIONSHIP_OPTIONS
+  .filter((o) => o.value !== "Other")
+  .map((o) => o.value);
 
 const JUST_WILLS_GREEN = "#006E51";
 
@@ -67,6 +78,11 @@ export function StepBeneficiaries({
   onFileMetadataUpdate,
 }: StepBeneficiariesProps) {
   const { t } = useTranslation(["form"]);
+
+  // Tracks which beneficiary rows have explicitly switched to the free-text
+  // "Other" relationship. Keyed by the beneficiary's global index. Falls back
+  // to deriving "Other" from any saved relationship not in the preset list.
+  const [otherRelationMode, setOtherRelationMode] = useState<Record<number, boolean>>({});
 
   const getError = (path: string) => errors?.[path];
   const getFieldError = (index: number, field: string) => {
@@ -423,33 +439,81 @@ export function StepBeneficiaries({
                           >
                             {t("relation")} *
                           </Label>
-                          <Select
-                            value={beneficiary.relationship}
-                            onValueChange={(value) => {
-                              updateBeneficiary(
-                                beneficiary,
-                                "relationship",
-                                value
-                              );
-                            }}
-                          >
-                            <SelectTrigger
-                              id={`beneficiary_relationship_${level}_${idx}`}
-                              className={cn(
-                                getFieldError(globalIndex, "relationship") &&
-                                  "border-destructive"
-                              )}
-                            >
-                              <SelectValue placeholder={t("selectRelation")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {RELATIONSHIP_OPTIONS.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {t(`${option.labelKey}`)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {(() => {
+                            const rel = beneficiary.relationship || "";
+                            const isOther =
+                              otherRelationMode[globalIndex] ??
+                              (rel !== "" &&
+                                !KNOWN_RELATIONSHIP_VALUES.includes(rel));
+                            return (
+                              <>
+                                <Select
+                                  value={isOther ? "Other" : rel}
+                                  onValueChange={(value) => {
+                                    if (value === "Other") {
+                                      setOtherRelationMode((prev) => ({
+                                        ...prev,
+                                        [globalIndex]: true,
+                                      }));
+                                      updateBeneficiary(
+                                        beneficiary,
+                                        "relationship",
+                                        ""
+                                      );
+                                    } else {
+                                      setOtherRelationMode((prev) => ({
+                                        ...prev,
+                                        [globalIndex]: false,
+                                      }));
+                                      updateBeneficiary(
+                                        beneficiary,
+                                        "relationship",
+                                        value
+                                      );
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger
+                                    id={`beneficiary_relationship_${level}_${idx}`}
+                                    className={cn(
+                                      getFieldError(
+                                        globalIndex,
+                                        "relationship"
+                                      ) && "border-destructive"
+                                    )}
+                                  >
+                                    <SelectValue
+                                      placeholder={t("selectRelation")}
+                                    />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {RELATIONSHIP_OPTIONS.map((option) => (
+                                      <SelectItem
+                                        key={option.value}
+                                        value={option.value}
+                                      >
+                                        {t(`${option.labelKey}`)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {isOther && (
+                                  <Input
+                                    className="mt-2"
+                                    placeholder={t("specifyRelation")}
+                                    value={rel}
+                                    onChange={(e) =>
+                                      updateBeneficiary(
+                                        beneficiary,
+                                        "relationship",
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                )}
+                              </>
+                            );
+                          })()}
                           {getFieldError(globalIndex, "relationship") && (
                             <p className="text-destructive text-xs mt-1">
                               {getFieldError(globalIndex, "relationship")}
@@ -662,6 +726,13 @@ export function StepBeneficiaries({
                                       onEmiratesIdPathChange={(path) => updateBeneficiary(beneficiary, 'emirates_id_path', path)}
                                       onEmiratesIdNumberChange={(number) => updateBeneficiary(beneficiary, 'emirates_id_number', number)}
                                       onEmiratesIdDataChange={(data) => updateBeneficiaryEmiratesIdData(globalIndex, data)}
+                                      onNameExtracted={(name) => {
+                                        // Only pre-fill when the name is still empty,
+                                        // so we never overwrite what the user typed.
+                                        if (!beneficiary.name || !beneficiary.name.trim()) {
+                                          updateBeneficiaryByIndex(globalIndex, "name", name);
+                                        }
+                                      }}
                                       onFileMetadataUpdate={onFileMetadataUpdate}
                                       willId={willId}
                                       uploadPath={`beneficiary-${level}-${idx}`}

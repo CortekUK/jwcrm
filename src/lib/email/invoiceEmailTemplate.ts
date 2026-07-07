@@ -1,4 +1,5 @@
 import { companyDetails } from "@/config/company";
+import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 
 export type InvoiceEmailData = {
   invoiceNumber: string;
@@ -9,6 +10,7 @@ export type InvoiceEmailData = {
   clientCompany?: string | null;
   amount: number;
   paymentUrl?: string | null;
+  lineItems?: InvoiceLineItem[];
 };
 
 const fmt = (n: number) =>
@@ -28,7 +30,8 @@ const esc = (s: string) =>
 // JW Legal Consultants PDF / in-app preview. Designed to render in Gmail,
 // Outlook and Apple Mail.
 export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
-  const subtotal = data.amount;
+  const items = normalizeLineItems(data.lineItems, data.amount);
+  const subtotal = lineItemsSubtotal(items);
   const vat = subtotal * (companyDetails.vatRate / 100);
   const total = subtotal + vat;
 
@@ -101,13 +104,17 @@ export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
               <td width="16%" style="${labelCellC}">COST</td>
               <td width="22%" style="${labelCellC}">NET PRICE AED</td>
             </tr>
-            <tr>
-              <td style="${cell}font-weight:bold;height:54px;vertical-align:top;">Will (UAE)</td>
+            ${items
+              .map(
+                (item) => `<tr>
+              <td style="${cell}font-weight:bold;vertical-align:top;">${esc(item.description)}</td>
               <td style="${cellC}font-weight:bold;vertical-align:top;">X</td>
-              <td style="${cellC}vertical-align:top;">${fmt(subtotal)}</td>
-            </tr>
+              <td style="${cellC}vertical-align:top;">${fmt(item.amount)}</td>
+            </tr>`
+              )
+              .join("")}
             <tr>
-              <td style="${cell}height:54px;vertical-align:top;">
+              <td style="${cell}height:44px;vertical-align:top;">
                 <span style="font-weight:bold;">Notarization Fee </span>
                 <span style="font-style:italic;color:#5a5a5a;font-size:11px;">(Includes legalization, PRO Services)</span>
                 <div style="margin-top:6px;font-size:11px;">${notarization}</div>

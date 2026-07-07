@@ -42,7 +42,7 @@ import {
   isSameDay,
   addMonths,
   subMonths,
-  isFriday,
+  isSunday,
   isSaturday,
   startOfWeek,
   endOfWeek,
@@ -266,7 +266,7 @@ export default function LeaveCalendarPage() {
 
       days.forEach((day, index) => {
         // Skip weekends
-        if (isFriday(day) || isSaturday(day)) return;
+        if (isSaturday(day) || isSunday(day)) return;
 
         const dateStr = format(day, "yyyy-MM-dd");
         const existing = map.get(dateStr) || [];
@@ -290,7 +290,7 @@ export default function LeaveCalendarPage() {
 
     daysInMonth.forEach((day) => {
       const dateStr = format(day, "yyyy-MM-dd");
-      const isWeekend = isFriday(day) || isSaturday(day);
+      const isWeekend = isSaturday(day) || isSunday(day);
       const holidayName = holidaysInMonth.get(dateStr);
       const isHoliday = !!holidayName;
       const leaves = leaveDaysMap.get(dateStr) || [];
@@ -312,7 +312,7 @@ export default function LeaveCalendarPage() {
     const weeks = new Map<number, { total: number; onLeave: number }>();
 
     daysInMonth.forEach((day) => {
-      if (isFriday(day) || isSaturday(day)) return;
+      if (isSaturday(day) || isSunday(day)) return;
 
       const weekNum = getWeek(day);
       const dateStr = format(day, "yyyy-MM-dd");

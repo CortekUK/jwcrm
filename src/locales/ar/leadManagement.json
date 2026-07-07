@@ -15,6 +15,9 @@
   "email": "البريد الإلكتروني",
   "phone": "الهاتف",
   "company": "الشركة",
+  "leadType": "نوع العميل",
+  "individual": "فرد",
+  "corporate": "شركة",
   "source": "المصدر",
   "notes": "ملاحظات",
   "status": "الحالة",
@@ -49,7 +52,6 @@
   "invoiceNumber": "رقم الفاتورة",
   "proposalSent": "تم إرسال العرض",
   "paymentReceived": "تم استلام الدفع",
-
   "sourceWebsite": "موقع إلكتروني",
   "sourceReferral": "إحالة",
   "sourceSocialMedia": "وسائل التواصل الاجتماعي",
@@ -57,7 +59,6 @@
   "sourceColdCall": "اتصال بارد",
   "sourceEvent": "حدث",
   "sourceOther": "أخرى",
-
   "createNewLead": "إنشاء عميل محتمل جديد",
   "createLeadDescription": "أضف عميلاً محتملاً جديدًا إلى خط الأنابيب. املأ التفاصيل أدناه.",
   "editLeadDescription": "تحديث معلومات العميل المحتمل أدناه.",
@@ -67,7 +68,6 @@
   "additionalNotes": "أي ملاحظات إضافية حول هذا العميل المحتمل...",
   "selectSource": "اختر المصدر",
   "selectStatus": "اختر الحالة",
-
   "nameMin": "يجب أن يكون الاسم حرفين على الأقل",
   "emailRequired": "البريد الإلكتروني مطلوب",
   "invalidEmail": "عنوان بريد إلكتروني غير صالح",
@@ -75,7 +75,6 @@
   "invalidPhone": "صيغة رقم الهاتف غير صالحة",
   "companyRequired": "اسم الشركة مطلوب",
   "sourceRequired": "المصدر مطلوب",
-
   "sendProposalTo": "إنشاء وإرسال عرض إلى {{name}}",
   "sendInvoiceDescription": "إنشاء وإرسال فاتورة إلى {{name}}",
   "clientInformation": "معلومات العميل",
@@ -107,7 +106,6 @@
   "openStripeCheckout": "افتح رابط الدفع عبر Stripe",
   "emailInvoiceToClient": "أرسل هذه الفاتورة إلى العميل بالبريد",
   "notSignedIn": "لست مسجلاً للدخول",
-
   "proposalsFor": "عروض لـ {{name}}",
   "viewAndDownload": "عرض وتنزيل العروض والفواتير المرسلة لهذا العميل المحتمل.",
   "noProposalsFound": "لم يتم العثور على عروض لهذا العميل المحتمل.",
@@ -124,11 +122,9 @@
   "download": "تنزيل",
   "invoice": "فاتورة",
   "paymentLink": "رابط الدفع",
-
   "areYouSure": "هل أنت متأكد؟",
   "permanentlyDeleteWarning": "سيؤدي هذا إلى حذف العميل المحتمل \"{{name}}\" وجميع العروض المرتبطة به نهائيًا. لا يمكن التراجع عن هذا الإجراء.",
   "delete": "حذف",
-
   "failedToFetchLeads": "فشل في جلب العملاء المحتملين",
   "failedToCreateLead": "فشل في إنشاء العميل المحتمل",
   "failedToUpdateLead": "فشل في تحديث العميل المحتمل",
@@ -139,14 +135,12 @@
   "invoiceDownloaded": "تم تنزيل الفاتورة",
   "failedToGeneratePDF": "فشل في إنشاء ملف PDF",
   "settings": "الإعدادات",
-
   "saveDraft": "حفظ المسودة",
   "preview": "معاينة",
   "draftSaved": "تم حفظ المسودة بنجاح",
   "failedToSaveDraft": "فشل في حفظ المسودة",
   "previewProposal": "معاينة العرض",
   "previewProposalDescription": "راجع عرضك قبل إرساله إلى العميل.",
-
   "sources": "المصادر",
   "sourcesDescription": "إدارة مصادر العملاء المحتملين وتعيين مندوبي المبيعات للتعامل مع العملاء من كل مصدر.",
   "createSource": "إنشاء مصدر",
@@ -183,7 +177,6 @@
   "loadingSources": "جاري تحميل المصادر...",
   "noSourcesAvailable": "لا توجد مصادر متاحة. أنشئ مصادر أولاً.",
   "description": "الوصف",
-
   "leadHistory": "سجل العميل المحتمل",
   "viewHistory": "عرض السجل",
   "timeline": "الجدول الزمني للنشاط",
@@ -192,7 +185,6 @@
   "leadNotFound": "العميل المحتمل غير موجود",
   "failedToFetchLeadHistory": "فشل في جلب سجل العميل المحتمل",
   "accessDenied": "تم رفض الوصول",
-
   "eventCreated": "تم إنشاء العميل المحتمل",
   "eventCreatedDescription": "تمت إضافة العميل المحتمل إلى النظام.",
   "eventAssigned": "تم التعيين لمندوب المبيعات",
@@ -203,7 +195,6 @@
   "eventProposalSentDescription": "تم إرسال العرض {{invoiceNumber}} إلى العميل.",
   "eventPaymentReceived": "تم استلام الدفع",
   "eventPaymentReceivedDescription": "تم استلام الدفع للعرض {{invoiceNumber}}.",
-
   "salespersonView": "عرض مندوب المبيعات",
   "viewingSalesperson": "عرض العملاء المحتملين المعينين لـ {{name}}.",
   "assignedLeads": "العملاء المحتملين المعينين",
@@ -213,13 +204,10 @@
   "inProgressLeads": "قيد التقدم",
   "conversionRate": "معدل التحويل",
   "totalRevenue": "إجمالي الإيرادات",
-
   "selectSalesperson": "اختر مندوب المبيعات",
   "reassignLead": "إعادة تعيين العميل المحتمل",
   "leadReassigned": "تم إعادة تعيين العميل المحتمل بنجاح",
-
   "consultation": "استشارة",
-
   "communication": "التواصل",
   "addCommunication": "إضافة تواصل",
   "addCommunicationDescription": "تسجيل تواصل مع هذا العميل المحتمل.",
@@ -237,7 +225,6 @@
   "eventCommunication": "تواصل {{method}}",
   "eventCommunicationDescription": "التواصل مع العميل المحتمل.",
   "unknown": "غير معروف",
-
   "reminder": "تذكير",
   "reminders": "التذكيرات",
   "remindersDescription": "إدارة التذكيرات والمتابعات الخاصة بك.",
@@ -252,9 +239,7 @@
   "remindAt": "التذكير في",
   "reminderCreated": "تم إنشاء التذكير بنجاح",
   "failedToCreateReminder": "فشل في إنشاء التذكير",
-
   "sendMeetingInvite": "دعوة اجتماع",
-
   "yourTimezone": "منطقتك الزمنية",
   "quickPresets": "اختيارات سريعة",
   "in30Min": "بعد 30 دقيقة",
@@ -293,10 +278,13 @@
   "newReminderDue": "لديك تذكير مستحق",
   "viewReminders": "عرض التذكيرات",
   "forLead": "للعميل: {{name}}",
-
   "saving": "جارٍ الحفظ...",
   "unsavedChanges": "تغييرات غير محفوظة",
   "lastEdited": "آخر تعديل",
   "addNotesPlaceholder": "أضف ملاحظات حول هذا العميل...",
-  "failedToSaveNotes": "فشل في حفظ الملاحظات"
+  "failedToSaveNotes": "فشل في حفظ الملاحظات",
+  "additionalAssignees": "مُكلَّفون إضافيون",
+  "invoiceItems": "بنود الفاتورة",
+  "itemDescription": "الوصف (مثال: رسوم المحكمة، توكيل، تصديق)",
+  "addItem": "إضافة بند"
 }

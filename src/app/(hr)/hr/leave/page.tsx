@@ -46,7 +46,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format, differenceInDays, isWeekend, eachDayOfInterval, isFriday, isSaturday } from "date-fns";
+import { format, differenceInDays, isWeekend, eachDayOfInterval, isSaturday, isSunday } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
 import { ExportLeaveModal } from "@/components/hr/leave/ExportLeaveModal";
 import { useLeaveTypes } from "@/hooks/useLeaveTypes";
@@ -86,7 +86,7 @@ function calculateWorkingDays(startDate: string, endDate: string): number {
   if (start > end) return 0;
 
   const days = eachDayOfInterval({ start, end });
-  return days.filter((day) => !isFriday(day) && !isSaturday(day)).length;
+  return days.filter((day) => !isSaturday(day) && !isSunday(day)).length;
 }
 
 // Send leave notification email
@@ -326,7 +326,7 @@ export default function LeavePage() {
     const days = eachDayOfInterval({
       start: new Date(request.start_date),
       end: new Date(request.end_date),
-    }).filter((day) => !isFriday(day) && !isSaturday(day));
+    }).filter((day) => !isSaturday(day) && !isSunday(day));
 
     const dateStrings = days.map((day) => format(day, "yyyy-MM-dd"));
 
@@ -405,7 +405,7 @@ export default function LeavePage() {
       const days = eachDayOfInterval({
         start: new Date(request.start_date),
         end: new Date(request.end_date),
-      }).filter((day) => !isFriday(day) && !isSaturday(day));
+      }).filter((day) => !isSaturday(day) && !isSunday(day));
 
       const attendanceRecords = days.map((day) => ({
         employee_id: request.employee_id,
@@ -731,7 +731,7 @@ export default function LeavePage() {
               className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
             >
               <Download className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-              {t("hr:export", "Export")}
+              {t("hr:exportButton", "Export")}
             </Button>
             <Button
               onClick={() => setNewRequestOpen(true)}

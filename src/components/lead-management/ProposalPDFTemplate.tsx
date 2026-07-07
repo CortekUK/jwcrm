@@ -25,7 +25,8 @@ type ProposalPDFTemplateProps = {
 };
 
 // Function to inject inline styles into HTML content for proper PDF rendering
-const getStyledProposalContent = (content: string): string => {
+const getStyledProposalContent = (content: string | null | undefined): string => {
+  if (!content) return "";
   return content
     .replace(/<ul>/g, '<ul style="list-style-type: disc; padding-left: 24px; margin: 12px 0;">')
     .replace(/<ol>/g, '<ol style="list-style-type: decimal; padding-left: 24px; margin: 12px 0;">')

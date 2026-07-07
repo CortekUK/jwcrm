@@ -76,6 +76,7 @@ export interface Lead {
   email: string;
   phone: string | null;
   company_name: string | null;
+  lead_type?: "individual" | "corporate" | string;
   notes: string | null;
   source: string | null;
   source_id: string | null;

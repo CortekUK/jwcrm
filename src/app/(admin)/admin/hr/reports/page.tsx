@@ -559,7 +559,7 @@ export default function AdminReportsPage() {
                     onClick={() => setAttendanceExportOpen(true)}
                   >
                     <Download className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-                    {t("hr:export", "Export")}
+                    {t("hr:exportButton", "Export")}
                   </Button>
                 </div>
               </div>
@@ -585,7 +585,7 @@ export default function AdminReportsPage() {
                     onClick={() => setLeaveExportOpen(true)}
                   >
                     <Download className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-                    {t("hr:export", "Export")}
+                    {t("hr:exportButton", "Export")}
                   </Button>
                 </div>
               </div>

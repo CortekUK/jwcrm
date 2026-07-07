@@ -105,7 +105,7 @@
   "allStatuses": "All Statuses",
   "allDepartments": "All Departments",
   "name": "Name",
-  "status": "Status",
+  "statusLabel": "Status",
   "actions": "Actions",
   "noEmployeesFound": "No employees found",
   "showingResults": "Showing {{count}} of {{total}} employees",
@@ -280,10 +280,12 @@
   "date": "Date",
   "recipient": "Recipient",
   "subject": "Subject",
-  "status": "Status",
+  "statusLabel": "Status",
   "sent": "Sent",
   "failed": "Failed",
   "skipped": "Skipped",
+
+  "exportButton": "Export",
 
   "export": {
     "title": "Export Attendance Report",
@@ -370,6 +372,7 @@
     "total": "Total",
     "readOnlyDateTooOld": "Read Only - Date too old",
     "approvedLeave": "Approved Leave",
+    "notMarked": "Not marked",
     "reasonOptional": "Reason (optional)",
     "noActiveEmployees": "No active employees found",
     "notStartedYet": "Starts {{date}}",
@@ -567,8 +570,8 @@
 
   "attendanceWidget": {
     "todaysAttendance": "Today's Attendance",
-    "attendanceNotMarkedYet": "Attendance not marked yet",
-    "markAttendanceHint": "Mark attendance to start tracking today's workforce",
+    "attendanceNotMarkedYet": "No logins recorded yet today",
+    "markAttendanceHint": "Attendance is recorded automatically when employees log in. You can still adjust it manually if needed.",
     "markAttendance": "Mark Attendance",
     "viewEditAttendance": "View/Edit Attendance",
     "needsAttention": "Needs Attention",

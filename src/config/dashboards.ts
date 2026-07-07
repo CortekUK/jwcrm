@@ -51,6 +51,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
       { path: "/admin", labelKey: "admin:dashboard", icon: LayoutDashboard },
       { path: "/admin/wills", labelKey: "admin:wills", icon: FileText },
       { path: "/admin/manage-users", labelKey: "admin:manageUsers", icon: Users },
+      { path: "/my/leave", labelKey: "common:myLeave", icon: CalendarDays },
     ],
   },
   hr: {
@@ -67,6 +68,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
       { path: "/hr/documents", labelKey: "hr:documents", icon: FolderOpen },
       { path: "/hr/attendance", labelKey: "hr:attendance", icon: Calendar },
       { path: "/hr/leave", labelKey: "hr:leave", icon: CalendarDays },
+      { path: "/my/leave", labelKey: "common:myLeave", icon: CalendarDays },
       { path: "/hr/settings", labelKey: "common:settings", icon: Settings },
     ],
   },
@@ -79,6 +81,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     layoutType: "header",
     navItems: [
       { path: "/finance", labelKey: "finance:dashboard", icon: LayoutDashboard },
+      { path: "/my/leave", labelKey: "common:myLeave", icon: CalendarDays },
       { path: "/finance/settings", labelKey: "common:settings", icon: Settings },
     ],
   },
@@ -91,6 +94,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     layoutType: "header",
     navItems: [
       { path: "/lead-management/leads", labelKey: "leadManagement:leads", icon: Users },
+      { path: "/my/leave", labelKey: "common:myLeave", icon: CalendarDays },
       { path: "/lead-management/settings", labelKey: "common:settings", icon: Settings },
     ],
   },
@@ -119,6 +123,7 @@ export const DASHBOARD_CONFIGS: Record<DashboardType, DashboardConfig> = {
     navItems: [
       { path: "/admin/salesperson/leads", labelKey: "salesperson:myLeads", icon: Users },
       { path: "/admin/salesperson/calendar", labelKey: "salesperson:calendar", icon: Calendar },
+      { path: "/my/leave", labelKey: "common:myLeave", icon: CalendarDays },
       { path: "/admin/salesperson/settings", labelKey: "common:settings", icon: Settings },
     ],
   },
@@ -193,6 +198,7 @@ const superadminNavItems: NavItem[] = [
 const adminNavItems: NavItem[] = [
   { path: "/admin", labelKey: "admin:dashboard", icon: LayoutDashboard },
   { path: "/admin/wills", labelKey: "admin:wills", icon: FileText },
+  { path: "/admin/my-leave", labelKey: "common:myLeave", icon: CalendarDays },
 ];
 
 // HR role nav items - all under /admin/hr
@@ -205,12 +211,14 @@ const hrNavItems: NavItem[] = [
   { path: "/admin/hr/kpis", labelKey: "hr:kpis", icon: Target },
   { path: "/admin/hr/attendance", labelKey: "hr:attendance", icon: Calendar },
   { path: "/admin/hr/leave", labelKey: "hr:leave", icon: CalendarDays },
+  { path: "/admin/my-leave", labelKey: "common:myLeave", icon: CalendarDays },
   { path: "/admin/hr/settings", labelKey: "common:settings", icon: Settings },
 ];
 
 // Finance role nav items - all under /admin/finance
 const financeNavItems: NavItem[] = [
   { path: "/admin/finance", labelKey: "finance:dashboard", icon: LayoutDashboard },
+  { path: "/admin/my-leave", labelKey: "common:myLeave", icon: CalendarDays },
   { path: "/admin/finance/settings", labelKey: "common:settings", icon: Settings },
 ];
 
@@ -218,6 +226,7 @@ const financeNavItems: NavItem[] = [
 const leadManagementNavItems: NavItem[] = [
   { path: "/admin/lead-management/leads", labelKey: "leadManagement:leads", icon: Users },
   { path: "/admin/lead-management/sources", labelKey: "leadManagement:sources", icon: FolderOpen },
+  { path: "/admin/my-leave", labelKey: "common:myLeave", icon: CalendarDays },
   { path: "/admin/lead-management/settings", labelKey: "common:settings", icon: Settings },
 ];
 
@@ -226,6 +235,7 @@ const leadManagementNavItems: NavItem[] = [
 const salespersonNavItems: NavItem[] = [
   { path: "/admin/lead-management/leads", labelKey: "salesperson:myLeads", icon: Users },
   { path: "/admin/salesperson/calendar", labelKey: "salesperson:calendar", icon: Calendar },
+  { path: "/admin/my-leave", labelKey: "common:myLeave", icon: CalendarDays },
   { path: "/admin/salesperson/settings", labelKey: "common:settings", icon: Settings },
 ];
 

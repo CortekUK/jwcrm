@@ -159,7 +159,7 @@ export function ExportEmployeesButton() {
           className="border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#FAFAF8]"
         >
           <Download className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
-          {t("hr:export", "Export")}
+          {t("hr:exportButton", "Export")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[450px]">

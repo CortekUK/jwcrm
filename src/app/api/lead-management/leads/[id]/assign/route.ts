@@ -24,14 +24,23 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { salesperson_id } = body;
+    // Accept either a single salesperson_id (legacy) or salesperson_ids[] (multi).
+    const rawIds: string[] = Array.isArray(body.salesperson_ids)
+      ? body.salesperson_ids
+      : body.salesperson_id
+        ? [body.salesperson_id]
+        : [];
+    const salespersonIds = Array.from(new Set(rawIds.filter(Boolean)));
 
-    if (!salesperson_id) {
+    if (salespersonIds.length === 0) {
       return NextResponse.json(
-        { error: "Salesperson ID is required" },
+        { error: "At least one salesperson ID is required" },
         { status: 400 }
       );
     }
+
+    // The first id is the PRIMARY assignee (drives leads.assigned_to, reminders).
+    const primaryId = salespersonIds[0];
 
     // Get the lead to check its source
     const { data: lead, error: leadError } = await supabaseAdmin
@@ -44,28 +53,24 @@ export async function PATCH(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // Validate that the new salesperson is assigned to the same source
-    if (lead.source_id) {
-      const { data: assignment, error: assignError } = await supabaseAdmin
-        .from("source_salesperson_assignments")
-        .select("id")
-        .eq("source_id", lead.source_id)
-        .eq("salesperson_id", salesperson_id)
-        .single();
+    // Any salesperson may be assigned to any lead (primary or co-assignee),
+    // regardless of the lead's source.
 
-      if (assignError || !assignment) {
-        return NextResponse.json(
-          { error: "Selected salesperson is not assigned to this lead's source" },
-          { status: 400 }
-        );
-      }
-    }
+    // Who was already assigned (to only email the newly-added people)
+    const { data: existingAssignments } = await supabaseAdmin
+      .from("lead_assignments")
+      .select("salesperson_id")
+      .eq("lead_id", id);
+    const previouslyAssigned = new Set(
+      (existingAssignments || []).map((a) => a.salesperson_id)
+    );
+    const newlyAdded = salespersonIds.filter((sid) => !previouslyAssigned.has(sid));
 
-    // Update the lead assignment
+    // Update the primary assignment on the lead row
     const { data: updatedLead, error: updateError } = await supabaseAdmin
       .from("leads")
       .update({
-        assigned_to: salesperson_id,
+        assigned_to: primaryId,
         assigned_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -76,6 +81,28 @@ export async function PATCH(
       .single();
 
     if (updateError) throw updateError;
+
+    // Sync the join table: remove de-selected, upsert selected, flag primary.
+    await supabaseAdmin
+      .from("lead_assignments")
+      .delete()
+      .eq("lead_id", id)
+      .not("salesperson_id", "in", `(${salespersonIds.join(",")})`);
+
+    for (const sid of salespersonIds) {
+      await supabaseAdmin
+        .from("lead_assignments")
+        .upsert(
+          {
+            lead_id: id,
+            salesperson_id: sid,
+            is_primary: sid === primaryId,
+            assigned_by: callerId,
+            assigned_at: new Date().toISOString(),
+          },
+          { onConflict: "lead_id,salesperson_id" }
+        );
+    }
 
     // Fetch assigned user profile
     let leadWithProfile = updatedLead;
@@ -90,17 +117,18 @@ export async function PATCH(
       leadWithProfile = { ...updatedLead, assigned_user: null };
     }
 
-    // Send notification email to the new salesperson.
+    // Send notification email to each newly-added salesperson.
     // Goes via the manager's Outlook when connected, else Resend.
+    for (const sid of newlyAdded) {
     try {
       // Get salesperson profile and email
       const { data: salespersonProfile } = await supabaseAdmin
         .from("profiles")
         .select("full_name")
-        .eq("user_id", salesperson_id)
+        .eq("user_id", sid)
         .single();
 
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(salesperson_id);
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(sid);
       const salespersonEmail = authUser?.user?.email;
       const salespersonName = salespersonProfile?.full_name || "Salesperson";
 
@@ -187,6 +215,7 @@ export async function PATCH(
     } catch (emailError) {
       // Log but don't fail the reassignment
       console.error("Failed to send salesperson notification email:", emailError);
+    }
     }
 
     return NextResponse.json({ data: leadWithProfile });

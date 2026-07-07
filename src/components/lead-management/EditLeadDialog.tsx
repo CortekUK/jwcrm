@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Edit3 } from "lucide-react";
 import { Lead } from "./LeadTable";
 import { LeadStatus } from "./LeadStatusBadge";
@@ -52,6 +53,7 @@ type LeadFormValues = {
   email: string;
   phone: string;
   company_name: string;
+  lead_type: "individual" | "corporate";
   source_id: string;
   notes?: string;
   status: LeadStatus;
@@ -79,6 +81,8 @@ export function EditLeadDialog({
   const [loadingSources, setLoadingSources] = useState(false);
   const [salespeople, setSalespeople] = useState<Salesperson[]>([]);
   const [loadingSalespeople, setLoadingSalespeople] = useState(false);
+  // Additional co-assignees (beyond the primary in `assigned_to`)
+  const [additionalAssignees, setAdditionalAssignees] = useState<string[]>([]);
 
   // Different schema for salesperson (only notes and status)
   const leadFormSchema = isSalesperson
@@ -87,6 +91,7 @@ export function EditLeadDialog({
         email: z.string(),
         phone: z.string(),
         company_name: z.string(),
+        lead_type: z.enum(["individual", "corporate"]),
         source_id: z.string().optional(),
         notes: z.string().optional(),
         status: z.enum(["not_started", "contacted", "consultation", "consultation_completed", "meeting", "hold", "qualified", "negotiation", "pending", "won", "lost"]),
@@ -99,7 +104,8 @@ export function EditLeadDialog({
           /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,4}[-\s\.]?[0-9]{1,9}$/,
           t("invalidPhone")
         ),
-        company_name: z.string().min(1, t("companyRequired")),
+        company_name: z.string().optional(),
+        lead_type: z.enum(["individual", "corporate"]),
         source_id: z.string().optional(),
         notes: z.string().optional(),
         status: z.enum(["not_started", "contacted", "consultation", "consultation_completed", "meeting", "hold", "qualified", "negotiation", "pending", "won", "lost"]),
@@ -128,6 +134,7 @@ export function EditLeadDialog({
       email: "",
       phone: "",
       company_name: "",
+      lead_type: "individual",
       source_id: "",
       notes: "",
       status: "not_started",
@@ -150,17 +157,38 @@ export function EditLeadDialog({
         email: lead.email,
         phone: lead.phone || "",
         company_name: lead.company_name || "",
+        lead_type: lead.lead_type === "corporate" ? "corporate" : "individual",
         source_id: lead.source_id || "",
         notes: lead.notes || "",
         status: lead.status,
         assigned_to: lead.assigned_to || "",
       });
-      // Fetch available salespeople for this lead's source
-      if (lead.source_id && !isSalesperson) {
-        fetchSalespeopleForSource(lead.source_id);
+      // Fetch all salespeople so any of them can be assigned (primary or co-assignee)
+      if (!isSalesperson) {
+        fetchAllSalespeople();
+        loadAdditionalAssignees(lead.id, lead.assigned_to || null);
       }
     }
   }, [lead, form, isSalesperson]);
+
+  const loadAdditionalAssignees = async (
+    leadId: string,
+    primaryId: string | null
+  ) => {
+    try {
+      const { data } = await (supabase as any)
+        .from("lead_assignments")
+        .select("salesperson_id")
+        .eq("lead_id", leadId);
+      const ids = ((data || []) as { salesperson_id: string }[])
+        .map((a) => a.salesperson_id)
+        .filter((sid) => sid !== primaryId);
+      setAdditionalAssignees(ids);
+    } catch (error) {
+      console.error("Error loading co-assignees:", error);
+      setAdditionalAssignees([]);
+    }
+  };
 
   const fetchSources = async () => {
     setLoadingSources(true);
@@ -179,31 +207,39 @@ export function EditLeadDialog({
     }
   };
 
-  const fetchSalespeopleForSource = async (sourceId: string) => {
+  // Fetch ALL salespeople (any salesperson can be assigned as primary or
+  // co-assignee, regardless of the lead's source).
+  const fetchAllSalespeople = async () => {
     setLoadingSalespeople(true);
     try {
-      // Get salesperson IDs assigned to this source
-      const { data: assignments, error: assignError } = await supabase
-        .from("source_salesperson_assignments")
-        .select("salesperson_id")
-        .eq("source_id", sourceId);
+      const { data: roleRows, error: roleError } = await (supabase as any)
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "salesperson");
 
-      if (assignError) throw assignError;
+      if (roleError) throw roleError;
 
-      if (assignments && assignments.length > 0) {
-        const salespersonIds = assignments.map((a) => a.salesperson_id);
+      const salespersonIds = ((roleRows || []) as { user_id: string }[]).map(
+        (r) => r.user_id
+      );
 
-        // Get profiles for these salespeople
-        const { data: profiles, error: profileError } = await supabase
-          .from("profiles")
-          .select("user_id, full_name")
-          .in("user_id", salespersonIds);
-
-        if (profileError) throw profileError;
-        setSalespeople(profiles || []);
-      } else {
+      if (salespersonIds.length === 0) {
         setSalespeople([]);
+        return;
       }
+
+      const { data: profiles, error: profileError } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", salespersonIds);
+
+      if (profileError) throw profileError;
+      setSalespeople(
+        (profiles || []).map((p) => ({
+          user_id: p.user_id,
+          full_name: p.full_name || "",
+        }))
+      );
     } catch (error) {
       console.error("Error fetching salespeople:", error);
       setSalespeople([]);
@@ -216,14 +252,23 @@ export function EditLeadDialog({
     if (!lead) return;
     setIsSubmitting(true);
     try {
-      // Check if salesperson assignment changed
-      const assignmentChanged = data.assigned_to && data.assigned_to !== lead.assigned_to;
+      // Build the full assignee list: primary first, then additional co-assignees.
+      const combinedAssignees = Array.from(
+        new Set(
+          [data.assigned_to, ...additionalAssignees].filter(Boolean) as string[]
+        )
+      );
+
+      // Assignment changed if the primary changed or the co-assignee set differs.
+      const assignmentChanged =
+        combinedAssignees.length > 0 &&
+        (data.assigned_to !== lead.assigned_to || additionalAssignees.length > 0);
 
       // First, update the lead data (excluding assigned_to which is handled separately)
       const { assigned_to, ...leadData } = data;
       await onSubmit(lead.id, leadData as LeadFormValues);
 
-      // If assignment changed, call the assign API
+      // If assignment changed, call the assign API with the full list
       if (assignmentChanged && !isSalesperson) {
         const { data: sessionData } = await supabase.auth.getSession();
         const accessToken = sessionData.session?.access_token;
@@ -233,7 +278,7 @@ export function EditLeadDialog({
             "Content-Type": "application/json",
             ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
           },
-          body: JSON.stringify({ salesperson_id: data.assigned_to }),
+          body: JSON.stringify({ salesperson_ids: combinedAssignees }),
         });
 
         if (!response.ok) {
@@ -389,7 +434,7 @@ export function EditLeadDialog({
                     name="company_name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-[#555555]">{t("company")} <span className="text-[#C0392B]">*</span></FormLabel>
+                        <FormLabel className="text-[#555555]">{t("company")}</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder={t("company")} 
@@ -402,6 +447,27 @@ export function EditLeadDialog({
                     )}
                   />
                 </div>
+                <FormField
+                  control={form.control}
+                  name="lead_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[#555555]">{t("leadType")} <span className="text-[#C0392B]">*</span></FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={isSalesperson}>
+                        <FormControl>
+                          <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="individual">{t("individual")}</SelectItem>
+                          <SelectItem value="corporate">{t("corporate")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage className="text-[#C0392B]" />
+                    </FormItem>
+                  )}
+                />
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -464,7 +530,7 @@ export function EditLeadDialog({
                   />
                 </div>
                 {/* Salesperson Assignment */}
-                {lead?.source_id && (
+                {!isSalesperson && (
                   <FormField
                     control={form.control}
                     name="assigned_to"
@@ -501,7 +567,39 @@ export function EditLeadDialog({
                     )}
                   />
                 )}
-                {!lead?.source_id && lead?.assigned_user?.full_name && (
+                {!isSalesperson && salespeople.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-[#555555]">
+                      {t("additionalAssignees", "Additional Assignees")}
+                    </p>
+                    <div className="rounded-md border border-[#E6E6E4] p-3 space-y-2 max-h-40 overflow-y-auto">
+                      {salespeople
+                        .filter((sp) => sp.user_id !== form.watch("assigned_to"))
+                        .map((sp) => {
+                          const checked = additionalAssignees.includes(sp.user_id);
+                          return (
+                            <label
+                              key={sp.user_id}
+                              className="flex items-center gap-2 cursor-pointer text-sm text-[#555555]"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={() =>
+                                  setAdditionalAssignees((prev) =>
+                                    prev.includes(sp.user_id)
+                                      ? prev.filter((x) => x !== sp.user_id)
+                                      : [...prev, sp.user_id]
+                                  )
+                                }
+                              />
+                              <span>{sp.full_name}</span>
+                            </label>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+                {isSalesperson && lead?.assigned_user?.full_name && (
                   <div className="text-sm text-[#555555] bg-[#FAFAF8] p-3 rounded-md border border-[#E6E6E4]">
                     <span className="font-medium">{t("assignedTo")}:</span>{" "}
                     {lead.assigned_user.full_name}

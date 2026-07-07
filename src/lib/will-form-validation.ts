@@ -279,7 +279,7 @@ export const createValidationSchemas = (t: TFunction) => {
     location: z.string().trim().max(200).optional(),
     estimated_value: z.number().min(0).optional(),
     beneficiary_name: z.string().trim().max(200).optional(),
-    documents: z.array(assetDocumentSchema).optional(),
+    documents: z.array(assetDocumentSchema).min(1, t('form:assetDocumentsRequired')),
     photo_path: z.string().optional(),
   });
 
@@ -291,7 +291,7 @@ export const createValidationSchemas = (t: TFunction) => {
     location: z.string().trim().max(200).optional(),
     estimated_value: z.number().min(0).optional(),
     beneficiary_name: z.string().trim().max(200).optional(),
-    documents: z.array(assetDocumentSchema).optional(),
+    documents: z.array(assetDocumentSchema).min(1, t('form:assetDocumentsRequired')),
     photo_path: z.string().optional(),
   });
 

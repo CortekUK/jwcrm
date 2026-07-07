@@ -45,6 +45,7 @@ type LeadFormValues = {
   email: string;
   phone: string;
   company_name?: string;
+  lead_type: "individual" | "corporate";
   source_id: string;
   notes?: string;
 };
@@ -73,6 +74,7 @@ export function CreateLeadDialog({
       t("invalidPhone")
     ),
     company_name: z.string().optional(),
+    lead_type: z.enum(["individual", "corporate"]),
     source_id: z.string().min(1, t("sourceRequired")),
     notes: z.string().optional(),
   });
@@ -84,6 +86,7 @@ export function CreateLeadDialog({
       email: "",
       phone: "",
       company_name: "",
+      lead_type: "individual",
       source_id: "",
       notes: "",
     },
@@ -154,6 +157,27 @@ export function CreateLeadDialog({
                       {...field} 
                     />
                   </FormControl>
+                  <FormMessage className="text-[#C0392B]" />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="lead_type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[#555555]">{t("leadType")} <span className="text-[#C0392B]">*</span></FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="individual">{t("individual")}</SelectItem>
+                      <SelectItem value="corporate">{t("corporate")}</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage className="text-[#C0392B]" />
                 </FormItem>
               )}

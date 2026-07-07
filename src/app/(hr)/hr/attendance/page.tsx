@@ -115,6 +115,13 @@ export default function AttendancePage() {
   const { t } = useTranslation(["hr"]);
   const { toast } = useToast();
   const statusConfig = getStatusConfig(t);
+  // Neutral visual for an employee who hasn't checked in and hasn't been marked.
+  const notMarkedConfig = {
+    icon: Circle,
+    color: "text-gray-400",
+    bgColor: "bg-gray-50 dark:bg-muted",
+    label: t("attendancePage.notMarked", "Not marked"),
+  };
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -236,16 +243,10 @@ export default function AttendancePage() {
             check_in_time: null,
             reason: null,
           };
-        } else if (hasStarted) {
-          // Default to present only if employee has started
-          initialAttendance[emp.id] = {
-            employee_id: emp.id,
-            status: "present",
-            check_in_time: "09:00",
-            reason: null,
-          };
         }
-        // If employee hasn't started, don't add them to initialAttendance
+        // Otherwise leave the employee OUT of initialAttendance so they render
+        // as "Not marked" (attendance reflects real logins + explicit HR marks,
+        // not a fake default-present). Also skips employees not yet started.
       });
 
       setAttendance(initialAttendance);
@@ -302,15 +303,21 @@ export default function AttendancePage() {
   }, [activeTab, fetchCalendarData]);
 
   const handleStatusChange = (employeeId: string, status: AttendanceStatus) => {
-    setAttendance((prev) => ({
-      ...prev,
-      [employeeId]: {
-        ...prev[employeeId],
-        status,
-        // Set default check-in time for present/late
-        check_in_time: status === "present" ? "09:00" : status === "late" ? "09:30" : null,
-      },
-    }));
+    setAttendance((prev) => {
+      const existing = prev[employeeId];
+      return {
+        ...prev,
+        [employeeId]: {
+          // employee_id/reason must exist even when marking a previously
+          // "Not marked" employee (who had no record in state yet).
+          employee_id: employeeId,
+          reason: existing?.reason ?? null,
+          status,
+          // Set default check-in time for present/late
+          check_in_time: status === "present" ? "09:00" : status === "late" ? "09:30" : null,
+        },
+      };
+    });
   };
 
   const handleTimeChange = (employeeId: string, time: string) => {
@@ -920,7 +927,7 @@ export default function AttendancePage() {
               .map((employee) => {
               const record = attendance[employee.id];
               const hasStarted = employee.start_date <= selectedDate;
-              const config = record ? statusConfig[record.status] : statusConfig.present;
+              const config = record ? statusConfig[record.status] : notMarkedConfig;
               const showTimeField = hasStarted && (record?.status === "present" || record?.status === "late");
               const showReasonField = hasStarted && record?.status === "absent";
               const isSaved = !!existingRecords[employee.id];
@@ -975,12 +982,12 @@ export default function AttendancePage() {
                     {hasStarted ? (
                       <>
                         <Select
-                          value={record?.status || "present"}
+                          value={record?.status ?? ""}
                           onValueChange={(value) => handleStatusChange(employee.id, value as AttendanceStatus)}
                           disabled={!canEdit}
                         >
                           <SelectTrigger className="w-36">
-                            <SelectValue />
+                            <SelectValue placeholder={t("attendancePage.notMarked", "Not marked")} />
                           </SelectTrigger>
                           <SelectContent>
                             {(Object.keys(statusConfig) as AttendanceStatus[]).map((status) => {

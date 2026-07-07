@@ -21,9 +21,15 @@ import {
 } from "@/components/ui/collapsible";
 import { Lead } from "./LeadTable";
 import { InvoicePDFTemplate } from "./InvoicePDFTemplate";
-import { Loader2, Receipt, ChevronDown, ChevronUp, FileText, User, Mail } from "lucide-react";
+import { Loader2, Receipt, ChevronDown, ChevronUp, FileText, User, Mail, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+
+type ItemRow = { description: string; amount: string };
+const INITIAL_ITEMS: ItemRow[] = [
+  { description: "Will Drafting (UAE)", amount: "" },
+  { description: "Court Fee", amount: "" },
+];
 
 interface SendInvoiceDialogProps {
   lead: Lead | null;
@@ -39,16 +45,32 @@ export function SendInvoiceDialog({
   onSuccess,
 }: SendInvoiceDialogProps) {
   const { t } = useTranslation("leadManagement");
-  const [amount, setAmount] = useState<string>("");
+  const [items, setItems] = useState<ItemRow[]>(INITIAL_ITEMS);
   const [description, setDescription] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
+  const parsedItems = items
+    .filter((it) => it.description.trim())
+    .map((it) => ({ description: it.description.trim(), amount: parseFloat(it.amount) || 0 }));
+  const total = parsedItems.reduce((s, it) => s + it.amount, 0);
+
+  const updateItem = (idx: number, field: keyof ItemRow, value: string) =>
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
+  const addItem = () => setItems((prev) => [...prev, { description: "", amount: "" }]);
+  const removeItem = (idx: number) =>
+    setItems((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
+
+  const resetForm = () => {
+    setItems(INITIAL_ITEMS);
+    setDescription("");
+    setShowPreview(false);
+  };
+
   const handleSubmit = async () => {
     if (!lead) return;
 
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
+    if (parsedItems.length === 0 || total <= 0) {
       toast.error(t("validAmountRequired"));
       return;
     }
@@ -65,7 +87,8 @@ export function SendInvoiceDialog({
         },
         body: JSON.stringify({
           leadId: lead.id,
-          amount: amountNum,
+          amount: total,
+          line_items: parsedItems,
           currency: "AED",
           description: description.trim() || undefined,
         }),
@@ -79,9 +102,7 @@ export function SendInvoiceDialog({
       toast.success(t("invoiceSentSuccess"));
       onOpenChange(false);
       onSuccess();
-      setAmount("");
-      setDescription("");
-      setShowPreview(false);
+      resetForm();
     } catch (error) {
       console.error("Error sending invoice:", error);
       toast.error(error instanceof Error ? error.message : t("failedToSendInvoice"));
@@ -91,13 +112,11 @@ export function SendInvoiceDialog({
   };
 
   const handleClose = () => {
-    setAmount("");
-    setDescription("");
-    setShowPreview(false);
+    resetForm();
     onOpenChange(false);
   };
 
-  const formattedAmount = parseFloat(amount) || 0;
+  const formattedAmount = total;
   const displayPrice = new Intl.NumberFormat("en-AE", {
     style: "decimal",
     minimumFractionDigits: 2,
@@ -137,27 +156,57 @@ export function SendInvoiceDialog({
             </div>
           </div>
 
-          {/* Amount Input */}
+          {/* Line Items */}
           <div className="space-y-2">
-            <Label htmlFor="invoice-amount" className="text-base font-semibold">
-              {t("amountAED", "Amount (AED)")} *
+            <Label className="text-base font-semibold">
+              {t("invoiceItems", "Invoice Items")} *
             </Label>
-            <div className="relative">
-              <span className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-                AED
-              </span>
-              <Input
-                id="invoice-amount"
-                type="number"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="ltr:pl-14 rtl:pr-14 text-lg font-semibold h-12"
-                min="0"
-                step="0.01"
-                autoFocus
-              />
+            <div className="space-y-2">
+              {items.map((it, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Input
+                    placeholder={t("itemDescription", "Description (e.g. Court Fee, POA, MOFA & MOJ)")}
+                    value={it.description}
+                    onChange={(e) => updateItem(idx, "description", e.target.value)}
+                    className="flex-1 border-[#E6E6E4] focus:border-[#C6A03B]"
+                  />
+                  <div className="relative w-36">
+                    <span className="absolute ltr:left-2 rtl:right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                      AED
+                    </span>
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={it.amount}
+                      onChange={(e) => updateItem(idx, "amount", e.target.value)}
+                      className="ltr:pl-10 rtl:pr-10 border-[#E6E6E4] focus:border-[#C6A03B]"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeItem(idx)}
+                    disabled={items.length <= 1}
+                    className="text-muted-foreground hover:text-[#C0392B]"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addItem}
+              className="border-dashed border-[#C6A03B] text-[hsl(var(--jw-primary-green))]"
+            >
+              <Plus className="ltr:mr-1 rtl:ml-1 h-4 w-4" />
+              {t("addItem", "Add item")}
+            </Button>
           </div>
 
           {/* Description Input */}
@@ -212,6 +261,7 @@ export function SendInvoiceDialog({
                       currency: "AED",
                       status: "draft",
                       createdAt: new Date().toISOString(),
+                      lineItems: parsedItems,
                     }}
                   />
                 )}
@@ -246,7 +296,7 @@ export function SendInvoiceDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isSubmitting || !amount || parseFloat(amount) <= 0}
+            disabled={isSubmitting || total <= 0}
             className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
           >
             {isSubmitting ? (

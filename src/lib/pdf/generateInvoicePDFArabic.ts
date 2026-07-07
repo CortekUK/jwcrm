@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { companyDetails } from "@/config/company";
+import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "./invoiceLineItems";
 import fs from "fs";
 import path from "path";
 
@@ -15,6 +16,7 @@ export type InvoiceData = {
   amount: number;
   currency: string;
   description?: string;
+  lineItems?: InvoiceLineItem[];
 };
 
 // Grayscale palette to match the official JW Legal Consultants tax invoice
@@ -101,7 +103,8 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
   };
 
   // ----- totals -----
-  const subtotal = data.amount;
+  const items = normalizeLineItems(data.lineItems, data.amount);
+  const subtotal = lineItemsSubtotal(items);
   const vatAmount = subtotal * (companyDetails.vatRate / 100);
   const total = subtotal + vatAmount;
 
@@ -203,35 +206,37 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
   txt("COST", costMid, tableTop + 6, { size: 9, bold: true, align: "center" });
   txt("NET PRICE AED", priceMid, tableTop + 6, { size: 9, bold: true, align: "center" });
 
-  // Row 1 — Will (UAE)
-  const row1Top = tableTop + thH;
-  const rowH1 = 30;
-  box(12, row1Top, descW, rowH1);
-  box(costX, row1Top, costW, rowH1);
-  box(priceX, row1Top, priceW, rowH1);
-  txt("Will (UAE)", ML + mm(4), row1Top + 9, { size: 10, bold: true });
-  txt("X", costMid, row1Top + 9, { size: 10, bold: true, align: "center" });
-  txt(fmt(subtotal), priceMid, row1Top + 9, { size: 10, align: "center" });
+  // Itemised rows (one per line item)
+  const itemRowH = 11;
+  let rowTop = tableTop + thH;
+  items.forEach((item) => {
+    box(12, rowTop, descW, itemRowH);
+    box(costX, rowTop, costW, itemRowH);
+    box(priceX, rowTop, priceW, itemRowH);
+    txt(item.description, ML + mm(4), rowTop + 7, { size: 10, bold: true });
+    txt("X", costMid, rowTop + 7, { size: 10, bold: true, align: "center" });
+    txt(fmt(item.amount), priceMid, rowTop + 7, { size: 10, align: "center" });
+    rowTop += itemRowH;
+  });
 
-  // Row 2 — Notarization Fee (informational)
-  const row2Top = row1Top + rowH1;
-  const rowH2 = 30;
-  box(12, row2Top, descW, rowH2);
-  box(costX, row2Top, costW, rowH2);
-  box(priceX, row2Top, priceW, rowH2);
-  txt("Notarization Fee", ML + mm(4), row2Top + 8, { size: 9.5, bold: true });
-  txt("(Includes legalization, PRO Services)", ML + mm(38), row2Top + 8, { size: 8.5, italic: true, color: GRAY });
-  let ny = row2Top + 14;
+  // Notarization Fee (informational)
+  const noteH = 26;
+  box(12, rowTop, descW, noteH);
+  box(costX, rowTop, costW, noteH);
+  box(priceX, rowTop, priceW, noteH);
+  txt("Notarization Fee", ML + mm(4), rowTop + 8, { size: 9.5, bold: true });
+  txt("(Includes legalization, PRO Services)", ML + mm(38), rowTop + 8, { size: 8.5, italic: true, color: GRAY });
+  let ny = rowTop + 14;
   companyDetails.notarizationNote.forEach((line) => {
     txt(line, ML + mm(4), ny, { size: 8.5 });
     ny += 5;
   });
-  txt("X", costMid, row2Top + 9, { size: 10, bold: true, align: "center" });
+  txt("X", costMid, rowTop + 9, { size: 10, bold: true, align: "center" });
 
   // =========================================================================
   // BANK DETAILS + TOTALS
   // =========================================================================
-  const lowerTop = row2Top + rowH2; // 145
+  const lowerTop = rowTop + noteH;
   const totLabelMid = mm(costX + costW / 2);
   const totValMid = mm(priceX + priceW / 2);
 

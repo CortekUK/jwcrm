@@ -39,15 +39,31 @@ export async function GET(
       email: authUser?.user?.email || "",
     };
 
-    // Fetch all leads assigned to this salesperson
-    const { data: leads, error: leadsError } = await supabaseAdmin
+    // Fetch all leads where this salesperson is the primary assignee OR a
+    // co-assignee (multi-assignee support via lead_assignments).
+    const { data: coAssignments } = await supabaseAdmin
+      .from("lead_assignments")
+      .select("lead_id")
+      .eq("salesperson_id", salespersonId);
+    const coAssignedLeadIds = (coAssignments || []).map((a) => a.lead_id);
+
+    let leadsQuery = supabaseAdmin
       .from("leads")
       .select(`
         *,
         source_data:lead_sources(id, name)
       `)
-      .eq("assigned_to", salespersonId)
       .order("created_at", { ascending: false });
+
+    if (coAssignedLeadIds.length > 0) {
+      leadsQuery = leadsQuery.or(
+        `assigned_to.eq.${salespersonId},id.in.(${coAssignedLeadIds.join(",")})`
+      );
+    } else {
+      leadsQuery = leadsQuery.eq("assigned_to", salespersonId);
+    }
+
+    const { data: leads, error: leadsError } = await leadsQuery;
 
     if (leadsError) throw leadsError;
 

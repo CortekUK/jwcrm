@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Pencil, Lock, ScrollText, AlertCircle } from "lucide-react";
-import type { Answers } from "@/types/will-form";
+import type { Answers, WillJurisdiction } from "@/types/will-form";
 import { useTranslation } from 'react-i18next';
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -17,11 +17,13 @@ interface StepReviewProps {
   onConfirmationsChange: (confirmations: Answers['confirmations']) => void;
   pdfLanguage: 'english' | 'arabic';
   onPdfLanguageChange: (language: 'english' | 'arabic') => void;
+  jurisdiction: WillJurisdiction;
+  onJurisdictionChange: (jurisdiction: WillJurisdiction) => void;
   onEditStep?: (step: number) => void;
   errors?: Record<string, string>;
 }
 
-export function StepReview({ data, confirmations, onConfirmationsChange, pdfLanguage, onPdfLanguageChange, onEditStep, errors = {} }: StepReviewProps) {
+export function StepReview({ data, confirmations, onConfirmationsChange, pdfLanguage, onPdfLanguageChange, jurisdiction, onJurisdictionChange, onEditStep, errors = {} }: StepReviewProps) {
   const { t } = useTranslation(['form']);
 
   // Calculate step offset based on will type
@@ -692,6 +694,50 @@ export function StepReview({ data, confirmations, onConfirmationsChange, pdfLang
               {formatFileSize(data.identity.passport_metadata.size)} • {t('form:uploadedOn', { date: formatDate(data.identity.passport_metadata.uploaded_at) })}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Will Jurisdiction / Template */}
+      <Card className="border-[#E6E6E4] bg-white rounded-lg shadow-[0_1px_4px_rgba(12,85,54,0.05)]">
+        <CardHeader className="pb-4 border-b border-[rgba(198,160,59,0.3)]">
+          <CardTitle className="text-[15px] font-semibold text-[#121212]">
+            {t('form:jurisdictionTitle', 'Will Jurisdiction')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6 pb-6 px-6">
+          <p className="text-[14px] text-[#333333] mb-6">
+            {t('form:jurisdictionDescription', 'Choose which emirate this Will is being drafted for. The legal template differs between Abu Dhabi and Dubai.')}
+          </p>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="jurisdiction-abu-dhabi"
+                checked={jurisdiction === 'abu_dhabi'}
+                onCheckedChange={() => onJurisdictionChange('abu_dhabi')}
+                className="rounded-sm data-[state=checked]:bg-[#0C5536] data-[state=checked]:border-[#0C5536]"
+              />
+              <Label
+                htmlFor="jurisdiction-abu-dhabi"
+                className="text-[14px] text-[#333333] cursor-pointer font-medium"
+              >
+                {t('form:jurisdictionAbuDhabi', 'Abu Dhabi')}
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="jurisdiction-dubai"
+                checked={jurisdiction === 'dubai'}
+                onCheckedChange={() => onJurisdictionChange('dubai')}
+                className="rounded-sm data-[state=checked]:bg-[#0C5536] data-[state=checked]:border-[#0C5536]"
+              />
+              <Label
+                htmlFor="jurisdiction-dubai"
+                className="text-[14px] text-[#333333] cursor-pointer font-medium"
+              >
+                {t('form:jurisdictionDubai', 'Dubai')}
+              </Label>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

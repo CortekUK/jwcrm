@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { full_name, email, phone, company_name, source_id, notes } = body;
+    const { full_name, email, phone, company_name, source_id, notes, lead_type } = body;
 
     // Validate required fields
     if (!full_name || !email) {
@@ -85,62 +85,69 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Auto-assignment logic
+    // Auto-assignment logic. Prefer salespeople linked to the lead's source;
+    // if the source has none (or there is no source), fall back to ALL
+    // salespeople so a new lead is never left unassigned.
     let assignedTo: string | null = null;
     let assignedAt: string | null = null;
 
-    if (source_id) {
-      // Get salespeople assigned to this source
-      const { data: assignments, error: assignError } = await supabaseAdmin
-        .from("source_salesperson_assignments")
-        .select("salesperson_id")
-        .eq("source_id", source_id);
+    {
+      let salespersonIds: string[] = [];
 
-      if (!assignError && assignments && assignments.length > 0) {
-        const salespersonIds = assignments.map((a) => a.salesperson_id);
+      if (source_id) {
+        const { data: assignments } = await supabaseAdmin
+          .from("source_salesperson_assignments")
+          .select("salesperson_id")
+          .eq("source_id", source_id);
+        salespersonIds = (assignments || []).map((a) => a.salesperson_id);
+      }
 
-        if (salespersonIds.length === 1) {
-          // Only one salesperson - assign directly
-          assignedTo = salespersonIds[0];
-        } else {
-          // Multiple salespeople - round-robin by workload (least assigned leads)
-          const { data: leadCounts, error: countError } = await supabaseAdmin
-            .from("leads")
-            .select("assigned_to")
-            .in("assigned_to", salespersonIds)
-            .not("assigned_to", "is", null);
+      if (salespersonIds.length === 0) {
+        // Fallback: every user with the salesperson role.
+        const { data: roleRows } = await supabaseAdmin
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "salesperson");
+        salespersonIds = (roleRows || []).map((r) => r.user_id);
+      }
 
-          if (!countError) {
-            // Count leads per salesperson
-            const countMap: Record<string, number> = {};
-            salespersonIds.forEach((id) => {
-              countMap[id] = 0;
-            });
-            leadCounts?.forEach((lead) => {
-              if (lead.assigned_to) {
-                countMap[lead.assigned_to] = (countMap[lead.assigned_to] || 0) + 1;
-              }
-            });
+      if (salespersonIds.length === 1) {
+        assignedTo = salespersonIds[0];
+      } else if (salespersonIds.length > 1) {
+        // Round-robin by workload (least assigned leads).
+        const { data: leadCounts, error: countError } = await supabaseAdmin
+          .from("leads")
+          .select("assigned_to")
+          .in("assigned_to", salespersonIds)
+          .not("assigned_to", "is", null);
 
-            // Find salesperson with fewest leads
-            let minCount = Infinity;
-            let selectedSalesperson = salespersonIds[0];
-            for (const id of salespersonIds) {
-              if (countMap[id] < minCount) {
-                minCount = countMap[id];
-                selectedSalesperson = id;
-              }
+        if (!countError) {
+          const countMap: Record<string, number> = {};
+          salespersonIds.forEach((id) => {
+            countMap[id] = 0;
+          });
+          leadCounts?.forEach((lead) => {
+            if (lead.assigned_to) {
+              countMap[lead.assigned_to] = (countMap[lead.assigned_to] || 0) + 1;
             }
-            assignedTo = selectedSalesperson;
-          } else {
-            // If count fails, just assign to first salesperson
-            assignedTo = salespersonIds[0];
-          }
-        }
+          });
 
-        if (assignedTo) {
-          assignedAt = new Date().toISOString();
+          let minCount = Infinity;
+          let selectedSalesperson = salespersonIds[0];
+          for (const id of salespersonIds) {
+            if (countMap[id] < minCount) {
+              minCount = countMap[id];
+              selectedSalesperson = id;
+            }
+          }
+          assignedTo = selectedSalesperson;
+        } else {
+          assignedTo = salespersonIds[0];
         }
+      }
+
+      if (assignedTo) {
+        assignedAt = new Date().toISOString();
       }
     }
 
@@ -152,6 +159,7 @@ export async function POST(request: NextRequest) {
         email,
         phone: phone || null,
         company_name: company_name || null,
+        lead_type: lead_type === "corporate" ? "corporate" : "individual",
         source_id: source_id || null,
         source: null,
         notes: notes || null,
@@ -166,6 +174,21 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (createError) throw createError;
+
+    // Mirror the primary assignment into lead_assignments (multi-assignee table)
+    if (lead.assigned_to) {
+      await supabaseAdmin
+        .from("lead_assignments")
+        .upsert(
+          {
+            lead_id: lead.id,
+            salesperson_id: lead.assigned_to,
+            is_primary: true,
+            assigned_at: assignedAt || new Date().toISOString(),
+          },
+          { onConflict: "lead_id,salesperson_id" }
+        );
+    }
 
     // Fetch assigned user profile if assigned
     let leadWithProfile = lead;

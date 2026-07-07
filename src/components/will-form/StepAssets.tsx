@@ -113,6 +113,24 @@ export function StepAssets({ data, onChange, errors = {}, beneficiaries = [], wi
     onChange(updated);
   };
 
+  // Toggle a beneficiary on an asset's multi-select. Keeps the legacy
+  // `beneficiary_name` in sync as a comma-joined string for downstream
+  // display (PDF) and validation, while `beneficiary_names` holds the array.
+  const toggleAssetBeneficiary = (asset: Asset, name: string) => {
+    const current =
+      asset.beneficiary_names ??
+      (asset.beneficiary_name ? [asset.beneficiary_name] : []);
+    const next = current.includes(name)
+      ? current.filter((n) => n !== name)
+      : [...current, name];
+    const updated = data.map((a) =>
+      a === asset
+        ? { ...a, beneficiary_names: next, beneficiary_name: next.join(', ') }
+        : a
+    );
+    onChange(updated);
+  };
+
   // General Beneficiary handlers
   const handleAddGeneralBeneficiary = () => {
     setEditingBeneficiary(null);
@@ -482,26 +500,34 @@ export function StepAssets({ data, onChange, errors = {}, beneficiaries = [], wi
                   )}
                 </div>
 
-                {/* Beneficiary Linking */}
+                {/* Beneficiary Linking (multi-select) */}
                 {beneficiaries.length > 0 && (
                   <div>
-                    <Label htmlFor={`asset_beneficiary_${index}`}>{t("linkedBeneficiaryLabel")}</Label>
-                    <Select
-                      value={asset.beneficiary_name || 'none'}
-                      onValueChange={(value) => updateAsset(asset, 'beneficiary_name', value === 'none' ? '' : value)}
-                    >
-                      <SelectTrigger id={`asset_beneficiary_${index}`}>
-                        <SelectValue placeholder={t("selectBeneficiary")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">{t("noBeneficiaryLinked")}</SelectItem>
-                        {beneficiaries.filter(b => b.name && b.name.trim()).map((beneficiary, idx) => (
-                          <SelectItem key={idx} value={beneficiary.name}>
-                            {beneficiary.name} {beneficiary.relationship ? `(${beneficiary.relationship})` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>{t("linkedBeneficiaryLabel")}</Label>
+                    <div className="mt-1 space-y-2 rounded-md border p-3">
+                      {beneficiaries.filter(b => b.name && b.name.trim()).map((beneficiary, idx) => {
+                        const selectedNames =
+                          asset.beneficiary_names ??
+                          (asset.beneficiary_name ? [asset.beneficiary_name] : []);
+                        const checked = selectedNames.includes(beneficiary.name);
+                        return (
+                          <label
+                            key={idx}
+                            htmlFor={`asset_${index}_beneficiary_${idx}`}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <Checkbox
+                              id={`asset_${index}_beneficiary_${idx}`}
+                              checked={checked}
+                              onCheckedChange={() => toggleAssetBeneficiary(asset, beneficiary.name)}
+                            />
+                            <span className="text-sm">
+                              {beneficiary.name} {beneficiary.relationship ? `(${beneficiary.relationship})` : ''}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       {t("beneficiaryLinkHelper")}
                     </p>

@@ -145,6 +145,7 @@ export default function LeadsPage() {
     email: string;
     phone?: string;
     company_name?: string;
+    lead_type?: "individual" | "corporate";
     source_id?: string;
     notes?: string;
   }) => {
@@ -182,6 +183,7 @@ export default function LeadsPage() {
       email: string;
       phone?: string;
       company_name?: string;
+      lead_type?: "individual" | "corporate";
       source?: string;
       notes?: string;
       status: LeadStatus;
@@ -195,6 +197,7 @@ export default function LeadsPage() {
           email: data.email,
           phone: data.phone || null,
           company_name: data.company_name || null,
+          lead_type: data.lead_type === "corporate" ? "corporate" : "individual",
           source: data.source || null,
           notes: data.notes || null,
           status: data.status,

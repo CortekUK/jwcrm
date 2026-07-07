@@ -279,10 +279,12 @@
   "date": "التاريخ",
   "recipient": "المستلم",
   "subject": "الموضوع",
-  "status": "الحالة",
+  "statusLabel": "الحالة",
   "sent": "تم الإرسال",
   "failed": "فشل",
   "skipped": "تم تخطيه",
+
+  "exportButton": "تصدير",
 
   "export": {
     "title": "تصدير تقرير الحضور",
@@ -369,6 +371,7 @@
     "total": "الإجمالي",
     "readOnlyDateTooOld": "للقراءة فقط - تاريخ قديم",
     "approvedLeave": "إجازة موافق عليها",
+    "notMarked": "غير مُسجَّل",
     "reasonOptional": "السبب (اختياري)",
     "noActiveEmployees": "لم يتم العثور على موظفين نشطين",
     "notStartedYet": "يبدأ {{date}}",
@@ -566,8 +569,8 @@
 
   "attendanceWidget": {
     "todaysAttendance": "حضور اليوم",
-    "attendanceNotMarkedYet": "لم يتم تسجيل الحضور بعد",
-    "markAttendanceHint": "سجل الحضور لبدء تتبع القوى العاملة اليوم",
+    "attendanceNotMarkedYet": "لم يتم تسجيل أي دخول اليوم بعد",
+    "markAttendanceHint": "يُسجَّل الحضور تلقائيًا عند تسجيل الموظفين للدخول. لا يزال بإمكانك تعديله يدويًا عند الحاجة.",
     "markAttendance": "تسجيل الحضور",
     "viewEditAttendance": "عرض/تعديل الحضور",
     "needsAttention": "يحتاج اهتمام",

@@ -33,4 +33,41 @@ export const companyDetails = {
     "AUH - Will – AED 1500 Per person/document.",
     "POA – DXB – AED 1000 Per person/document.",
   ],
+
+  // Default point of contact shown on client-facing emails when no account
+  // manager is assigned to the lead.
+  defaultContactName: "Katelyn",
+
+  // "What to Expect" process timeline shown at the end of the proposal email.
+  processTimeline: [
+    {
+      title: "Drafting",
+      detail:
+        "Begins once we receive your form(s) and supporting documents. We will work with you until you're completely satisfied with the draft.",
+    },
+    {
+      title: "Arabic Translation",
+      detail:
+        "Once the English draft is approved, we prepare the Arabic version. (Takes 3–5 working days)",
+    },
+    {
+      title: "Legalization",
+      detail:
+        "We submit the documents for legalization. (This takes approximately 7 working days)",
+    },
+    {
+      title: "Signatures",
+      detail: "You will be invited to sign your finalized Will(s).",
+    },
+    {
+      title: "Court Approval",
+      detail:
+        "Once signed, we submit your documents to court for approval. (Typically 7 working days)",
+    },
+    {
+      title: "Notary Appointment",
+      detail:
+        "A final appointment with the judge will be scheduled based on the judge's availability. Please note this can be quite far in advance as the courts are extremely busy.",
+    },
+  ],
 };

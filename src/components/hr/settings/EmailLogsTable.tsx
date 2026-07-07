@@ -414,7 +414,7 @@ export function EmailLogsTable() {
               }}
             >
               <SelectTrigger className="border-[#E6E6E4]">
-                <SelectValue placeholder={t("hr:status", "Status")} />
+                <SelectValue placeholder={t("hr:statusLabel", "Status")} />
               </SelectTrigger>
               <SelectContent>
                 {STATUSES.map((status) => (
@@ -518,7 +518,7 @@ export function EmailLogsTable() {
                       <TableHead className="font-semibold text-[#222222]">{t("hr:type", "Type")}</TableHead>
                       <TableHead className="font-semibold text-[#222222]">{t("hr:recipient")}</TableHead>
                       <TableHead className="font-semibold text-[#222222]">{t("hr:subject")}</TableHead>
-                      <TableHead className="font-semibold text-[#222222]">{t("hr:status")}</TableHead>
+                      <TableHead className="font-semibold text-[#222222]">{t("hr:statusLabel")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

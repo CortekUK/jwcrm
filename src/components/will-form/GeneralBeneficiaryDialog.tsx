@@ -38,10 +38,17 @@ const RELATIONSHIP_OPTIONS = [
   { value: "Parent", labelKey: "parent" },
   { value: "Sibling", labelKey: "sibling" },
   { value: "Grandchild", labelKey: "grandchild" },
+  { value: "Niece", labelKey: "niece" },
+  { value: "Nephew", labelKey: "nephew" },
+  { value: "In-law", labelKey: "inLaw" },
   { value: "Friend", labelKey: "friend" },
   { value: "Charity", labelKey: "charity" },
   { value: "Other", labelKey: "other" },
 ];
+
+const KNOWN_RELATIONSHIP_VALUES = RELATIONSHIP_OPTIONS
+  .filter((o) => o.value !== "Other")
+  .map((o) => o.value);
 
 export function GeneralBeneficiaryDialog({
   open,
@@ -63,9 +70,12 @@ export function GeneralBeneficiaryDialog({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // null = derive "Other" from the saved value; true/false = user override.
+  const [otherRelationMode, setOtherRelationMode] = useState<boolean | null>(null);
 
   // Load editing beneficiary data when dialog opens
   useEffect(() => {
+    setOtherRelationMode(null);
     if (editingBeneficiary) {
       setFormData(editingBeneficiary);
     } else {
@@ -157,29 +167,58 @@ export function GeneralBeneficiaryDialog({
             <Label htmlFor="general-beneficiary-relationship">
               {t("form:generalBeneficiaryRelation")} *
             </Label>
-            <Select
-              value={formData.relationship}
-              onValueChange={(value) =>
-                setFormData({ ...formData, relationship: value })
-              }
-            >
-              <SelectTrigger
-                id="general-beneficiary-relationship"
-                className={cn(
-                  errors.relationship ? "border-destructive" : "",
-                  isRtl && "text-right"
-                )}
-              >
-                <SelectValue placeholder={t("form:selectRelationship")} />
-              </SelectTrigger>
-              <SelectContent className={cn(isRtl && "text-right")}>
-                {RELATIONSHIP_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {t(`form:${option.labelKey}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {(() => {
+              const rel = formData.relationship || "";
+              const isOther =
+                otherRelationMode ??
+                (rel !== "" && !KNOWN_RELATIONSHIP_VALUES.includes(rel));
+              return (
+                <>
+                  <Select
+                    value={isOther ? "Other" : rel}
+                    onValueChange={(value) => {
+                      if (value === "Other") {
+                        setOtherRelationMode(true);
+                        setFormData({ ...formData, relationship: "" });
+                      } else {
+                        setOtherRelationMode(false);
+                        setFormData({ ...formData, relationship: value });
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      id="general-beneficiary-relationship"
+                      className={cn(
+                        errors.relationship ? "border-destructive" : "",
+                        isRtl && "text-right"
+                      )}
+                    >
+                      <SelectValue placeholder={t("form:selectRelationship")} />
+                    </SelectTrigger>
+                    <SelectContent className={cn(isRtl && "text-right")}>
+                      {RELATIONSHIP_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {t(`form:${option.labelKey}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {isOther && (
+                    <Input
+                      className={cn("mt-2", isRtl && "text-right")}
+                      placeholder={t("form:specifyRelation")}
+                      value={rel}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          relationship: e.target.value,
+                        })
+                      }
+                    />
+                  )}
+                </>
+              );
+            })()}
             {errors.relationship && (
               <div className="flex items-center gap-1 mt-1">
                 <AlertCircle className="w-4 h-4 text-destructive" />

@@ -169,7 +169,7 @@ export function AssetDocumentUpload({
 
   return (
     <div className="space-y-3">
-      <Label>{t("assetDocumentsLabel")} ({t("optional")})</Label>
+      <Label>{t("assetDocumentsLabel")} <span className="text-[#C0392B]">*</span></Label>
 
       {/* Upload Section */}
       <div className="border-2 border-dashed border-border rounded-lg p-4">

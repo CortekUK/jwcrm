@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import justWillsLogo from "@/assets/justwills.png";
 import { companyDetails } from "@/config/company";
 import { formatDocumentDate } from "@/lib/format-utils";
+import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 
 export type InvoicePDFData = {
   invoiceNumber: string;
@@ -18,6 +19,7 @@ export type InvoicePDFData = {
   createdAt: string | Date;
   paidAt?: string | Date | null;
   paymentLink?: string | null;
+  lineItems?: InvoiceLineItem[];
 };
 
 type InvoicePDFTemplateProps = {
@@ -52,7 +54,8 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
       paymentLink,
     } = data;
 
-    const subtotal = amount;
+    const items = normalizeLineItems(data.lineItems, amount);
+    const subtotal = lineItemsSubtotal(items);
     const vat = subtotal * (companyDetails.vatRate / 100);
     const total = subtotal + vat;
 
@@ -161,13 +164,15 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
             </tr>
           </thead>
           <tbody>
+            {items.map((item, i) => (
+              <tr key={i}>
+                <td style={{ ...cellPad, border: BORDER, fontWeight: "bold" }}>{item.description}</td>
+                <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>X</td>
+                <td style={{ ...cellPad, border: BORDER, textAlign: "center" }}>{fmt(item.amount)}</td>
+              </tr>
+            ))}
             <tr>
-              <td style={{ ...cellPad, border: BORDER, height: "70px", fontWeight: "bold" }}>Will (UAE)</td>
-              <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>X</td>
-              <td style={{ ...cellPad, border: BORDER, textAlign: "center" }}>{fmt(subtotal)}</td>
-            </tr>
-            <tr>
-              <td style={{ ...cellPad, border: BORDER, height: "70px" }}>
+              <td style={{ ...cellPad, border: BORDER, height: "56px" }}>
                 <span style={{ fontWeight: "bold" }}>Notarization Fee </span>
                 <span style={{ fontStyle: "italic", color: GRAY, fontSize: "11px" }}>
                   (Includes legalization, PRO Services)

@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import { companyDetails } from "@/config/company";
+import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "./invoiceLineItems";
 import fs from "fs";
 import path from "path";
 
@@ -14,6 +15,7 @@ export type InvoiceData = {
   amount: number;
   currency: string;
   description?: string;
+  lineItems?: InvoiceLineItem[];
 };
 
 // Grayscale palette to match the official JW Legal Consultants tax invoice
@@ -57,8 +59,9 @@ export function generateInvoicePDF(data: InvoiceData): string {
     doc.rect(x, y, w, h, "S");
   };
 
-  // ----- totals -----
-  const subtotal = data.amount;
+  // ----- line items + totals -----
+  const items = normalizeLineItems(data.lineItems, data.amount);
+  const subtotal = lineItemsSubtotal(items);
   const vatAmount = subtotal * (companyDetails.vatRate / 100);
   const total = subtotal + vatAmount;
 
@@ -190,46 +193,54 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.text("COST", costMid, tableY + 6, { align: "center" });
   doc.text("NET PRICE AED", priceMid, tableY + 6, { align: "center" });
 
-  // Row 1 — Will (UAE)
-  const row1Y = tableY + thH;
-  const row1H = 30;
-  box(colDescX, row1Y, descW, row1H);
-  box(colCostX, row1Y, costW, row1H);
-  box(colPriceX, row1Y, priceW, row1H);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("Will (UAE)", colDescX + 4, row1Y + 9);
-  doc.text("X", costMid, row1Y + 9, { align: "center" });
-  doc.setFont("helvetica", "normal");
-  doc.text(fmt(subtotal), priceMid, row1Y + 9, { align: "center" });
+  // Itemised rows (one per line item), then a Notarization Fee note row
+  const itemRowH = 11;
+  let rowY = tableY + thH;
+  items.forEach((item) => {
+    box(colDescX, rowY, descW, itemRowH);
+    box(colCostX, rowY, costW, itemRowH);
+    box(colPriceX, rowY, priceW, itemRowH);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...TEXT);
+    doc.text(
+      doc.splitTextToSize(item.description, descW - 8)[0],
+      colDescX + 4,
+      rowY + 7
+    );
+    doc.text("X", costMid, rowY + 7, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.text(fmt(item.amount), priceMid, rowY + 7, { align: "center" });
+    rowY += itemRowH;
+  });
 
-  // Row 2 — Notarization Fee (informational)
-  const row2Y = row1Y + row1H;
-  const row2H = 30;
-  box(colDescX, row2Y, descW, row2H);
-  box(colCostX, row2Y, costW, row2H);
-  box(colPriceX, row2Y, priceW, row2H);
+  // Notarization Fee (informational — no price)
+  const noteH = 26;
+  box(colDescX, rowY, descW, noteH);
+  box(colCostX, rowY, costW, noteH);
+  box(colPriceX, rowY, priceW, noteH);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
-  doc.text("Notarization Fee", colDescX + 4, row2Y + 8);
+  doc.setTextColor(...TEXT);
+  doc.text("Notarization Fee", colDescX + 4, rowY + 8);
   doc.setFont("helvetica", "italic");
   doc.setFontSize(8.5);
   doc.setTextColor(...GRAY);
-  doc.text("(Includes legalization, PRO Services)", colDescX + 38, row2Y + 8);
+  doc.text("(Includes legalization, PRO Services)", colDescX + 38, rowY + 8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...TEXT);
-  let ny = row2Y + 14;
+  let ny = rowY + 14;
   companyDetails.notarizationNote.forEach((line) => {
     doc.text(line, colDescX + 4, ny);
     ny += 5;
   });
   doc.setFont("helvetica", "bold");
-  doc.text("X", costMid, row2Y + 9, { align: "center" });
+  doc.text("X", costMid, rowY + 9, { align: "center" });
 
   // =========================================================================
   // BANK DETAILS + TOTALS
   // =========================================================================
-  const lowerY = row2Y + row2H; // start of bank box / totals
+  const lowerY = rowY + noteH; // start of bank box / totals
   const bankW = descW; // left block under description column
   const totLabelX = colCostX;
   const totLabelW = costW;

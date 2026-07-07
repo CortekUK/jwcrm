@@ -618,6 +618,7 @@ export type Database = {
           full_name: string
           id: string
           is_paid: boolean | null
+          lead_type: string
           notes: string | null
           paid_amount: number | null
           paid_at: string | null
@@ -638,6 +639,7 @@ export type Database = {
           full_name: string
           id?: string
           is_paid?: boolean | null
+          lead_type?: string
           notes?: string | null
           paid_amount?: number | null
           paid_at?: string | null
@@ -658,6 +660,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_paid?: boolean | null
+          lead_type?: string
           notes?: string | null
           paid_amount?: number | null
           paid_at?: string | null
