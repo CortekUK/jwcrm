@@ -48,7 +48,16 @@
       "Bash(sed -i '' 's/isFriday, isSaturday/isSaturday, isSunday/' \"src/app/\\(hr\\)/hr/leave/page.tsx\")",
       "Bash(sed -i '' 's/^\\\\\\( *\\\\\\)isFriday,$/\\\\1isSunday,/' \"src/app/\\(hr\\)/hr/leave/calendar/page.tsx\" \"src/components/hr/attendance/AttendanceCalendar.tsx\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); us=d.get\\('users',d if isinstance\\(d,list\\) else []\\); [print\\(u.get\\('id'\\), u.get\\('email'\\)\\) for u in us if 'justwills.com' in \\(u.get\\('email'\\) or ''\\)]\")",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d,indent=2\\)[:400]\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d,indent=2\\)[:400]\\)\")",
+      "Bash(pnpm --version)",
+      "Bash(npx --yes pnpm@10 install --lockfile-only)",
+      "Bash(npx --yes pnpm@10 install --frozen-lockfile --lockfile-only)",
+      "Bash(git add *)",
+      "Bash(git check-ignore *)",
+      "Bash(git status *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(xargs kill -9)"
     ]
   },
   "enableAllProjectMcpServers": true,

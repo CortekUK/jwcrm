@@ -13,6 +13,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, CheckCircle2 } from "lucide-react";
+import justWillsLogo from "@/assets/justwills.png";
+
+const logoSrc = (justWillsLogo as unknown as { src: string }).src;
 
 export default function IntakePage() {
   const [form, setForm] = useState({
@@ -55,6 +58,9 @@ export default function IntakePage() {
     <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-[#0C5536] rounded-t-xl px-6 py-6 text-center">
+          <div className="mx-auto mb-3 inline-flex items-center justify-center rounded-lg bg-white px-4 py-2">
+            <img src={logoSrc} alt="Just Wills" className="h-9 w-auto" />
+          </div>
           <h1 className="text-[#C6A03B] text-2xl font-bold">JW Legal Consultants</h1>
           <p className="text-[#E6E6E4] text-sm mt-1">Enquiry Form</p>
         </div>
