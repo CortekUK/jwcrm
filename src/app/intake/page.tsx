@@ -31,14 +31,24 @@ export default function IntakePage() {
   const [error, setError] = useState<string | null>(null);
 
   // This public form is always light — ignore the visitor's OS/app dark theme.
+  // next-themes keeps re-adding `.dark` to <html> (its pre-hydration script +
+  // provider effect), and globals.css has `.dark .bg-white { ... !important }`
+  // overrides that darken everything. So we actively strip `.dark` whenever it
+  // reappears, and restore it on unmount.
   useEffect(() => {
     const root = document.documentElement;
     const hadDark = root.classList.contains("dark");
-    root.classList.remove("dark");
-    root.style.colorScheme = "light";
+    const forceLight = () => {
+      if (root.classList.contains("dark")) root.classList.remove("dark");
+      root.style.colorScheme = "light";
+    };
+    forceLight();
+    const observer = new MutationObserver(forceLight);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
     return () => {
-      if (hadDark) root.classList.add("dark");
+      observer.disconnect();
       root.style.colorScheme = "";
+      if (hadDark) root.classList.add("dark");
     };
   }, []);
 
