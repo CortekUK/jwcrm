@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +30,18 @@ export default function IntakePage() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // This public form is always light — ignore the visitor's OS/app dark theme.
+  useEffect(() => {
+    const root = document.documentElement;
+    const hadDark = root.classList.contains("dark");
+    root.classList.remove("dark");
+    root.style.colorScheme = "light";
+    return () => {
+      if (hadDark) root.classList.add("dark");
+      root.style.colorScheme = "";
+    };
+  }, []);
+
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async (e: React.FormEvent) => {
@@ -57,12 +69,11 @@ export default function IntakePage() {
   return (
     <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-[#0C5536] rounded-t-xl px-6 py-6 text-center">
-          <div className="mx-auto mb-3 inline-flex items-center justify-center rounded-lg bg-white px-4 py-2">
-            <img src={logoSrc} alt="Just Wills" className="h-9 w-auto" />
+        <div className="bg-[#0C5536] rounded-t-xl px-6 py-8 text-center">
+          <div className="mx-auto mb-4 inline-flex items-center justify-center rounded-xl bg-white px-6 py-4">
+            <img src={logoSrc} alt="Just Wills" className="h-20 w-auto" />
           </div>
-          <h1 className="text-[#C6A03B] text-2xl font-bold">JW Legal Consultants</h1>
-          <p className="text-[#E6E6E4] text-sm mt-1">Enquiry Form</p>
+          <p className="text-[#E6E6E4] text-sm">Enquiry Form</p>
         </div>
 
         <div className="bg-white rounded-b-xl border border-t-0 border-[#E6E6E4] p-6 shadow-sm">
