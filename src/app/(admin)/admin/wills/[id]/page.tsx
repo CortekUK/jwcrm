@@ -352,6 +352,7 @@ export default function AdminWillDetail() {
         id: string;
         version_number: number;
         pdf_path: string;
+        docx_path: string | null;
         created_at: string;
       }>;
     },
@@ -361,6 +362,13 @@ export default function AdminWillDetail() {
     const { data } = await supabase.storage
       .from("wills")
       .createSignedUrl(pdfPath, 600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+  };
+
+  const downloadVersionDocx = async (docxPath: string) => {
+    const { data } = await supabase.storage
+      .from("wills")
+      .createSignedUrl(docxPath, 600, { download: true });
     if (data?.signedUrl) window.open(data.signedUrl, "_blank");
   };
 
@@ -1486,6 +1494,51 @@ export default function AdminWillDetail() {
                   )}
                   {t('admin:generateDraft', 'Generate Draft')}
                 </Button>
+                <p className="mt-1.5 text-[11px] text-[#999999]">
+                  {t('admin:generateDraftProducesBoth', 'Produces both a PDF and an editable Word draft.')}
+                </p>
+                {(will as any)?.docx_path && (
+                  <button
+                    type="button"
+                    onClick={() => downloadVersionDocx((will as any).docx_path)}
+                    className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-[#EAEAE8] h-8 text-xs font-medium text-[hsl(var(--jw-primary-green))] hover:bg-[rgba(12,85,54,0.06)]"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    {t('admin:downloadWordDraft', 'Download Word draft (.docx)')}
+                  </button>
+                )}
+
+                {/* After editing the Word draft, export it to PDF and upload the
+                    revised version right here — no need to scroll down to the
+                    document card below. */}
+                <div className="relative mt-2">
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handlePdfUpload}
+                    disabled={uploadingPdf || generatingDraft}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                    id="quick-actions-pdf-upload-input"
+                  />
+                  <Button
+                    variant="outline"
+                    disabled={uploadingPdf || generatingDraft}
+                    className="w-full h-9 border-[#CBDCEF] text-[#2A5C8A] hover:bg-[rgba(42,92,138,0.08)]"
+                    asChild
+                  >
+                    <label htmlFor="quick-actions-pdf-upload-input" className="cursor-pointer">
+                      {uploadingPdf ? (
+                        <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                      )}
+                      {t('admin:uploadRevisedPdf', 'Upload revised PDF')}
+                    </label>
+                  </Button>
+                </div>
+                <p className="mt-1.5 text-[11px] text-[#999999]">
+                  {t('admin:uploadRevisedPdfHint', 'After editing the Word draft, export it to PDF and upload it here to add a new version.')}
+                </p>
               </div>
 
               {/* Reviewer checkpoint info (Freya's review before release) */}
@@ -1512,22 +1565,51 @@ export default function AdminWillDetail() {
                   <div className="font-semibold text-[hsl(var(--jw-primary-green))] mb-2">
                     {t('admin:versionHistory', 'Draft Version History')}
                   </div>
-                  <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-col divide-y divide-[#F0F0EE]">
                     {docVersions.map((v) => (
-                      <button
+                      <div
                         key={v.id}
-                        type="button"
-                        onClick={() => openVersionPdf(v.pdf_path)}
-                        className="flex items-center justify-between gap-2 text-left hover:text-[hsl(var(--jw-primary-green))]"
+                        className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"
                       >
-                        <span className="flex items-center gap-1.5">
-                          <FileText className="h-3.5 w-3.5" />
-                          {t('admin:versionLabel', { defaultValue: 'v{{n}}', n: v.version_number })}
-                        </span>
-                        <span className="text-[#999999]">
-                          {format(new Date(v.created_at), "MMM d, yyyy h:mm a")}
-                        </span>
-                      </button>
+                        <div className="flex flex-col leading-tight">
+                          <span className="text-[13px] font-medium text-[#333333]">
+                            {t('admin:versionLabel', { defaultValue: 'v{{n}}', n: v.version_number })}
+                          </span>
+                          <span className="text-[10px] text-[#999999]">
+                            {format(new Date(v.created_at), "MMM d, yyyy h:mm a")}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openVersionPdf(v.pdf_path)}
+                            title={t('admin:downloadPdfDraft', 'Open PDF')}
+                            className="flex items-center gap-1 rounded-full border border-[#DCE5DF] bg-[#F1F7F4] px-2.5 py-1 text-[11px] font-medium text-[hsl(var(--jw-primary-green))] transition-colors hover:bg-[rgba(12,85,54,0.1)]"
+                          >
+                            <FileText className="h-3 w-3" />
+                            PDF
+                          </button>
+                          {v.docx_path ? (
+                            <button
+                              type="button"
+                              onClick={() => downloadVersionDocx(v.docx_path!)}
+                              title={t('admin:downloadWordDraft', 'Download Word draft (.docx)')}
+                              className="flex items-center gap-1 rounded-full border border-[#CBDCEF] bg-[#EEF4FB] px-2.5 py-1 text-[11px] font-medium text-[#2A5C8A] transition-colors hover:bg-[rgba(42,92,138,0.12)]"
+                            >
+                              <FileText className="h-3 w-3" />
+                              Word
+                            </button>
+                          ) : (
+                            <span
+                              title={t('admin:noWordDraft', 'No Word draft for this version')}
+                              className="flex cursor-default items-center gap-1 rounded-full border border-[#EEEEEC] px-2.5 py-1 text-[11px] text-[#C4C4C0]"
+                            >
+                              <FileText className="h-3 w-3" />
+                              Word
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>

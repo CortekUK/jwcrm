@@ -1103,6 +1103,7 @@ export type Database = {
           client_approval_status: string | null
           client_approval_subject: string | null
           created_at: string
+          docx_path: string | null
           id: string
           pdf_generated_at: string | null
           pdf_language: string | null
@@ -1127,6 +1128,7 @@ export type Database = {
           client_approval_status?: string | null
           client_approval_subject?: string | null
           created_at?: string
+          docx_path?: string | null
           id?: string
           pdf_generated_at?: string | null
           pdf_language?: string | null
@@ -1151,6 +1153,7 @@ export type Database = {
           client_approval_status?: string | null
           client_approval_subject?: string | null
           created_at?: string
+          docx_path?: string | null
           id?: string
           pdf_generated_at?: string | null
           pdf_language?: string | null
