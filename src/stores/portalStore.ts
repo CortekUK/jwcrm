@@ -29,7 +29,6 @@ export interface PortalActivityEvent {
   new_status: WillStatus;
   previous_status: WillStatus | null;
   changed_at: string;
-  notes: string | null;
   will_id?: string;
 }
 
@@ -137,7 +136,7 @@ export const usePortalStore = create<PortalState>((set, get) => ({
         const willIds = userWillsResult.data.map(w => w.id);
         const { data: activityData } = await supabase
           .from('will_status_events')
-          .select('id, new_status, previous_status, changed_at, notes, will_id')
+          .select('id, new_status, previous_status, changed_at, will_id')
           .in('will_id', willIds)
           .order('changed_at', { ascending: false })
           .limit(5);

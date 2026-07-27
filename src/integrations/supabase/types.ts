@@ -1057,6 +1057,7 @@ export type Database = {
           actor_user_id: string
           changed_at: string
           id: string
+          is_internal: boolean
           new_status: Database["public"]["Enums"]["will_status"]
           notes: string | null
           previous_status: Database["public"]["Enums"]["will_status"] | null
@@ -1066,6 +1067,7 @@ export type Database = {
           actor_user_id: string
           changed_at?: string
           id?: string
+          is_internal?: boolean
           new_status: Database["public"]["Enums"]["will_status"]
           notes?: string | null
           previous_status?: Database["public"]["Enums"]["will_status"] | null
@@ -1075,6 +1077,7 @@ export type Database = {
           actor_user_id?: string
           changed_at?: string
           id?: string
+          is_internal?: boolean
           new_status?: Database["public"]["Enums"]["will_status"]
           notes?: string | null
           previous_status?: Database["public"]["Enums"]["will_status"] | null

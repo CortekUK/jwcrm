@@ -624,7 +624,9 @@ export default function AdminWillDetail() {
         throw new Error("Note cannot be empty");
       }
 
-      // Insert note as a status event (same status, just a note)
+      // Insert note as a status event (same status, just a note).
+      // is_internal: true — this is the staff-only Activity Notes box and
+      // must never surface on the client portal.
       const { error: eventError } = await supabase
         .from("will_status_events")
         .insert({
@@ -633,6 +635,7 @@ export default function AdminWillDetail() {
           new_status: will.status, // Same status
           actor_user_id: user.id,
           notes: noteText.trim(),
+          is_internal: true,
         });
 
       if (eventError) throw eventError;

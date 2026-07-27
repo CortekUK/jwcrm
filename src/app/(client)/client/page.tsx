@@ -41,7 +41,6 @@ interface ActivityEvent {
   new_status: string;
   previous_status: string | null;
   changed_at: string;
-  notes: string | null;
   will_id: string;
 }
 
@@ -129,7 +128,7 @@ export default function ClientDashboard() {
 
           const { data: activityData, error: activityError } = await supabase
             .from('will_status_events')
-            .select('id, new_status, previous_status, changed_at, notes, will_id')
+            .select('id, new_status, previous_status, changed_at, will_id')
             .in('will_id', willIds)
             .order('changed_at', { ascending: false })
             .limit(5);
@@ -447,9 +446,6 @@ export default function ClientDashboard() {
                       <p className="text-sm font-medium text-foreground">
                         {t('statusChangedTo')}: <span className="text-accent">{eventStatusConfig?.timelineLabel ? t(eventStatusConfig.timelineLabel) : event.new_status}</span>
                       </p>
-                      {event.notes && (
-                        <p className="text-sm text-muted-foreground">{event.notes}</p>
-                      )}
                       <p className="text-xs text-muted-foreground">
                         {new Date(event.changed_at).toLocaleDateString(isRtl ? 'ar-SA' : 'en-US', {
                           year: 'numeric',
