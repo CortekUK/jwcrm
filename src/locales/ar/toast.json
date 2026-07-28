@@ -3,7 +3,6 @@
   "success": "نجح",
   "error": "خطأ",
   "warning": "تحذير",
-
   "admin": {
     "userCreatedSuccess": "تم إنشاء {{role}} بنجاح",
     "accountCreatedFor": "تم إنشاء حساب لـ {{name}}",
@@ -11,7 +10,6 @@
     "couldNotCreateAccount": "تعذر إنشاء حساب العميل",
     "copiedToClipboard": "تم النسخ إلى الحافظة",
     "credentialsCopied": "تم نسخ بيانات اعتماد العميل",
-
     "errorLoadingDashboard": "فشل تحميل بيانات لوحة الإدارة",
     "errorLoadingUsers": "فشل تحميل المستخدمين",
     "userActivated": "تم تفعيل المستخدم بنجاح",
@@ -19,68 +17,19 @@
     "errorUpdatingUserStatus": "فشل تحديث حالة المستخدم",
     "userDeleted": "تم حذف المستخدم بنجاح",
     "errorDeletingUser": "فشل حذف المستخدم",
-
     "statusUpdated": "تم تحديث الحالة",
     "willStatusUpdated": "تم تحديث حالة الوصية بنجاح",
     "statusUpdateError": "فشل تحديث الحالة",
     "failedToDownloadPdf": "فشل تنزيل ملف PDF",
-
     "noExecutorsFound": "لم يتم العثور على منفذين",
     "noExecutorsDescription": "لا يوجد منفذون للاتصال بهم",
     "emailSentSuccess": "تم إرسال البريد الإلكتروني بنجاح",
     "notificationSentToAdmin": "تم إرسال إشعار بالبريد الإلكتروني إلى المسؤول",
     "failedToSendEmails": "فشل إرسال رسائل البريد الإلكتروني",
     "couldNotSendNotifications": "تعذر إرسال إشعارات البريد الإلكتروني للمنفذين",
-
     "noteAdded": "تمت إضافة الملاحظة",
     "noteAddedSuccess": "تمت إضافة الملاحظة بنجاح",
-    "failedToAddNote": "فشل في إضافة ملاحظة: {{message}}",
-
-    "updatedSuccessfully": "تم التحديث بنجاح",
-    "changesSaved": "تم حفظ التغييرات",
-    "failedToUpdate": "فشل التحديث: {{message}}",
-
-    "failedToDownloadFile": "فشل تنزيل الملف: {{message}}",
-    "failedToOpenFile": "فشل فتح الملف: {{message}}",
-    "failedToLoadPdf": "فشل تحميل PDF: {{message}}",
-
-    "pdfGenerationStarted": "بدأ إنشاء PDF",
-    "generatingPdf": "جاري إنشاء PDF... قد يستغرق هذا بضع ثوانٍ.",
-    "pdfGeneratedSuccess": "تم إنشاء PDF بنجاح",
-    "pdfReadyAndLoaded": "ملف PDF الجديد جاهز وتم تحميله.",
-    "pdfGenerationInProgress": "إنشاء PDF قيد التقدم",
-    "pdfStillGenerating": "لا يزال يتم إنشاء PDF. قد يستغرق هذا ما يصل إلى دقيقة للوصايا المعقدة.",
-    "failedToRegeneratePdf": "فشل إعادة إنشاء PDF: {{message}}",
-
-    "pleaseUploadPdf": "يرجى تحميل ملف PDF",
-    "watermarkCouldNotBeAdded": "تعذر إضافة العلامة المائية، جاري تحميل PDF الأصلي",
-    "pdfUploadedSuccess": "تم تحميل PDF بنجاح",
-    "draftPdfVisibleToClient": "تم إنشاء مسودة PDF وهي الآن مرئية للعميل.",
-    "failedToUploadPdf": "فشل تحميل PDF: {{message}}",
-
-    "settingUpdated": "تم تحديث الإعداد",
-    "signatureIncluded": "سيتم تضمين التوقيع في PDF",
-    "signatureExcluded": "سيتم استبعاد التوقيع من PDF",
-
-    "savePdfInstructions": "تعليمات حفظ PDF",
-    "usePrintDialogToSave": "يرجى استخدام مربع حوار الطباعة للحفظ بتنسيق PDF. سيكون الملف جاهزًا للتحميل اليدوي.",
-    "generatingPdfWithEngine": "استخدام محرك طباعة المتصفح للحصول على تنسيق مثالي...",
-    "pdfGeneratedAndUploaded": "تم إنشاء وتحميل PDF",
-    "generationFailed": "فشل الإنشاء",
-    "couldNotGeneratePdf": "تعذر إنشاء ملف PDF. يرجى المحاولة مرة أخرى.",
-
-    "noExecutorsFound": "لم يتم العثور على منفذين",
-    "noExecutorsToContact": "لا يوجد منفذون للاتصال بهم",
-    "emailSentSuccessfully": "تم إرسال البريد الإلكتروني بنجاح",
-    "notificationEmailSent": "تم إرسال بريد إلكتروني إعلام إلى المسؤول",
-    "failedToSendEmails": "فشل إرسال رسائل البريد الإلكتروني",
-    "couldNotSendNotificationEmails": "تعذر إرسال رسائل إعلام بالبريد الإلكتروني إلى المنفذين",
-    "noteAdded": "تمت إضافة الملاحظة",
-    "noteAddedSuccessfully": "تمت إضافة الملاحظة بنجاح",
     "failedToAddNote": "فشل إضافة الملاحظة: {{error}}",
-    "statusUpdatedSuccess": "تم تحديث الحالة",
-    "willStatusUpdatedSuccessfully": "تم تحديث حالة الوصية بنجاح",
-    "failedToUpdateStatus": "فشل تحديث الحالة: {{error}}",
     "updatedSuccessfully": "تم التحديث بنجاح",
     "changesSaved": "تم حفظ التغييرات",
     "failedToUpdate": "فشل التحديث: {{error}}",
@@ -90,18 +39,38 @@
     "pdfGenerationStarted": "بدأ إنشاء PDF",
     "generatingPdf": "جاري إنشاء PDF... قد يستغرق هذا بضع ثوانٍ.",
     "pdfGeneratedSuccess": "تم إنشاء PDF بنجاح",
-    "newPdfReady": "ملف PDF الجديد جاهز وتم تحميله.",
+    "pdfReadyAndLoaded": "ملف PDF الجديد جاهز وتم تحميله.",
     "pdfGenerationInProgress": "إنشاء PDF قيد التقدم",
-    "pleaseWait": "يرجى الانتظار بينما يتم إنشاء PDF...",
+    "pdfStillGenerating": "لا يزال يتم إنشاء PDF. قد يستغرق هذا ما يصل إلى دقيقة للوصايا المعقدة.",
     "failedToRegeneratePdf": "فشل إعادة إنشاء PDF: {{error}}",
     "pleaseUploadPdf": "يرجى تحميل ملف PDF",
-    "watermarkWarning": "تحذير",
     "watermarkCouldNotBeAdded": "تعذر إضافة العلامة المائية، جاري تحميل PDF الأصلي",
+    "pdfUploadedSuccess": "تم تحميل PDF بنجاح",
+    "draftPdfVisibleToClient": "تم إنشاء مسودة PDF وهي الآن مرئية للعميل.",
+    "failedToUploadPdf": "فشل تحميل PDF: {{error}}",
+    "settingUpdated": "تم تحديث الإعداد",
+    "signatureIncluded": "سيتم تضمين التوقيع في PDF",
+    "signatureExcluded": "سيتم استبعاد التوقيع من PDF",
+    "savePdfInstructions": "تعليمات حفظ PDF",
+    "usePrintDialogToSave": "يرجى استخدام مربع حوار الطباعة للحفظ بتنسيق PDF. سيكون الملف جاهزًا للتحميل اليدوي.",
+    "generatingPdfWithEngine": "استخدام محرك طباعة المتصفح للحصول على تنسيق مثالي...",
+    "pdfGeneratedAndUploaded": "تم إنشاء وتحميل PDF",
+    "generationFailed": "فشل الإنشاء",
+    "couldNotGeneratePdf": "تعذر إنشاء ملف PDF. يرجى المحاولة مرة أخرى.",
+    "noExecutorsToContact": "لا يوجد منفذون للاتصال بهم",
+    "emailSentSuccessfully": "تم إرسال البريد الإلكتروني بنجاح",
+    "notificationEmailSent": "تم إرسال بريد إلكتروني إعلام إلى المسؤول",
+    "couldNotSendNotificationEmails": "تعذر إرسال رسائل إعلام بالبريد الإلكتروني إلى المنفذين",
+    "noteAddedSuccessfully": "تمت إضافة الملاحظة بنجاح",
+    "statusUpdatedSuccess": "تم تحديث الحالة",
+    "willStatusUpdatedSuccessfully": "تم تحديث حالة الوصية بنجاح",
+    "failedToUpdateStatus": "فشل تحديث الحالة: {{error}}",
+    "newPdfReady": "ملف PDF الجديد جاهز وتم تحميله.",
+    "pleaseWait": "يرجى الانتظار بينما يتم إنشاء PDF...",
+    "watermarkWarning": "تحذير",
     "pdfUploadedSuccessfully": "تم تحميل PDF بنجاح",
-    "draftPdfAvailable": "مسودة PDF متاحة الآن للعميل للمراجعة",
-    "failedToUploadPdf": "فشل تحميل PDF: {{error}}"
+    "draftPdfAvailable": "مسودة PDF متاحة الآن للعميل للمراجعة"
   },
-
   "auth": {
     "authenticationRequired": "المصادقة مطلوبة",
     "pleaseLoginToUpload": "يرجى تسجيل الدخول لتحميل الملفات",
@@ -122,9 +91,9 @@
     "noActiveRole": "لم يتم العثور على دور نشط لحسابك.",
     "accessDenied": "تم رفض الوصول",
     "noAccessToDashboard": "ليس لديك حق الوصول إلى لوحة التحكم هذه. يرجى الاتصال بالمسؤول إذا كنت تعتقد أن هذا خطأ.",
-    "signingIn": "جاري تسجيل الدخول..."
+    "signingIn": "جاري تسجيل الدخول...",
+    "pleaseLogInToUpload": "يرجى تسجيل الدخول لرفع الملفات"
   },
-
   "settings": {
     "validationError": "خطأ في التحقق",
     "fillAllFields": "يرجى ملء جميع حقول كلمة المرور",
@@ -135,7 +104,6 @@
     "passwordChangedSuccess": "تم تغيير كلمة المرور بنجاح",
     "failedToChangePassword": "فشل تغيير كلمة المرور"
   },
-
   "upload": {
     "invalidFileType": "نوع ملف غير صالح",
     "pleaseUploadPdfOrImage": "يرجى تحميل ملف PDF أو صورة",
@@ -156,9 +124,34 @@
     "photoRemovedSuccess": "تمت إزالة صورة الأصل",
     "removeFailed": "فشلت الإزالة",
     "failedToRemoveDocument": "فشل إزالة المستند",
-    "failedToRemovePhoto": "فشل إزالة الصورة"
+    "failedToRemovePhoto": "فشل إزالة الصورة",
+    "pleaseUploadPDFOrImage": "يرجى رفع ملف PDF أو صورة",
+    "assetPhotoRemoved": "تمت إزالة صورة الأصل",
+    "assetPhotoUploadedSuccess": "تم رفع صورة الأصل بنجاح",
+    "fileRemoved": "تمت إزالة الملف",
+    "fileUploadedSuccess": "تم رفع {{name}} بنجاح",
+    "captureError": "خطأ في الالتقاط",
+    "captureFailed": "فشلت معالجة الصورة الملتقطة بالكاميرا",
+    "couldNotExtract": "تعذّر الاستخراج",
+    "deleteError": "فشل حذف الملف",
+    "deleteFailed": "فشل الحذف",
+    "extractedSuccessfully": "تم استخراج رقم جواز السفر بنجاح",
+    "extractingFromImage": "جارٍ استخراج رقم جواز السفر من الصورة...",
+    "extractingPassportNumber": "استخراج رقم جواز السفر",
+    "fileRemovedSuccess": "تمت إزالة الملف بنجاح",
+    "fileUploadedSuccessfully": "تم رفع الملف بنجاح",
+    "imageProcessed": "تمت معالجة الصورة",
+    "imageProcessedDescription": "تمت معالجة الصورة بنجاح",
+    "manualEntryRequired": "تعذّر استخراج رقم جواز السفر. يرجى إدخاله يدويًا.",
+    "ocrError": "فشل استخراج النص من الصورة",
+    "ocrFailed": "فشل التعرّف الضوئي على النص",
+    "passportNumberExtracted": "تم استخراج رقم جواز السفر",
+    "processingError": "خطأ في المعالجة",
+    "processingFailed": "فشلت معالجة الصورة",
+    "uploadError": "خطأ في الرفع",
+    "uploadErrorDescription": "فشل رفع الملف",
+    "uploadSuccess": "تم الرفع بنجاح"
   },
-
   "will": {
     "saving": "جاري الحفظ...",
     "changesBeingSaved": "جاري حفظ التغييرات.",
@@ -179,9 +172,21 @@
     "failedToSubmitWill": "فشل إرسال وصيتك.",
     "submitError": "فشل إرسال الوصية",
     "saveFailed": "فشل الحفظ",
-    "changesStoredLocally": "تعذر حفظ تغييراتك. تم تخزينها محليًا وستتم مزامنتها عندما يكون ذلك ممكنًا."
+    "changesStoredLocally": "تعذر حفظ تغييراتك. تم تخزينها محليًا وستتم مزامنتها عندما يكون ذلك ممكنًا.",
+    "andMoreIssues": "و{{count}} مشكلة أخرى",
+    "fixToContinueTitle": "يرجى إصلاح {{count}} مشكلة للمتابعة",
+    "draftRecovered": "تم استرجاع المسودة",
+    "errorLoadingForm": "خطأ في تحميل النموذج",
+    "errorSaving": "خطأ في الحفظ",
+    "failedToCreateWill": "فشل إنشاء الوصية",
+    "failedToLoadFormData": "فشل تحميل بيانات النموذج",
+    "failedToRemoveFileMetadata": "فشلت إزالة بيانات الملف الوصفية.",
+    "failedToSaveFileMetadata": "فشل حفظ بيانات الملف الوصفية.",
+    "failedToUpdateUploadFiles": "فشل تحديث الملفات المرفوعة.",
+    "recoveredUnsavedChanges": "تم استرجاع التغييرات غير المحفوظة من {{date}}",
+    "removeFailed": "فشلت الإزالة",
+    "updateFailed": "فشل التحديث"
   },
-
   "documents": {
     "errorLoadingDocuments": "فشل تحميل المستندات",
     "downloadFailed": "فشل التنزيل",
@@ -191,9 +196,13 @@
     "disapprovalSuccess": "تم تسجيل ملاحظاتك",
     "approvalError": "فشل إرسال موافقتك"
   },
-
   "editRequest": {
     "failedToSendRequest": "فشل إرسال الطلب",
-    "tryAgainOrContact": "يرجى المحاولة مرة أخرى أو الاتصال بنا مباشرة على info@just-wills.net"
+    "tryAgainOrContact": "يرجى المحاولة مرة أخرى أو الاتصال بنا مباشرة على info@just-wills.net",
+    "pleaseLogInToSubmit": "يرجى تسجيل الدخول لإرسال طلب التعديل"
+  },
+  "portal": {
+    "draftReady": "مسودتك جاهزة",
+    "finalized": "تم اعتماد وصيتك"
   }
 }

@@ -155,7 +155,7 @@ export default function SalespersonReportsPage() {
 
     const myLeadsByStatus = Object.entries(statusCount)
       .map(([status, count]) => ({
-        name: t(`leadManagement:status.${status}`, status.replace("_", " ")),
+        name: t(`leadManagement:leadStatus.${status}`, status.replace("_", " ")),
         value: count,
         color: STATUS_COLORS[status] || "#6b7280",
       }))

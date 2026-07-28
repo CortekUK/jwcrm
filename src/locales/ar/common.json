@@ -60,5 +60,18 @@
   "themeLight": "فاتح",
   "themeDark": "داكن",
   "themeSystem": "النظام",
-  "myLeave": "إجازتي"
+  "myLeave": "إجازتي",
+  "account": "الحساب",
+  "change": "تغيير",
+  "clearFilter": "مسح الفلتر",
+  "clearSelection": "مسح",
+  "enter": "أدخل",
+  "export": "تصدير",
+  "exporting": "جارٍ التصدير...",
+  "optional": "اختياري",
+  "quickActions": "إجراءات سريعة",
+  "retry": "إعادة المحاولة",
+  "saving": "جارٍ الحفظ...",
+  "showingOf": "عرض {{from}}-{{to}} من {{total}}",
+  "viewAll": "عرض الكل"
 }

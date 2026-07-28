@@ -425,5 +425,14 @@
   "signedCopy": "Client-signed copy",
   "signedByClient": "Signed by the client",
   "openSignedCopy": "Open signed copy",
-  "originalUnsigned": "(original, unsigned)"
+  "originalUnsigned": "(original, unsigned)",
+  "accountManagerUpdated": "Account manager updated",
+  "downloadPdfDraft": "Open PDF",
+  "downloadWordDraft": "Download Word draft (.docx)",
+  "extractionError": "Could not extract data from the document",
+  "extractionFailed": "Extraction Failed",
+  "generateDraftProducesBoth": "Produces both a PDF and an editable Word draft.",
+  "noWordDraft": "No Word draft for this version",
+  "uploadRevisedPdf": "Upload revised PDF",
+  "uploadRevisedPdfHint": "After editing the Word draft, export it to PDF and upload it here to add a new version."
 }

@@ -8,7 +8,6 @@
   "updateNotes": "تحديث الملاحظات",
   "updateNotesDescription": "إضافة أو تحديث ملاحظات لهذا العميل المحتمل.",
   "viewLeadHistory": "عرض سجل العميل المحتمل",
-
   "calendar": "التقويم",
   "calendarDescription": "عرض الاجتماعات والاتصالات المجدولة مع العملاء المحتملين.",
   "sendMeetingInvite": "إرسال دعوة اجتماع",
@@ -45,7 +44,6 @@
   "meetingCannotBeInPast": "لا يمكن أن يكون وقت الاجتماع في الماضي",
   "meetingInPast": "وقت الاجتماع هذا في الماضي",
   "testModeIndicator": "وضع الاختبار: سيتم إرسال البريد الإلكتروني إلى عنوان المسؤول",
-
   "weekday": {
     "sun": "أحد",
     "mon": "إثنين",
@@ -55,7 +53,6 @@
     "fri": "جمعة",
     "sat": "سبت"
   },
-
   "reports": {
     "title": "تقاريري وتحليلاتي",
     "subtitle": "رؤى أدائك في المبيعات وتصدير البيانات",
@@ -72,5 +69,22 @@
     "mySourcePerformance": "أداء مصادري",
     "myLeads": "عملائي المحتملين",
     "noData": "لا توجد بيانات متاحة"
-  }
+  },
+  "emails": "رسائل البريد الإلكتروني",
+  "inPerson": "حضوري",
+  "loadingLeads": "جارٍ تحميل العملاء المحتملين...",
+  "messages": "الرسائل",
+  "monthView": "شهر",
+  "next7Days": "الأيام السبعة القادمة",
+  "noLeadsWithEmail": "لا يوجد عملاء محتملون لديهم عناوين بريد إلكتروني",
+  "overdueFollowUps": "متأخرة",
+  "phoneCalls": "المكالمات الهاتفية",
+  "pleaseSelectLead": "يرجى اختيار عميل محتمل أولاً",
+  "selectLead": "اختيار عميل محتمل",
+  "selectLeadPlaceholder": "اختر عميلاً محتملاً لدعوته",
+  "thisWeekMeetings": "هذا الأسبوع",
+  "videoMeetings": "مرئي",
+  "weekView": "أسبوع",
+  "meeting": "اجتماع",
+  "meetings": "الاجتماعات"
 }

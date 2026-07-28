@@ -17,7 +17,7 @@
   "documentsCount": "المستندات",
   "recentActivity": "النشاط الأخير",
   "noActivity": "لا يوجد نشاط حديث بعد",
-  "createYourWill": "أنشئ وصيتك",
+  "createYourWill": "إنشاء وصيتك",
   "createYourWillSubtitle": "اتبع الخطوات أدناه لإكمال وصيتك.",
   "noDocuments": "لا توجد مستندات متاحة بعد",
   "uploadedDocuments": "ستظهر مستنداتك المرفوعة هنا",
@@ -141,7 +141,6 @@
     "submittedNotice": "تم تقديم وصيتك في {{date}}. إذا كنت بحاجة إلى إجراء تغييرات، يرجى الاتصال بفريقنا القانوني.",
     "viewOnly": "وضع العرض فقط"
   },
-  "createYourWill": "إنشاء وصيتك",
   "guidedProcessSubtitle": "عملية موجهة لإعداد مسودتك الآمنة مع فريقنا القانوني.",
   "createYourAccount": "إنشاء حسابك",
   "securelyRegisterSubtitle": "سجل بأمان للوصول إلى بوابة عميل Just Wills.",
@@ -256,7 +255,23 @@
     "errorTitle": "خطأ",
     "errorLoadDocument": "فشل تحميل تفاصيل المستند",
     "downloadError": "فشل التنزيل",
-    "downloadErrorMessage": "لا يمكن تنزيل ملف PDF. يرجى المحاولة مرة أخرى."
+    "downloadErrorMessage": "لا يمكن تنزيل ملف PDF. يرجى المحاولة مرة أخرى.",
+    "signature": {
+      "confirm": "تأكيد والتوقيع",
+      "downloadSigned": "تنزيل النسخة الموقعة",
+      "failedTitle": "تعذر حفظ التوقيع",
+      "instruction": "يرجى مراجعة المستند أعلاه، ثم التوقيع أدناه لتأكيد أنه يعكس رغباتك.",
+      "label": "توقيعك",
+      "originalSuffix": "(الأصلية، غير موقعة)",
+      "signedCopyHint": "وصيتك النهائية مع صفحة التنفيذ الموقعة مرفقة. النسخة الأصلية أعلاه لم تتغير.",
+      "signedCopyTitle": "النسخة الموقعة",
+      "signedDescription": "تم تسجيل توقيعك على وصيتك.",
+      "signedOn": "تم التوقيع في",
+      "signedTitle": "تم توقيع المستند",
+      "title": "وقّع على وصيتك",
+      "viewSigned": "عرض النسخة الموقعة",
+      "yourSignature": "توقيعك"
+    }
   },
   "settings": {
     "title": "الإعدادات",
@@ -277,5 +292,12 @@
     "clear": "مسح",
     "updating": "جاري التحديث...",
     "changePasswordButton": "تغيير كلمة المرور"
-  }
+  },
+  "generalEnquiry": "سؤال عام (لا يتعلق بوصية محددة)",
+  "routingHint": "اختيار قضيتك يرسل هذا مباشرة إلى الشخص المسؤول عنها.",
+  "selectCase": "اختر قضية",
+  "whatIsThisAbout": "ما هو موضوع استفسارك؟",
+  "willRef": "الوصية",
+  "home": "الرئيسية",
+  "createEditWill": "إنشاء / تعديل الوصية"
 }

@@ -620,5 +620,14 @@
   "jurisdictionTitle": "Will Jurisdiction",
   "jurisdictionDescription": "Choose which emirate this Will is being drafted for. The legal template differs between Abu Dhabi and Dubai.",
   "jurisdictionAbuDhabi": "Abu Dhabi",
-  "jurisdictionDubai": "Dubai"
+  "jurisdictionDubai": "Dubai",
+  "captureError": "Capture Failed",
+  "captureErrorDescription": "An error occurred while processing the captured photo",
+  "documentUploaded": "Document uploaded successfully",
+  "emiratesIdUploaded": "Emirates ID uploaded successfully",
+  "failedToUploadEmiratesId": "Failed to upload Emirates ID",
+  "passportUploaded": "Passport uploaded",
+  "pleaseWaitForWillIdAndAuth": "Please wait while we finish setting up your session before uploading",
+  "takePassportPhoto": "Take Passport Photo",
+  "uploadFile": "Upload File"
 }

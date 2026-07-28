@@ -255,7 +255,23 @@
     "errorTitle": "Error",
     "errorLoadDocument": "Failed to load document details",
     "downloadError": "Download failed",
-    "downloadErrorMessage": "Could not download the PDF. Please try again."
+    "downloadErrorMessage": "Could not download the PDF. Please try again.",
+    "signature": {
+      "confirm": "Confirm and sign",
+      "downloadSigned": "Download signed copy",
+      "failedTitle": "Could not save signature",
+      "instruction": "Please review the document above, then sign below to confirm it reflects your wishes.",
+      "label": "Your signature",
+      "originalSuffix": "(original, unsigned)",
+      "signedCopyHint": "Your final will with the signed execution page attached. The original above is unchanged.",
+      "signedCopyTitle": "Signed copy",
+      "signedDescription": "Your signature has been recorded on your will.",
+      "signedOn": "Signed on",
+      "signedTitle": "Document signed",
+      "title": "Sign your will",
+      "viewSigned": "View signed copy",
+      "yourSignature": "Your signature"
+    }
   },
   "settings": {
     "title": "Settings",
@@ -276,5 +292,12 @@
     "clear": "Clear",
     "updating": "Updating...",
     "changePasswordButton": "Change Password"
-  }
+  },
+  "generalEnquiry": "General question (not about a specific will)",
+  "routingHint": "Selecting your case sends this straight to the person handling it.",
+  "selectCase": "Select a case",
+  "whatIsThisAbout": "What is this about?",
+  "willRef": "Will",
+  "home": "Home",
+  "createEditWill": "Create / Edit Will"
 }

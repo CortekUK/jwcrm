@@ -183,10 +183,10 @@ export default function ReportsPage() {
         leaveByTypeMap[l.leave_type] = (leaveByTypeMap[l.leave_type] || 0) + 1;
       });
       const leaveByType = [
-        { name: t("hr:leaveTypes.annual", "Annual"), value: leaveByTypeMap["annual"] || 0, color: COLORS.annual },
-        { name: t("hr:leaveTypes.sick", "Sick"), value: leaveByTypeMap["sick"] || 0, color: COLORS.sick },
-        { name: t("hr:leaveTypes.emergency", "Emergency"), value: leaveByTypeMap["emergency"] || 0, color: COLORS.emergency },
-        { name: t("hr:leaveTypes.unpaid", "Unpaid"), value: leaveByTypeMap["unpaid"] || 0, color: COLORS.unpaid },
+        { name: t("hr:leaveTypeLabels.annual", "Annual"), value: leaveByTypeMap["annual"] || 0, color: COLORS.annual },
+        { name: t("hr:leaveTypeLabels.sick", "Sick"), value: leaveByTypeMap["sick"] || 0, color: COLORS.sick },
+        { name: t("hr:leaveTypeLabels.emergency", "Emergency"), value: leaveByTypeMap["emergency"] || 0, color: COLORS.emergency },
+        { name: t("hr:leaveTypeLabels.unpaid", "Unpaid"), value: leaveByTypeMap["unpaid"] || 0, color: COLORS.unpaid },
       ].filter((l) => l.value > 0);
 
       // Process KPIs

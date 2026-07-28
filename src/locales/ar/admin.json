@@ -425,5 +425,14 @@
   "signedCopy": "نسخة موقعة من العميل",
   "signedByClient": "موقعة من العميل",
   "openSignedCopy": "فتح النسخة الموقعة",
-  "originalUnsigned": "(الأصل، غير موقعة)"
+  "originalUnsigned": "(الأصل، غير موقعة)",
+  "accountManagerUpdated": "تم تحديث مدير الحساب",
+  "downloadPdfDraft": "فتح ملف PDF",
+  "downloadWordDraft": "تنزيل مسودة Word (.docx)",
+  "extractionError": "تعذر استخراج البيانات من المستند",
+  "extractionFailed": "فشل الاستخراج",
+  "generateDraftProducesBoth": "ينتج ملف PDF ومسودة Word قابلة للتحرير.",
+  "noWordDraft": "لا توجد مسودة Word لهذا الإصدار",
+  "uploadRevisedPdf": "رفع ملف PDF المنقح",
+  "uploadRevisedPdfHint": "بعد تحرير مسودة Word، قم بتصديرها إلى PDF وارفعها هنا لإضافة إصدار جديد."
 }

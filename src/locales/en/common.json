@@ -60,5 +60,18 @@
   "themeLight": "Light",
   "themeDark": "Dark",
   "themeSystem": "System",
-  "myLeave": "My Leave"
+  "myLeave": "My Leave",
+  "account": "Account",
+  "change": "Change",
+  "clearFilter": "Clear Filter",
+  "clearSelection": "Clear",
+  "enter": "Enter",
+  "export": "Export",
+  "exporting": "Exporting...",
+  "optional": "Optional",
+  "quickActions": "Quick Actions",
+  "retry": "Retry",
+  "saving": "Saving...",
+  "showingOf": "Showing {{from}}-{{to}} of {{total}}",
+  "viewAll": "View All"
 }

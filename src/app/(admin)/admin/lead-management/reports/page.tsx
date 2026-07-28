@@ -141,7 +141,7 @@ export default function LeadManagementReportsPage() {
 
     const leadsByStatus = Object.entries(statusCount)
       .map(([status, count]) => ({
-        name: t(`leadManagement:status.${status}`, status.replace("_", " ")),
+        name: t(`leadManagement:leadStatus.${status}`, status.replace("_", " ")),
         value: count,
         color: STATUS_COLORS[status] || "#6b7280",
       }))
@@ -186,12 +186,12 @@ export default function LeadManagementReportsPage() {
 
     // Conversion funnel
     const funnelStages = [
-      { stage: "not_started", label: t("leadManagement:status.not_started", "New") },
-      { stage: "contacted", label: t("leadManagement:status.contacted", "Contacted") },
-      { stage: "consultation", label: t("leadManagement:status.consultation", "Consultation") },
-      { stage: "qualified", label: t("leadManagement:status.qualified", "Qualified") },
-      { stage: "negotiation", label: t("leadManagement:status.negotiation", "Negotiation") },
-      { stage: "won", label: t("leadManagement:status.won", "Won") },
+      { stage: "not_started", label: t("leadManagement:leadStatus.not_started", "New") },
+      { stage: "contacted", label: t("leadManagement:leadStatus.contacted", "Contacted") },
+      { stage: "consultation", label: t("leadManagement:leadStatus.consultation", "Consultation") },
+      { stage: "qualified", label: t("leadManagement:leadStatus.qualified", "Qualified") },
+      { stage: "negotiation", label: t("leadManagement:leadStatus.negotiation", "Negotiation") },
+      { stage: "won", label: t("leadManagement:leadStatus.won", "Won") },
     ];
 
     const conversionFunnel = funnelStages.map((s) => ({

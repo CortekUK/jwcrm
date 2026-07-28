@@ -5,20 +5,17 @@
   "settingsDescription": "إدارة تفضيلات حسابك",
   "legalNotice": "© 2024 جست ويلز. جميع الحقوق محفوظة. هذا النظام للمستخدمين المصرح لهم فقط.",
   "transactions": "المعاملات",
-
   "totalInvoices": "إجمالي الفواتير",
   "paidInvoices": "الفواتير المدفوعة",
   "pendingInvoices": "الفواتير المعلقة",
   "totalEarnings": "إجمالي الإيرادات",
   "totalExpenses": "إجمالي المصروفات",
   "netProfit": "صافي الربح",
-
   "invoices": "الفواتير",
   "invoicesList": "قائمة الفواتير",
   "earningsExpenses": "الإيرادات والمصروفات",
   "analytics": "التحليلات",
   "transactionsList": "قائمة المعاملات",
-
   "invoiceNumber": "رقم الفاتورة",
   "client": "العميل",
   "amount": "المبلغ",
@@ -39,12 +36,10 @@
   "downloadPDF": "تحميل PDF",
   "invoiceDownloaded": "تم تحميل الفاتورة بنجاح",
   "failedToGeneratePDF": "فشل في إنشاء PDF",
-
   "status.draft": "مسودة",
   "status.sent": "مُرسل",
   "status.paid": "مدفوع",
   "status.cancelled": "ملغي",
-
   "date": "التاريخ",
   "type": "النوع",
   "category": "الفئة",
@@ -62,7 +57,6 @@
   "addFirstTransaction": "أضف أول معاملة لك للبدء",
   "edit": "تعديل",
   "delete": "حذف",
-
   "addTransaction": "إضافة معاملة",
   "editTransaction": "تعديل المعاملة",
   "addTransactionDescription": "أدخل تفاصيل المعاملة الجديدة",
@@ -77,10 +71,8 @@
   "descriptionPlaceholder": "أدخل وصفاً لهذه المعاملة",
   "cancel": "إلغاء",
   "saveChanges": "حفظ التغييرات",
-
   "deleteTransaction": "حذف المعاملة",
   "deleteTransactionConfirmation": "هل أنت متأكد من حذف هذه المعاملة؟ لا يمكن التراجع عن هذا الإجراء.",
-
   "transactionAdded": "تمت إضافة المعاملة بنجاح",
   "transactionUpdated": "تم تحديث المعاملة بنجاح",
   "transactionDeleted": "تم حذف المعاملة بنجاح",
@@ -90,7 +82,6 @@
   "failedToFetchTransactions": "فشل في جلب المعاملات",
   "failedToOpenProposal": "فشل في فتح العرض",
   "failedToOpenInvoice": "فشل في فتح الفاتورة",
-
   "monthlyOverview": "النظرة الشهرية",
   "expenseBreakdown": "تفصيل المصروفات",
   "invoiceStatusBreakdown": "تفصيل حالة الفواتير",
@@ -100,7 +91,6 @@
   "noExpenseDataDesc": "أضف مصروفات لرؤية التفصيل",
   "noInvoiceData": "لا توجد بيانات فواتير",
   "noInvoiceDataDesc": "لا توجد بيانات فواتير متاحة",
-
   "receipt": "الإيصال",
   "uploadReceipt": "رفع الإيصال",
   "viewReceipt": "عرض الإيصال",
@@ -110,7 +100,6 @@
   "fileTooLarge": "الملف كبير جداً. الحد الأقصى للحجم 5 ميجابايت.",
   "failedToUploadReceipt": "فشل في رفع الإيصال",
   "failedToOpenReceipt": "فشل في فتح الإيصال",
-
   "categories.consultation_fee": "رسوم الاستشارة",
   "categories.service_fee": "رسوم الخدمة",
   "categories.other_income": "دخل آخر",
@@ -124,7 +113,6 @@
   "categories.legal": "القانونية",
   "categories.taxes": "الضرائب",
   "categories.other_expense": "مصروفات أخرى",
-
   "vsLastMonth": "مقارنة بالشهر الماضي",
   "searchTransactions": "البحث في المعاملات...",
   "dateRange": "نطاق التاريخ",
@@ -135,30 +123,24 @@
   "exportCSV": "تصدير CSV",
   "rowsPerPage": "صفوف لكل صفحة",
   "pageOf": "صفحة {{current}} من {{total}}",
-
   "datePreset.today": "اليوم",
   "datePreset.week": "هذا الأسبوع",
   "datePreset.month": "هذا الشهر",
   "datePreset.quarter": "هذا الربع",
   "datePreset.year": "هذا العام",
   "datePreset.lastMonth": "الشهر الماضي",
-
   "last3Months": "آخر 3 أشهر",
   "last6Months": "آخر 6 أشهر",
   "last12Months": "آخر 12 شهر",
   "thisYear": "هذا العام",
-  
   "earningsBreakdown": "تفصيل الإيرادات",
   "noEarningsData": "لا توجد بيانات إيرادات",
   "noEarningsDataDesc": "أضف إيرادات لرؤية التفصيل",
-  
   "clickBarToFilter": "انقر على العمود لتصفية المعاملات حسب الشهر",
   "clickSliceToFilter": "انقر على الشريحة للتصفية حسب الفئة",
   "clickSliceToFilterInvoices": "انقر على الشريحة لتصفية الفواتير",
-  
   "overdue": "متأخر",
   "daysOverdue": "أيام متأخرة",
-
   "reports": {
     "title": "التقارير والتحليلات",
     "subtitle": "رؤى مالية واتجاهات وتصدير البيانات",
@@ -182,7 +164,6 @@
     "noInvoices": "لا توجد فواتير مسجلة"
   },
   "export": "تصدير",
-
   "thisMonth": "هذا الشهر",
   "lastMonth": "الشهر الماضي",
   "allTime": "كل الوقت",
@@ -203,5 +184,36 @@
   "draft": "مسودة",
   "sent": "مُرسل",
   "paid": "مدفوع",
-  "cancelled": "ملغي"
+  "cancelled": "ملغي",
+  "invoice": "فاتورة",
+  "proposal": "عرض سعر",
+  "invoiceStatus": {
+    "draft": "مسودة",
+    "sent": "مُرسلة",
+    "paid": "مدفوعة",
+    "cancelled": "ملغاة"
+  },
+  "categories": {
+    "consultation_fee": "رسوم الاستشارة",
+    "legal": "قانوني",
+    "marketing": "التسويق",
+    "office_supplies": "لوازم المكتب",
+    "other_expense": "مصروفات أخرى",
+    "other_income": "إيرادات أخرى",
+    "rent": "الإيجار",
+    "salary": "الرواتب",
+    "service_fee": "رسوم الخدمة",
+    "software": "البرمجيات",
+    "taxes": "الضرائب",
+    "travel": "السفر",
+    "utilities": "المرافق"
+  },
+  "datePreset": {
+    "lastMonth": "الشهر الماضي",
+    "month": "هذا الشهر",
+    "quarter": "هذا الربع",
+    "today": "اليوم",
+    "week": "هذا الأسبوع",
+    "year": "هذه السنة"
+  }
 }

@@ -5,7 +5,6 @@
   "settingsDescription": "Manage your account preferences",
   "legalNotice": "© 2024 Just Wills. All rights reserved. This system is for authorized users only.",
   "transactions": "Transactions",
-
   "totalInvoices": "Total Invoices",
   "paidInvoices": "Paid Invoices",
   "pendingInvoices": "Pending Invoices",
@@ -13,13 +12,11 @@
   "totalExpenses": "Total Expenses",
   "netProfit": "Net Profit",
   "vsLastMonth": "vs last month",
-
   "invoices": "Invoices",
   "invoicesList": "Invoices List",
   "earningsExpenses": "Earnings & Expenses",
   "analytics": "Analytics",
   "transactionsList": "Transactions List",
-
   "invoiceNumber": "Invoice #",
   "client": "Client",
   "amount": "Amount",
@@ -40,12 +37,10 @@
   "downloadPDF": "Download PDF",
   "invoiceDownloaded": "Invoice downloaded successfully",
   "failedToGeneratePDF": "Failed to generate PDF",
-
   "status.draft": "Draft",
   "status.sent": "Sent",
   "status.paid": "Paid",
   "status.cancelled": "Cancelled",
-
   "date": "Date",
   "type": "Type",
   "category": "Category",
@@ -63,7 +58,6 @@
   "addFirstTransaction": "Add your first transaction to get started",
   "edit": "Edit",
   "delete": "Delete",
-
   "addTransaction": "Add Transaction",
   "editTransaction": "Edit Transaction",
   "addTransactionDescription": "Enter the details for the new transaction",
@@ -78,10 +72,8 @@
   "descriptionPlaceholder": "Enter a description for this transaction",
   "cancel": "Cancel",
   "saveChanges": "Save Changes",
-
   "deleteTransaction": "Delete Transaction",
   "deleteTransactionConfirmation": "Are you sure you want to delete this transaction? This action cannot be undone.",
-
   "transactionAdded": "Transaction added successfully",
   "transactionUpdated": "Transaction updated successfully",
   "transactionDeleted": "Transaction deleted successfully",
@@ -91,7 +83,6 @@
   "failedToFetchTransactions": "Failed to fetch transactions",
   "failedToOpenProposal": "Failed to open proposal",
   "failedToOpenInvoice": "Failed to open invoice",
-
   "monthlyOverview": "Monthly Overview",
   "expenseBreakdown": "Expense Breakdown",
   "invoiceStatusBreakdown": "Invoice Status Breakdown",
@@ -101,7 +92,6 @@
   "noExpenseDataDesc": "Add expenses to see breakdown",
   "noInvoiceData": "No Invoice Data",
   "noInvoiceDataDesc": "No invoice data available",
-
   "receipt": "Receipt",
   "uploadReceipt": "Upload Receipt",
   "viewReceipt": "View Receipt",
@@ -111,7 +101,6 @@
   "fileTooLarge": "File too large. Maximum size is 5MB.",
   "failedToUploadReceipt": "Failed to upload receipt",
   "failedToOpenReceipt": "Failed to open receipt",
-
   "categories.consultation_fee": "Consultation Fee",
   "categories.service_fee": "Service Fee",
   "categories.other_income": "Other Income",
@@ -125,7 +114,6 @@
   "categories.legal": "Legal",
   "categories.taxes": "Taxes",
   "categories.other_expense": "Other Expense",
-
   "searchTransactions": "Search transactions...",
   "dateRange": "Date range",
   "minAmount": "Min Amount",
@@ -135,30 +123,24 @@
   "exportCSV": "Export CSV",
   "rowsPerPage": "Rows per page",
   "pageOf": "Page {{current}} of {{total}}",
-
   "datePreset.today": "Today",
   "datePreset.week": "This Week",
   "datePreset.month": "This Month",
   "datePreset.quarter": "This Quarter",
   "datePreset.year": "This Year",
   "datePreset.lastMonth": "Last Month",
-
-  "last3Months": "Last 3 months",
+  "last3Months": "Last 3 Months",
   "last6Months": "Last 6 months",
   "last12Months": "Last 12 months",
   "thisYear": "This year",
-  
   "earningsBreakdown": "Earnings Breakdown",
   "noEarningsData": "No Earnings Data",
   "noEarningsDataDesc": "Add earnings to see breakdown",
-  
   "clickBarToFilter": "Click on a bar to filter transactions by month",
   "clickSliceToFilter": "Click on a slice to filter by category",
   "clickSliceToFilterInvoices": "Click on a slice to filter invoices",
-  
   "overdue": "Overdue",
   "daysOverdue": "days overdue",
-
   "reports": {
     "title": "Reports & Analytics",
     "subtitle": "Financial insights, trends, and data exports",
@@ -182,10 +164,8 @@
     "noInvoices": "No invoices recorded"
   },
   "export": "Export",
-
   "thisMonth": "This Month",
   "lastMonth": "Last Month",
-  "last3Months": "Last 3 Months",
   "allTime": "All Time",
   "transactionType": "Transaction Type",
   "exportTransactions": "Export Transactions",
@@ -204,5 +184,36 @@
   "draft": "Draft",
   "sent": "Sent",
   "paid": "Paid",
-  "cancelled": "Cancelled"
+  "cancelled": "Cancelled",
+  "invoice": "Invoice",
+  "proposal": "Proposal",
+  "invoiceStatus": {
+    "draft": "Draft",
+    "sent": "Sent",
+    "paid": "Paid",
+    "cancelled": "Cancelled"
+  },
+  "categories": {
+    "consultation_fee": "Consultation Fee",
+    "legal": "Legal",
+    "marketing": "Marketing",
+    "office_supplies": "Office Supplies",
+    "other_expense": "Other Expense",
+    "other_income": "Other Income",
+    "rent": "Rent",
+    "salary": "Salary",
+    "service_fee": "Service Fee",
+    "software": "Software",
+    "taxes": "Taxes",
+    "travel": "Travel",
+    "utilities": "Utilities"
+  },
+  "datePreset": {
+    "lastMonth": "Last Month",
+    "month": "This Month",
+    "quarter": "This Quarter",
+    "today": "Today",
+    "week": "This Week",
+    "year": "This Year"
+  }
 }

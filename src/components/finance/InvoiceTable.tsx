@@ -148,7 +148,7 @@ export function InvoiceTable({
     return (
       <div className="flex items-center gap-1.5">
         <Badge className={cn(styles[status], overdue && "bg-[#FEF3C7] text-[#B45309]")}>
-          {t(`status.${status}`)}
+          {t(`invoiceStatus.${status}`)}
         </Badge>
         {overdue && (
           <Badge className="bg-[#FEF3C7] text-[#B45309] border-0 text-xs gap-0.5">

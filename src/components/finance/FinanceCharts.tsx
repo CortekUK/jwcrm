@@ -225,7 +225,7 @@ export function FinanceCharts({
     return Object.entries(statusTotals)
       .filter(([, amount]) => amount > 0)
       .map(([status, amount]) => ({
-        category: t(`status.${status}`),
+        category: t(`invoiceStatus.${status}`),
         statusKey: status as ProposalStatus,
         amount,
         fill: statusColors[status as keyof typeof statusColors],

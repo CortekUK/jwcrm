@@ -3,7 +3,6 @@
   "success": "Success",
   "error": "Error",
   "warning": "Warning",
-
   "admin": {
     "userCreatedSuccess": "{{role}} Created Successfully",
     "accountCreatedFor": "Account created for {{name}}",
@@ -11,7 +10,6 @@
     "couldNotCreateAccount": "Could not create client account",
     "copiedToClipboard": "Copied to Clipboard",
     "credentialsCopied": "Client credentials have been copied",
-
     "errorLoadingDashboard": "Failed to load admin dashboard data",
     "errorLoadingUsers": "Failed to load users",
     "userActivated": "User activated successfully",
@@ -19,68 +17,19 @@
     "errorUpdatingUserStatus": "Failed to update user status",
     "userDeleted": "User deleted successfully",
     "errorDeletingUser": "Failed to delete user",
-
     "statusUpdated": "Status Updated",
     "willStatusUpdated": "Will status has been updated successfully",
     "statusUpdateError": "Failed to update status",
     "failedToDownloadPdf": "Failed to download PDF",
-
     "noExecutorsFound": "No executors found",
     "noExecutorsDescription": "There are no executors to contact",
     "emailSentSuccess": "Email Sent Successfully",
     "notificationSentToAdmin": "Notification email sent to admin",
     "failedToSendEmails": "Failed to send emails",
     "couldNotSendNotifications": "Could not send notification emails to executors",
-
     "noteAdded": "Note Added",
     "noteAddedSuccess": "Note has been added successfully",
-    "failedToAddNote": "Failed to add note: {{message}}",
-
-    "updatedSuccessfully": "Updated Successfully",
-    "changesSaved": "Changes have been saved",
-    "failedToUpdate": "Failed to update: {{message}}",
-
-    "failedToDownloadFile": "Failed to download file: {{message}}",
-    "failedToOpenFile": "Failed to open file: {{message}}",
-    "failedToLoadPdf": "Failed to load PDF: {{message}}",
-
-    "pdfGenerationStarted": "PDF Generation Started",
-    "generatingPdf": "Generating PDF... This may take a few seconds.",
-    "pdfGeneratedSuccess": "PDF Generated Successfully",
-    "pdfReadyAndLoaded": "The new PDF is ready and has been loaded.",
-    "pdfGenerationInProgress": "PDF Generation In Progress",
-    "pdfStillGenerating": "PDF is still being generated. This can take up to a minute for complex wills.",
-    "failedToRegeneratePdf": "Failed to regenerate PDF: {{message}}",
-
-    "pleaseUploadPdf": "Please upload a PDF file",
-    "watermarkCouldNotBeAdded": "Watermark could not be added, uploading original PDF",
-    "pdfUploadedSuccess": "PDF Uploaded Successfully",
-    "draftPdfVisibleToClient": "The draft PDF has been generated and is now visible to the client.",
-    "failedToUploadPdf": "Failed to upload PDF: {{message}}",
-
-    "settingUpdated": "Setting Updated",
-    "signatureIncluded": "Signature will be included in PDF",
-    "signatureExcluded": "Signature will be excluded in PDF",
-
-    "savePdfInstructions": "Save PDF Instructions",
-    "usePrintDialogToSave": "Please use the Print dialog to save as PDF. The file will be ready for manual upload.",
-    "generatingPdfWithEngine": "Using browser print engine for perfect styling...",
-    "pdfGeneratedAndUploaded": "PDF Generated & Uploaded",
-    "generationFailed": "Generation failed",
-    "couldNotGeneratePdf": "Could not generate the PDF. Please try again.",
-
-    "noExecutorsFound": "No executors found",
-    "noExecutorsToContact": "There are no executors to contact",
-    "emailSentSuccessfully": "Email Sent Successfully",
-    "notificationEmailSent": "Notification email sent to admin",
-    "failedToSendEmails": "Failed to send emails",
-    "couldNotSendNotificationEmails": "Could not send notification emails to executors",
-    "noteAdded": "Note Added",
-    "noteAddedSuccessfully": "Note has been added successfully",
     "failedToAddNote": "Failed to add note: {{error}}",
-    "statusUpdatedSuccess": "Status Updated",
-    "willStatusUpdatedSuccessfully": "Will status has been updated successfully",
-    "failedToUpdateStatus": "Failed to update status: {{error}}",
     "updatedSuccessfully": "Updated Successfully",
     "changesSaved": "Changes have been saved",
     "failedToUpdate": "Failed to update: {{error}}",
@@ -90,18 +39,38 @@
     "pdfGenerationStarted": "PDF Generation Started",
     "generatingPdf": "Generating PDF... This may take a few seconds.",
     "pdfGeneratedSuccess": "PDF Generated Successfully",
-    "newPdfReady": "The new PDF is ready and has been loaded.",
+    "pdfReadyAndLoaded": "The new PDF is ready and has been loaded.",
     "pdfGenerationInProgress": "PDF Generation In Progress",
-    "pleaseWait": "Please wait while the PDF is being generated...",
+    "pdfStillGenerating": "PDF is still being generated. This can take up to a minute for complex wills.",
     "failedToRegeneratePdf": "Failed to regenerate PDF: {{error}}",
     "pleaseUploadPdf": "Please upload a PDF file",
-    "watermarkWarning": "Warning",
     "watermarkCouldNotBeAdded": "Watermark could not be added, uploading original PDF",
+    "pdfUploadedSuccess": "PDF Uploaded Successfully",
+    "draftPdfVisibleToClient": "The draft PDF has been generated and is now visible to the client.",
+    "failedToUploadPdf": "Failed to upload PDF: {{error}}",
+    "settingUpdated": "Setting Updated",
+    "signatureIncluded": "Signature will be included in PDF",
+    "signatureExcluded": "Signature will be excluded in PDF",
+    "savePdfInstructions": "Save PDF Instructions",
+    "usePrintDialogToSave": "Please use the Print dialog to save as PDF. The file will be ready for manual upload.",
+    "generatingPdfWithEngine": "Using browser print engine for perfect styling...",
+    "pdfGeneratedAndUploaded": "PDF Generated & Uploaded",
+    "generationFailed": "Generation failed",
+    "couldNotGeneratePdf": "Could not generate the PDF. Please try again.",
+    "noExecutorsToContact": "There are no executors to contact",
+    "emailSentSuccessfully": "Email Sent Successfully",
+    "notificationEmailSent": "Notification email sent to admin",
+    "couldNotSendNotificationEmails": "Could not send notification emails to executors",
+    "noteAddedSuccessfully": "Note has been added successfully",
+    "statusUpdatedSuccess": "Status Updated",
+    "willStatusUpdatedSuccessfully": "Will status has been updated successfully",
+    "failedToUpdateStatus": "Failed to update status: {{error}}",
+    "newPdfReady": "The new PDF is ready and has been loaded.",
+    "pleaseWait": "Please wait while the PDF is being generated...",
+    "watermarkWarning": "Warning",
     "pdfUploadedSuccessfully": "PDF Uploaded Successfully",
-    "draftPdfAvailable": "Draft PDF is now available for the client to review",
-    "failedToUploadPdf": "Failed to upload PDF: {{error}}"
+    "draftPdfAvailable": "Draft PDF is now available for the client to review"
   },
-
   "auth": {
     "authenticationRequired": "Authentication required",
     "pleaseLoginToUpload": "Please log in to upload files",
@@ -122,9 +91,9 @@
     "noActiveRole": "No active role found for your account.",
     "accessDenied": "Access Denied",
     "noAccessToDashboard": "You do not have access to this dashboard. Please contact your administrator if you believe this is an error.",
-    "signingIn": "Signing in..."
+    "signingIn": "Signing in...",
+    "pleaseLogInToUpload": "Please log in to upload files"
   },
-
   "settings": {
     "validationError": "Validation Error",
     "fillAllFields": "Please fill in all password fields",
@@ -135,7 +104,6 @@
     "passwordChangedSuccess": "Password changed successfully",
     "failedToChangePassword": "Failed to change password"
   },
-
   "upload": {
     "invalidFileType": "Invalid File Type",
     "pleaseUploadPdfOrImage": "Please upload a PDF or image file",
@@ -153,7 +121,7 @@
     "failedToUploadPhoto": "Failed to upload photo",
     "documentRemoved": "Document removed",
     "documentRemovedSuccess": "{{fileName}} has been removed",
-    "fileRemoved": "{{name}} has been removed",
+    "fileRemoved": "File Removed",
     "photoRemoved": "Photo removed",
     "assetPhotoRemoved": "Asset photo has been removed",
     "removeFailed": "Remove failed",
@@ -171,7 +139,6 @@
     "manualEntryRequired": "Could not extract passport number. Please enter it manually.",
     "ocrFailed": "OCR Failed",
     "ocrError": "Failed to extract text from image",
-    "fileRemoved": "File Removed",
     "fileRemovedSuccess": "File has been removed successfully",
     "captureError": "Capture Error",
     "captureFailed": "Failed to process camera capture",
@@ -180,9 +147,9 @@
     "deleteFailed": "Delete Failed",
     "deleteError": "Failed to delete file",
     "uploadSuccess": "Upload Success",
-    "fileUploadedSuccessfully": "File uploaded successfully"
+    "fileUploadedSuccessfully": "File uploaded successfully",
+    "pleaseUploadPDFOrImage": "Please upload a PDF or image file"
   },
-
   "will": {
     "saving": "Saving...",
     "changesBeingSaved": "Your changes are being saved.",
@@ -214,9 +181,10 @@
     "failedToSaveFileMetadata": "Failed to save file metadata.",
     "failedToUpdateUploadFiles": "Failed to update upload files.",
     "removeFailed": "Remove Failed",
-    "failedToRemoveFileMetadata": "Failed to remove file metadata."
+    "failedToRemoveFileMetadata": "Failed to remove file metadata.",
+    "andMoreIssues": "and {{count}} more issue",
+    "fixToContinueTitle": "Please fix {{count}} issue to continue"
   },
-
   "documents": {
     "errorLoadingDocuments": "Failed to load documents",
     "downloadFailed": "Download Failed",
@@ -226,13 +194,11 @@
     "disapprovalSuccess": "Your feedback has been recorded",
     "approvalError": "Failed to submit your approval"
   },
-
   "editRequest": {
     "failedToSendRequest": "Failed to send request",
     "tryAgainOrContact": "Please try again or contact us directly at info@just-wills.net",
     "pleaseLogInToSubmit": "Please log in to submit an edit request"
   },
-
   "portal": {
     "draftReady": "Your Draft is Ready",
     "finalized": "Your Will is Finalized"
