@@ -131,7 +131,10 @@ export function UserProfileMenu({
               <p className="text-sm font-medium text-sidebar-foreground leading-tight truncate">
                 {profile?.full_name?.split(" ")[0] || "User"}
               </p>
-              <p className="text-[11px] text-sidebar-foreground/70 leading-tight mt-0.5">
+              <p
+                className="text-[11px] text-sidebar-foreground/70 leading-tight mt-0.5 truncate"
+                title={roleLabel}
+              >
                 {roleLabel}
               </p>
             </div>
@@ -194,9 +197,13 @@ function MenuContent({
   return (
     <div className={cn("text-sidebar-foreground", isRtl && "text-right")}>
       {/* User Info Header */}
-      <div className="px-4 py-3">
-        <p className="font-medium text-sm">{profile?.full_name || "User"}</p>
-        <p className="text-xs text-sidebar-foreground/70 mt-0.5">{roleLabel}</p>
+      <div className="px-4 py-3 min-w-0">
+        <p className="font-medium text-sm truncate" title={profile?.full_name || "User"}>
+          {profile?.full_name || "User"}
+        </p>
+        <p className="text-xs text-sidebar-foreground/70 mt-0.5 truncate" title={roleLabel}>
+          {roleLabel}
+        </p>
       </div>
       
       <Separator className="bg-sidebar-border" />

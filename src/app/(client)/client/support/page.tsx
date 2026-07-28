@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
+import { useForm, Controller } from "react-hook-form";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,10 +23,16 @@ import { Label } from "@/components/ui/label";
 import { CheckCircle2, Lock, FileText, FolderOpen, Briefcase, Upload, Paperclip, X, Mail, Loader2, Clock } from "lucide-react";
 import { PageHeader } from "@/components/portal/PageHeader";
 import { toast } from "sonner";
+import { format } from "date-fns";
+
+// Sentinel for "not about a specific will" — these go to the admin inbox
+// rather than to a particular case's account manager.
+const GENERAL_ENQUIRY = "general";
 
 const supportSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
   email: z.string().trim().email("Invalid email address").max(255),
+  willId: z.string().min(1, "Please select what this is about"),
   subject: z.string().trim().min(3, "Subject must be at least 3 characters").max(100),
   message: z.string().trim().min(10, "Message must be at least 10 characters").max(2000)
 });
@@ -25,22 +40,40 @@ const supportSchema = z.object({
 type SupportFormData = z.infer<typeof supportSchema>;
 
 export default function ClientSupport() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { t } = useTranslation(['portal', 'common']);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
 
+  // The client's own wills — picking one routes the message to that case's
+  // assigned account manager instead of the general admin inbox.
+  const { data: myWills } = useQuery({
+    queryKey: ['client-wills-for-support', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wills')
+        .select('id, status, created_at')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
     reset
   } = useForm<SupportFormData>({
     resolver: zodResolver(supportSchema),
     defaultValues: {
       name: profile?.full_name || "",
-      email: "",
+      email: user?.email || "",
+      willId: "",
       subject: "",
       message: ""
     }
@@ -98,6 +131,9 @@ export default function ClientSupport() {
         body: JSON.stringify({
           name: data.name,
           email: data.email,
+          // Lets the server resolve which account manager should receive
+          // this. Omitted for a general enquiry, which goes to admin.
+          willId: data.willId === GENERAL_ENQUIRY ? null : data.willId,
           subject: data.subject,
           message: data.message,
           attachment: attachmentData,
@@ -276,6 +312,44 @@ export default function ClientSupport() {
               />
               {errors.email && (
                 <p className="text-[12px] text-destructive">{errors.email.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="willId" className="text-[13px] font-medium text-[#333333]">
+                {t('portal:whatIsThisAbout', 'What is this about?')} *
+              </Label>
+              <Controller
+                name="willId"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger
+                      id="willId"
+                      className="h-10 border-[#E6E6E4] focus:border-[#0C5536] focus:ring-[#0C5536] rounded-md"
+                    >
+                      <SelectValue placeholder={t('portal:selectCase', 'Select a case')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(myWills || []).map((will) => (
+                        <SelectItem key={will.id} value={will.id}>
+                          {t('portal:willRef', 'Will')} #{will.id.slice(0, 8).toUpperCase()}
+                          {' — '}
+                          {format(new Date(will.created_at), 'd MMM yyyy')}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={GENERAL_ENQUIRY}>
+                        {t('portal:generalEnquiry', 'General question (not about a specific will)')}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <p className="text-[11px] text-[#6B6B6B]">
+                {t('portal:routingHint', 'Selecting your case sends this straight to the person handling it.')}
+              </p>
+              {errors.willId && (
+                <p className="text-[12px] text-destructive">{errors.willId.message}</p>
               )}
             </div>
 

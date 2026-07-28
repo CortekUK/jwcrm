@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 type PermissionLevel = 'head' | 'employee';
-type AppRole = 'client' | 'admin' | 'hr' | 'finance' | 'lead_management' | 'salesperson';
+type AppRole = 'client' | 'admin' | 'hr' | 'finance' | 'lead_management' | 'salesperson' | 'account_manager';
 
 // Roles that support tiered permissions
 const TIERED_PERMISSION_ROLES: AppRole[] = ['hr', 'finance', 'lead_management', 'admin'];
@@ -57,6 +57,7 @@ const roleDisplayNames: Record<string, string> = {
   finance: 'Finance',
   lead_management: 'Lead Management',
   salesperson: 'Salesperson',
+  account_manager: 'Account Manager',
 };
 
 // Permission level display names
@@ -167,7 +168,7 @@ Deno.serve(async (req) => {
     }
 
     // Validate roles
-    const validRoles = ['client', 'admin', 'hr', 'finance', 'lead_management', 'salesperson'];
+    const validRoles = ['client', 'admin', 'hr', 'finance', 'lead_management', 'salesperson', 'account_manager'];
     const invalidRoles = userRolesToAssign.filter(r => !validRoles.includes(r));
     if (invalidRoles.length > 0) {
       return new Response(
@@ -278,13 +279,20 @@ Deno.serve(async (req) => {
           console.log('Roles:', userRolesToAssign.join(', '), '- Display name:', roleDisplay);
           console.log('========================');
 
-          // NOTE: with the default onboarding@resend.dev sender, Resend only
-          // delivers to the account owner's verified address. Set a verified
-          // FROM_EMAIL domain so the credentials actually reach the client.
+          // The Resend account in use is a trial that only delivers to one
+          // verified address, so until PRODUCTION_EMAIL_MODE is set the send
+          // is redirected there with the intended recipient preserved in the
+          // subject. Mirrors src/lib/integrations/sendUserEmail.ts.
+          const adminEmail = Deno.env.get('ADMIN_EMAIL') || 'aw736024@gmail.com';
+          const isTestMode = !Deno.env.get('PRODUCTION_EMAIL_MODE');
+          const welcomeSubject = `Welcome to Just Wills - Your ${roleDisplay} Account Has Been Created`;
+          const recipient = isTestMode ? adminEmail : email;
+          const subject = isTestMode ? `[Original: ${email}] ${welcomeSubject}` : welcomeSubject;
+
           const { data: emailData, error: sendError } = await resend.emails.send({
             from: fromEmail,
-            to: email,
-            subject: `Welcome to Just Wills - Your ${roleDisplay} Account Has Been Created`,
+            to: recipient,
+            subject,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background-color: #0C5536; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">

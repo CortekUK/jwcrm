@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LayoutDashboard, Users, DollarSign, Target, ShieldCheck, UserCheck } from "lucide-react";
+import { LayoutDashboard, Users, DollarSign, Target, ShieldCheck, UserCheck, UserCog } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 
@@ -21,6 +21,7 @@ const ROLE_ICONS: Record<UserRole, React.ElementType> = {
   finance: DollarSign,
   lead_management: Target,
   salesperson: UserCheck,
+  account_manager: UserCog,
   client: LayoutDashboard,
 };
 
@@ -32,6 +33,7 @@ const ROLE_SHORT_NAMES: Record<UserRole, { en: string; ar: string }> = {
   finance: { en: "Finance", ar: "المالية" },
   lead_management: { en: "Leads", ar: "العملاء" },
   salesperson: { en: "Sales", ar: "المبيعات" },
+  account_manager: { en: "My Cases", ar: "ملفاتي" },
   client: { en: "Client", ar: "العميل" },
 };
 
@@ -43,6 +45,7 @@ const ROLE_DASHBOARD_ROUTES: Record<UserRole, string> = {
   finance: "/admin/finance",
   lead_management: "/admin/lead-management/leads",
   salesperson: "/admin/lead-management/leads",
+  account_manager: "/admin/wills",
   client: "/client",
 };
 

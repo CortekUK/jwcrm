@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Copy, Check, Mail, User, AlertCircle, Shield, Users, Target, UserCheck, Banknote, Crown, UserCircle } from "lucide-react";
+import { Loader2, Copy, Check, Mail, User, AlertCircle, Shield, Users, Target, UserCheck, UserCog, Banknote, Crown, UserCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -53,9 +53,14 @@ export function CreateClientModal({ open, onOpenChange, onUserCreated }: CreateC
     { value: "lead_management", label: "admin:leadManagement", icon: Target, bgColor: "bg-[rgba(245,158,11,0.1)]", textColor: "text-[#D97706]", borderColor: "border-[#D97706]/20" },
   ];
 
-  // Executive Assistant (salesperson) role only available when created by superadmin
+  // Executive Assistant (salesperson) and Account Manager roles are only
+  // available when the account is created by a superadmin.
   const availableRoles = isSuperadmin
-    ? [...baseRoles, { value: "salesperson", label: "admin:salesperson", icon: UserCheck, bgColor: "bg-[rgba(59,130,246,0.1)]", textColor: "text-[#2563EB]", borderColor: "border-[#2563EB]/20" }]
+    ? [
+        ...baseRoles,
+        { value: "salesperson", label: "admin:salesperson", icon: UserCheck, bgColor: "bg-[rgba(59,130,246,0.1)]", textColor: "text-[#2563EB]", borderColor: "border-[#2563EB]/20" },
+        { value: "account_manager", label: "admin:accountManager", icon: UserCog, bgColor: "bg-[rgba(217,70,239,0.1)]", textColor: "text-[#C026D3]", borderColor: "border-[#C026D3]/20" },
+      ]
     : baseRoles;
 
   // Check if any selected role supports tiered permissions

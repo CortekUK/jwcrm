@@ -1142,6 +1142,7 @@ export type Database = {
       }
       wills: {
         Row: {
+          account_manager_id: string | null
           answers: Json | null
           client_approval_at: string | null
           client_approval_comments: string | null
@@ -1167,6 +1168,7 @@ export type Database = {
           visible_to_client: boolean | null
         }
         Insert: {
+          account_manager_id?: string | null
           answers?: Json | null
           client_approval_at?: string | null
           client_approval_comments?: string | null
@@ -1192,6 +1194,7 @@ export type Database = {
           visible_to_client?: boolean | null
         }
         Update: {
+          account_manager_id?: string | null
           answers?: Json | null
           client_approval_at?: string | null
           client_approval_comments?: string | null
@@ -1243,6 +1246,7 @@ export type Database = {
         | "lead_management"
         | "superadmin"
         | "salesperson"
+        | "account_manager"
       attendance_status:
         | "present"
         | "late"
@@ -1416,6 +1420,7 @@ export const Constants = {
         "lead_management",
         "superadmin",
         "salesperson",
+        "account_manager",
       ],
       attendance_status: [
         "present",

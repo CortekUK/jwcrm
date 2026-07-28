@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 
-export type UserRole = "client" | "admin" | "superadmin" | "hr" | "finance" | "lead_management" | "salesperson";
+export type UserRole = "client" | "admin" | "superadmin" | "hr" | "finance" | "lead_management" | "salesperson" | "account_manager";
 export type PermissionLevel = "head" | "employee";
 
 export interface RoleWithPermission {
@@ -29,7 +29,13 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { t } = useTranslation('toast');
-  const profileLoadedRef = useRef(false);
+  // Which user's profile is currently in state — NOT merely "has a profile
+  // been loaded". A boolean flag here caused the previous user's profile
+  // (and therefore their roles) to be reused when a different user signed in
+  // without a SIGNED_OUT event in between, so the new user was authorised
+  // against the old user's permissions. Keying on the id forces a refetch
+  // whenever the account changes.
+  const profileLoadedForUserRef = useRef<string | null>(null);
 
   // Auth listener - runs ONCE on mount, profile fetched only once per session
   useEffect(() => {
@@ -39,7 +45,7 @@ export function useAuth() {
           setSession(null);
           setUser(null);
           setProfile(null);
-          profileLoadedRef.current = false;
+          profileLoadedForUserRef.current = null;
           setLoading(false);
           return;
         }
@@ -64,12 +70,15 @@ export function useAuth() {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Only fetch profile ONCE per session
-        if (session?.user && !profileLoadedRef.current) {
+        // Fetch once per *user* — refetches when the account changes so a
+        // new sign-in can never inherit the previous user's profile/roles.
+        if (session?.user && profileLoadedForUserRef.current !== session.user.id) {
+          setProfile(null);
+          setLoading(true);
           fetchProfile(session.user.id);
         } else if (!session?.user) {
           setProfile(null);
-          profileLoadedRef.current = false;
+          profileLoadedForUserRef.current = null;
           setLoading(false);
         }
       }
@@ -97,8 +106,9 @@ export function useAuth() {
       setSession(session);
       setUser(session?.user ?? null);
 
-      // Only fetch profile ONCE - check ref to prevent duplicate calls
-      if (session?.user && !profileLoadedRef.current) {
+      // Fetch once per *user* (see note on profileLoadedForUserRef) — this
+      // also still prevents the duplicate call this guard originally existed for.
+      if (session?.user && profileLoadedForUserRef.current !== session.user.id) {
         fetchProfile(session.user.id);
       } else if (!session?.user) {
         setLoading(false);
@@ -210,7 +220,10 @@ export function useAuth() {
         permissionLevel: (r.permission_level as PermissionLevel) || 'head',
       }));
 
-      const rolePriority: UserRole[] = ['superadmin', 'admin', 'hr', 'finance', 'lead_management', 'salesperson', 'client'];
+      // Must list every internal role — a role missing here falls through to
+      // the 'client' default below, which would mis-route that user's
+      // dashboard and mislabel them throughout the UI.
+      const rolePriority: UserRole[] = ['superadmin', 'admin', 'hr', 'finance', 'lead_management', 'salesperson', 'account_manager', 'client'];
       const primaryRole = rolePriority.find(r => roles.includes(r)) || 'client';
 
       setProfile({
@@ -219,7 +232,7 @@ export function useAuth() {
         roles: roles, // Store all roles for future use
         rolesWithPermissions, // Store roles with their permission levels
       });
-      profileLoadedRef.current = true;
+      profileLoadedForUserRef.current = userId;
     } catch (error: any) {
       console.error("Error fetching profile:", error);
       toast({

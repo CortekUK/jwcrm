@@ -72,9 +72,14 @@ interface Will {
   answers: any;
   client_approval_status?: "approved" | "disapproved" | null;
   client_approval_at?: string | null;
+  account_manager_id: string | null;
   profile: {
     full_name: string;
     user_id: string;
+  } | null;
+  accountManager: {
+    user_id: string;
+    full_name: string;
   } | null;
 }
 
@@ -114,7 +119,24 @@ function AdminWillsContent() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
+
+  // An account manager sees only their own cases. Someone who holds the
+  // account_manager role *alongside* admin/superadmin keeps full visibility —
+  // the restriction applies only when account manager is their sole scope.
+  //
+  // IMPORTANT: profile (and therefore roles) loads asynchronously, so on the
+  // first render roles is empty. Deriving "is this user restricted?" from an
+  // empty array would answer "no" and run the query UNSCOPED, briefly handing
+  // every will to a user who may only be entitled to one. So the roles must be
+  // treated as unknown until auth resolves, and the query must not run at all
+  // until then — unknown means restricted, never unrestricted.
+  const rolesKnown = !authLoading && !!profile;
+  const roles = profile?.roles ?? [];
+  const isAccountManagerOnly =
+    roles.includes("account_manager") &&
+    !roles.includes("admin") &&
+    !roles.includes("superadmin");
   const { t } = useTranslation(['admin', 'common', 'toast']);
   const { locale } = useLanguage();
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
@@ -137,9 +159,13 @@ function AdminWillsContent() {
   // Sorting
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  // Fetch all wills with user profiles (only submitted wills)
+  // Fetch all wills with user profiles (only submitted wills).
+  //
+  // Account managers share this exact page with admin but may only ever see
+  // the cases assigned to them, so the restriction is applied in the query
+  // itself rather than as a UI filter that could be bypassed.
   const { data: allWills, isLoading } = useQuery({
-    queryKey: ['admin-wills', userIdFilter],
+    queryKey: ['admin-wills', userIdFilter, rolesKnown, isAccountManagerOnly, user?.id],
     queryFn: async () => {
       let query = supabase
         .from('wills')
@@ -150,16 +176,28 @@ function AdminWillsContent() {
         query = query.eq('user_id', userIdFilter);
       }
 
+      if (isAccountManagerOnly) {
+        // No user id yet => match nothing rather than everything.
+        query = query.eq('account_manager_id', user?.id ?? '__none__');
+      }
+
       const { data: willsData, error: willsError } = await query
         .order('created_at', { ascending: sortOrder === "asc" });
 
       if (willsError) throw willsError;
 
-      const userIds = willsData.map(w => w.user_id);
+      // Look up display names for both the client and the assigned manager.
+      const lookupIds = Array.from(
+        new Set([
+          ...willsData.map(w => w.user_id),
+          ...willsData.map(w => w.account_manager_id).filter(Boolean),
+        ])
+      ) as string[];
+
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id, full_name')
-        .in('user_id', userIds);
+        .in('user_id', lookupIds);
 
       if (profilesError) throw profilesError;
 
@@ -168,8 +206,13 @@ function AdminWillsContent() {
       return willsData.map(will => ({
         ...will,
         profile: profilesMap.get(will.user_id) || null,
+        accountManager: will.account_manager_id
+          ? profilesMap.get(will.account_manager_id) || null
+          : null,
       })) as Will[];
     },
+    // Never fetch before we know who this user is — see rolesKnown above.
+    enabled: rolesKnown && (!isAccountManagerOnly || !!user?.id),
   });
 
   // Apply filters
@@ -297,7 +340,10 @@ function AdminWillsContent() {
       .slice(0, 2);
   };
 
-  if (isLoading) {
+  // `rolesKnown` is part of this because a disabled query reports
+  // isLoading === false in react-query v5, which would otherwise render the
+  // empty state (or stale data) while we still don't know who the user is.
+  if (!rolesKnown || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-accent" />
@@ -496,6 +542,9 @@ function AdminWillsContent() {
                       </TableHead>
                       <TableHead className="font-medium text-sm ltr:text-left rtl:text-right text-[hsl(var(--jw-primary-green))] border-s border-[#EAEAE8]">{t('admin:draftAgeColumn', 'Draft Age')}</TableHead>
                       <TableHead className="font-medium text-sm ltr:text-left rtl:text-right text-[hsl(var(--jw-primary-green))] border-s border-[#EAEAE8]">{t('admin:statusColumn')}</TableHead>
+                      {!isAccountManagerOnly && (
+                        <TableHead className="font-medium text-sm ltr:text-left rtl:text-right text-[hsl(var(--jw-primary-green))] border-s border-[#EAEAE8]">{t('admin:accountManager')}</TableHead>
+                      )}
                       <TableHead className="ltr:text-left rtl:text-right font-medium text-sm text-[hsl(var(--jw-primary-green))] border-s border-[#EAEAE8]">{t('admin:pdfColumn')}</TableHead>
                       <TableHead className="ltr:text-left rtl:text-right font-medium text-sm text-[hsl(var(--jw-primary-green))] border-s border-[#EAEAE8]">{t('admin:actionsColumn')}</TableHead>
                     </TableRow>
@@ -573,6 +622,19 @@ function AdminWillsContent() {
                             )}
                           </div>
                         </TableCell>
+                        {!isAccountManagerOnly && (
+                          <TableCell className="border-s border-[#EAEAE8]">
+                            {will.accountManager?.full_name ? (
+                              <span className="text-sm text-[#222222]">
+                                {will.accountManager.full_name}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-[#999999] italic">
+                                {t('admin:unassigned')}
+                              </span>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell className="border-s border-[#EAEAE8]">
                           {will.pdf_path ? (
                             <Button

@@ -29,6 +29,7 @@ const formatRoleName = (role: string): string => {
     finance_manager: "Finance Manager",
     finance: "Finance",
     salesperson: "Executive Assistant",
+    account_manager: "Account Manager",
     client: "Client",
     lead_manager: "Managing Director",
     lead_management: "Managing Director",

@@ -4,10 +4,10 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { UserRole, useAuth } from "./useAuth";
 
 // Internal roles that can access the unified admin dashboard
-export const INTERNAL_ROLES: UserRole[] = ["superadmin", "admin", "hr", "finance", "lead_management", "salesperson"];
+export const INTERNAL_ROLES: UserRole[] = ["superadmin", "admin", "hr", "finance", "lead_management", "salesperson", "account_manager"];
 
 // Role priority for determining default selection (HR first for general accounts)
-const ROLE_PRIORITY: UserRole[] = ["superadmin", "hr", "admin", "finance", "lead_management", "salesperson", "client"];
+const ROLE_PRIORITY: UserRole[] = ["superadmin", "hr", "admin", "finance", "lead_management", "salesperson", "account_manager", "client"];
 
 // Role display names for the switcher
 export const ROLE_DISPLAY_NAMES: Record<UserRole, string> = {
@@ -17,6 +17,7 @@ export const ROLE_DISPLAY_NAMES: Record<UserRole, string> = {
   finance: "Finance Dashboard",
   lead_management: "MD (Managing Director) Dashboard",
   salesperson: "EA (Executive Assistant) Dashboard",
+  account_manager: "Account Manager Dashboard",
   client: "Client Portal",
 };
 

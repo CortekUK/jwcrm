@@ -362,6 +362,8 @@ export default function ManageUsersPage() {
                                   return 'bg-[rgba(245,158,11,0.1)] text-[#D97706]';
                                 case 'salesperson':
                                   return 'bg-[rgba(59,130,246,0.1)] text-[#2563EB]';
+                                case 'account_manager':
+                                  return 'bg-[rgba(217,70,239,0.1)] text-[#C026D3]';
                                 default:
                                   return 'bg-[rgba(12,85,54,0.08)] text-[#0C5536]';
                               }
@@ -374,6 +376,7 @@ export default function ManageUsersPage() {
                                 case 'finance': return t('admin:finance');
                                 case 'lead_management': return t('admin:leadManagement');
                                 case 'salesperson': return t('admin:salesperson');
+                                case 'account_manager': return t('admin:accountManager');
                                 case 'client': return t('admin:client');
                                 default: return r;
                               }

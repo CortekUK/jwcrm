@@ -253,7 +253,26 @@ export default function AdminWillDetail() {
   const id = params.id as string;
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, profile: authProfile, loading: authLoading } = useAuth();
+
+  // Roles load asynchronously, so they must be treated as unknown until auth
+  // resolves — an empty roles array means "not loaded yet", NOT "no access".
+  // Every check below therefore waits on rolesKnown and fails closed.
+  const rolesKnown = !authLoading && !!authProfile;
+  const authRoles = authProfile?.roles ?? [];
+
+  // Only admins/superadmins may (re)assign the account manager on a case.
+  const canAssignAccountManager =
+    rolesKnown &&
+    (authRoles.includes("admin") || authRoles.includes("superadmin"));
+
+  // An account manager may only open a case assigned to them — without this,
+  // the case could be reached directly by URL even though the list hides it.
+  const isAccountManagerOnly =
+    rolesKnown &&
+    authRoles.includes("account_manager") &&
+    !authRoles.includes("admin") &&
+    !authRoles.includes("superadmin");
   const { t } = useTranslation(["admin", "common"]);
   const { locale } = useLanguage();
   const isRtl = locale === 'ar';
@@ -309,15 +328,22 @@ export default function AdminWillDetail() {
   const [editedSpecialRequests, setEditedSpecialRequests] = useState<any>(null);
 
   const { data: will, isLoading } = useQuery({
-    queryKey: ["admin-will-detail", id],
+    queryKey: ["admin-will-detail", id, rolesKnown, isAccountManagerOnly, user?.id],
+    // Never fetch before we know who this user is, or the ownership filter
+    // below would be skipped on the first render.
+    enabled: !!id && rolesKnown && (!isAccountManagerOnly || !!user?.id),
     queryFn: async () => {
       if (!id) throw new Error("No will ID provided");
 
-      const { data: willData, error } = await supabase
-        .from("wills")
-        .select("*")
-        .eq("id", id)
-        .single();
+      let willQuery = supabase.from("wills").select("*").eq("id", id);
+
+      // Scope in the query itself rather than hiding the UI afterwards, so an
+      // unassigned case is never sent to this browser in the first place.
+      if (isAccountManagerOnly) {
+        willQuery = willQuery.eq("account_manager_id", user?.id ?? "__none__");
+      }
+
+      const { data: willData, error } = await willQuery.single();
 
       if (error) throw error;
 
@@ -328,13 +354,77 @@ export default function AdminWillDetail() {
         .eq("user_id", willData.user_id)
         .single();
 
+      // Display name of the assigned account manager, when there is one.
+      let accountManagerProfile: { full_name: string | null } | null = null;
+      if (willData.account_manager_id) {
+        const { data: amProfile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("user_id", willData.account_manager_id)
+          .maybeSingle();
+        accountManagerProfile = amProfile ?? null;
+      }
+
       return {
         ...willData,
         profile: profileData,
+        accountManagerProfile,
         client_approval_status: willData.client_approval_status as "approved" | "disapproved" | null,
         client_approval_at: willData.client_approval_at,
         client_approval_comments: willData.client_approval_comments,
       };
+    },
+  });
+
+  // Staff who hold the account_manager role — the pool an admin can assign
+  // this case to. Only fetched for users who are allowed to assign.
+  const { data: accountManagers } = useQuery({
+    queryKey: ["account-managers"],
+    enabled: canAssignAccountManager,
+    queryFn: async () => {
+      const { data: roleRows, error: roleError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "account_manager");
+      if (roleError) throw roleError;
+
+      const ids = (roleRows || []).map((r) => r.user_id);
+      if (ids.length === 0) return [];
+
+      const { data: profileRows, error: profileError } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", ids);
+      if (profileError) throw profileError;
+
+      return (profileRows || []) as Array<{ user_id: string; full_name: string | null }>;
+    },
+  });
+
+  // Assign / unassign the account manager handling this case.
+  const assignAccountManagerMutation = useMutation({
+    mutationFn: async (accountManagerId: string | null) => {
+      const { error } = await supabase
+        .from("wills")
+        .update({ account_manager_id: accountManagerId })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-will-detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["admin-wills"] });
+      toast({
+        title: t("admin:accountManager"),
+        description: t("admin:accountManagerUpdated", "Account manager updated"),
+        className: "bg-[hsl(var(--jw-primary-green))] text-white",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: t("common:error", "Error"),
+        description: error.message,
+      });
     },
   });
 
@@ -1225,7 +1315,10 @@ export default function AdminWillDetail() {
     return null;
   };
 
-  if (isLoading) {
+  // `rolesKnown` guards this because a disabled query reports isLoading ===
+  // false in react-query v5, which would flash "Will Not Found" (or stale
+  // data) before we know whether this user may see the case at all.
+  if (!rolesKnown || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -1340,6 +1433,44 @@ export default function AdminWillDetail() {
                     {answers.personal?.email || "N/A"}
                   </p>
                 </div>
+              </div>
+
+              {/* Account manager handling this case. Support and edit
+                  requests the client raises against this will are routed
+                  to whoever is selected here. */}
+              <div className="mt-4 pt-3 border-t border-[hsl(var(--jw-gold-accent))]/10">
+                <p className={`text-xs text-[#777777] mb-1.5 ${textAlign(isRtl)}`}>
+                  {t("admin:accountManager")}
+                </p>
+                {canAssignAccountManager ? (
+                  <Select
+                    value={will.account_manager_id ?? "__unassigned__"}
+                    onValueChange={(value) =>
+                      assignAccountManagerMutation.mutate(
+                        value === "__unassigned__" ? null : value
+                      )
+                    }
+                    disabled={assignAccountManagerMutation.isPending}
+                  >
+                    <SelectTrigger className="h-9 border-[#E6E6E4] text-sm">
+                      <SelectValue placeholder={t("admin:assignAccountManager")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__unassigned__">
+                        {t("admin:unassigned")}
+                      </SelectItem>
+                      {(accountManagers || []).map((am) => (
+                        <SelectItem key={am.user_id} value={am.user_id}>
+                          {am.full_name || am.user_id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className={`text-sm font-medium text-[#222222] ${textAlign(isRtl)}`}>
+                    {will.accountManagerProfile?.full_name || t("admin:unassigned")}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

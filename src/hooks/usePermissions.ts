@@ -37,6 +37,7 @@ const HEAD_ONLY_OPERATIONS: Record<UserRole, Operation[]> = {
   client: [],
   superadmin: [],
   salesperson: [],
+  account_manager: [],
 };
 
 export interface PermissionsResult {

@@ -239,6 +239,14 @@ const salespersonNavItems: NavItem[] = [
   { path: "/admin/salesperson/settings", labelKey: "common:settings", icon: Settings },
 ];
 
+// Account manager nav items - shares the same wills pages as admin. Account
+// managers see only the wills assigned to them (wills.account_manager_id),
+// filtered in the page itself rather than duplicating the UI.
+const accountManagerNavItems: NavItem[] = [
+  { path: "/admin/wills", labelKey: "admin:myCases", icon: FileText },
+  { path: "/admin/my-leave", labelKey: "common:myLeave", icon: CalendarDays },
+];
+
 /**
  * Get navigation items for a specific role in the unified admin dashboard
  */
@@ -256,6 +264,8 @@ export function getNavItemsForRole(role: UserRole): NavItem[] {
       return leadManagementNavItems;
     case "salesperson":
       return salespersonNavItems;
+    case "account_manager":
+      return accountManagerNavItems;
     default:
       return [];
   }
@@ -264,7 +274,7 @@ export function getNavItemsForRole(role: UserRole): NavItem[] {
 /**
  * Internal roles that can access the unified admin dashboard
  */
-export const INTERNAL_ROLES: UserRole[] = ["superadmin", "admin", "hr", "finance", "lead_management", "salesperson"];
+export const INTERNAL_ROLES: UserRole[] = ["superadmin", "admin", "hr", "finance", "lead_management", "salesperson", "account_manager"];
 
 /**
  * Check if user has any internal role (can access unified admin dashboard)
@@ -291,6 +301,8 @@ export function getDefaultRouteForRole(role: UserRole): string {
       return "/admin/lead-management/leads";
     case "salesperson":
       return "/admin/lead-management/leads";
+    case "account_manager":
+      return "/admin/wills";
     case "client":
       return "/client";
     default:
@@ -302,7 +314,7 @@ export function getDefaultRouteForRole(role: UserRole): string {
  * Get the default landing page based on user's roles (uses role priority)
  */
 export function getDefaultRouteForRoles(userRoles: UserRole[]): string {
-  const rolePriority: UserRole[] = ["superadmin", "admin", "hr", "finance", "lead_management", "salesperson", "client"];
+  const rolePriority: UserRole[] = ["superadmin", "admin", "hr", "finance", "lead_management", "salesperson", "account_manager", "client"];
   const primaryRole = rolePriority.find((r) => userRoles.includes(r));
   return primaryRole ? getDefaultRouteForRole(primaryRole) : "/admin";
 }

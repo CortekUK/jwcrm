@@ -1,4 +1,6 @@
 import { Resend } from 'npm:resend@6.1.3';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { resolveStaffRecipient, applyTestModeSwap } from '../_shared/accountManager.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,6 +10,8 @@ const corsHeaders = {
 interface SupportEmailRequest {
   name: string;
   email: string;
+  /** Will this message is about. Null/absent = general enquiry → admin. */
+  willId?: string | null;
   subject: string;
   message: string;
   attachment?: {
@@ -31,7 +35,7 @@ Deno.serve(async (req) => {
     }
 
     // Parse request body
-    const { name, email, subject, message, attachment }: SupportEmailRequest = await req.json();
+    const { name, email, willId, subject, message, attachment }: SupportEmailRequest = await req.json();
 
     // Validate required fields
     if (!name || !email || !subject || !message) {
@@ -47,22 +51,34 @@ Deno.serve(async (req) => {
     // Initialize Resend
     const resend = new Resend(resendApiKey);
 
-    // Hardcoded admin email
-    const adminEmail = 'aw736024@gmail.com';
+    // Route to the account manager handling the selected will. A general
+    // enquiry (no willId) or an unassigned will falls back to admin.
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    const staff = await resolveStaffRecipient(supabase, willId);
 
     // Get sender email - use onboarding@resend.dev for testing or verified domain
     const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
 
     console.log('Using FROM_EMAIL:', fromEmail);
-    console.log('Sending to admin:', adminEmail);
+    console.log(
+      'Routing to:', staff.email,
+      staff.isAccountManager ? `(account manager: ${staff.name})` : '(admin fallback)'
+    );
     console.log('Sending to client:', email);
 
-    // Prepare email data for admin
+    // Real recipient is the resolved account manager; the swap redirects the
+    // actual delivery while the Resend trial is in use.
+    const staffRouted = applyTestModeSwap(staff.email, `[Support Request] ${subject}`);
+
+    // Prepare email data for the assigned staff member
     const adminEmailData: any = {
       from: fromEmail,
-      to: adminEmail,
+      to: staffRouted.to,
       replyTo: email,
-      subject: `[Support Request] ${subject}`,
+      subject: staffRouted.subject,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
           <!-- Header with Branding -->
@@ -82,6 +98,8 @@ Deno.serve(async (req) => {
               <p style="margin: 8px 0; color: #333;"><strong style="color: #0C5536;">From:</strong> ${name}</p>
               <p style="margin: 8px 0; color: #333;"><strong style="color: #0C5536;">Email:</strong> ${email}</p>
               <p style="margin: 8px 0; color: #333;"><strong style="color: #0C5536;">Subject:</strong> ${subject}</p>
+              <p style="margin: 8px 0; color: #333;"><strong style="color: #0C5536;">Regarding:</strong> ${willId ? `Will #${String(willId).slice(0, 8).toUpperCase()}` : 'General enquiry'}</p>
+              <p style="margin: 8px 0; color: #333;"><strong style="color: #0C5536;">Assigned to:</strong> ${staff.name}${staff.isAccountManager ? '' : ' (unassigned — admin fallback)'}</p>
             </div>
 
             <div style="margin: 25px 0;">
@@ -123,17 +141,18 @@ Deno.serve(async (req) => {
     const { data: adminData, error: adminError } = await resend.emails.send(adminEmailData);
 
     if (adminError) {
-      console.error('Resend API error (admin):', adminError);
-      throw new Error(`Failed to send email to admin: ${adminError.message}`);
+      console.error('Resend API error (staff):', adminError);
+      throw new Error(`Failed to send email to staff: ${adminError.message}`);
     }
 
-    console.log('Email sent successfully to admin, ID:', adminData?.id);
+    console.log('Email sent successfully to staff, ID:', adminData?.id);
 
     // Send confirmation email to client
+    const clientRouted = applyTestModeSwap(email, 'We received your support request - Just Wills');
     const { data: clientData, error: clientError } = await resend.emails.send({
       from: fromEmail,
-      to: email,
-      subject: 'We received your support request - Just Wills',
+      to: clientRouted.to,
+      subject: clientRouted.subject,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
           <!-- Header with Branding -->
@@ -204,6 +223,10 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         message: 'Support email sent successfully',
+        routedTo: staff.email,
+        routedToName: staff.name,
+        isAccountManager: staff.isAccountManager,
+        testMode: staffRouted.isTestMode,
         adminEmailId: adminData?.id,
         clientEmailId: clientData?.id,
       }),

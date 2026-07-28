@@ -45,6 +45,7 @@
     "finance": "Finance",
     "lead_management": "Managing Director",
     "salesperson": "Executive Assistant",
+    "account_manager": "Account Manager",
     "client": "Client"
   },
   "languagePreference": "Language Preference",
