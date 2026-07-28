@@ -5,6 +5,7 @@ import { generateInvoicePDFArabic } from "@/lib/pdf/generateInvoicePDFArabic";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 import { buildInvoiceEmailHTML } from "@/lib/email/invoiceEmailTemplate";
 import { normalizeLineItems, lineItemsSubtotal } from "@/lib/pdf/invoiceLineItems";
+import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -51,33 +52,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const auth = await assertCanManageLeadDeal(supabaseAdmin, callerId, lead);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const effectiveEmail = lead.email;
     const effectiveName = lead.full_name;
 
     const now = new Date();
     const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
 
-    // 2. Create proposal record (invoice_number is auto-generated)
-    const { data: proposal, error: proposalError } = await supabaseAdmin
-      .from("proposals")
-      .insert({
-        lead_id: leadId,
-        amount: subtotalAmount,
-        currency,
-        proposal_content: null,
-        line_items: items,
-        status: "draft",
-      })
-      .select()
-      .single();
-
-    if (proposalError || !proposal) {
-      console.error("Error creating proposal:", proposalError);
-      return NextResponse.json(
-        { error: "Failed to create invoice record" },
-        { status: 500 }
-      );
-    }
+    // 2. Create or update this lead's active proposal record — if a proposal
+    //    was already sent for this lead, this turns that SAME record into a
+    //    real, payable invoice instead of creating a disconnected new one.
+    const { proposal } = await upsertLeadDeal(supabaseAdmin, {
+      leadId,
+      mode: "invoice",
+      amount: subtotalAmount,
+      currency,
+      lineItems: items,
+    });
 
     // 3. Create Stripe Checkout Session
     const invoiceDescription = description || "Professional Will Drafting Services";
@@ -138,6 +133,31 @@ export async function POST(request: NextRequest) {
       description: description || "خدمات صياغة الوصايا الاحترافية",
       lineItems: items,
     });
+
+    // Persist the PDF so the existing View/Download PDF menu in the admin UI
+    // (ViewProposalDialog) actually has something to open.
+    let invoicePdfPath: string | null = null;
+    try {
+      invoicePdfPath = `${leadId}/invoice_${proposal.id}_${Date.now()}.pdf`;
+      const { error: storageError } = await supabaseAdmin.storage
+        .from("proposals")
+        .upload(invoicePdfPath, Buffer.from(invoicePDFBase64, "base64"), {
+          contentType: "application/pdf",
+          upsert: true,
+        });
+      if (storageError) {
+        console.error("Error uploading invoice PDF:", storageError);
+        invoicePdfPath = null;
+      }
+    } catch (storageErr) {
+      console.error("Error uploading invoice PDF:", storageErr);
+    }
+    if (invoicePdfPath) {
+      await supabaseAdmin
+        .from("proposals")
+        .update({ invoice_pdf_path: invoicePdfPath })
+        .eq("id", proposal.id);
+    }
 
     // 6. Send email with invoice PDF attachment. Routed via caller's Outlook
     //    when connected, else falls back to Resend (with the existing

@@ -11,10 +11,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { LineItemsEditor, DEFAULT_LINE_ITEM_ROWS, type LineItemRow } from "./LineItemsEditor";
 import { Loader2, FileText, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,7 +35,7 @@ export function GenerateInvoiceDialog({
   onSuccess,
 }: GenerateInvoiceDialogProps) {
   const { t } = useTranslation("leadManagement");
-  const [amount, setAmount] = useState("");
+  const [items, setItems] = useState<LineItemRow[]>(DEFAULT_LINE_ITEM_ROWS);
   const [currency] = useState("AED");
   const [description, setDescription] = useState("Legal services");
   const [sendEmail, setSendEmail] = useState(true);
@@ -45,9 +45,13 @@ export function GenerateInvoiceDialog({
     paymentUrl: string | null;
   } | null>(null);
 
+  const parsedItems = items
+    .filter((it) => it.description.trim())
+    .map((it) => ({ description: it.description.trim(), amount: parseFloat(it.amount) || 0 }));
+  const total = parsedItems.reduce((s, it) => s + it.amount, 0);
+
   const handleGenerate = async () => {
-    const amountNum = parseFloat(amount);
-    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+    if (parsedItems.length === 0 || total <= 0) {
       toast.error(t("validAmountRequired"));
       return;
     }
@@ -65,7 +69,13 @@ export function GenerateInvoiceDialog({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ amount: amountNum, currency, description, sendEmail }),
+        body: JSON.stringify({
+          amount: total,
+          line_items: parsedItems,
+          currency,
+          description,
+          sendEmail,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -86,7 +96,7 @@ export function GenerateInvoiceDialog({
     if (submitting) return;
     if (!next) {
       // Reset on close
-      setAmount("");
+      setItems(DEFAULT_LINE_ITEM_ROWS);
       setDescription("Legal services");
       setSendEmail(true);
       setLastResult(null);
@@ -125,22 +135,7 @@ export function GenerateInvoiceDialog({
           </div>
         ) : (
           <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="invoice-amount">{t("amountAED", "Amount (AED)")} *</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">AED</span>
-                <Input
-                  id="invoice-amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="pl-12"
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
+            <LineItemsEditor items={items} onChange={setItems} />
             <div className="space-y-1">
               <Label htmlFor="invoice-description">{t("description")}</Label>
               <Textarea

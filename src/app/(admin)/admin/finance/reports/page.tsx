@@ -157,9 +157,11 @@ export default function FinanceReportsPage() {
 
     const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
 
-    // Outstanding invoices (sent but not paid)
+    // Outstanding invoices (sent but not paid). A proposal that was only
+    // ever sent as a proposal (never invoiced) has no payment capability and
+    // shouldn't count toward outstanding revenue.
     const outstandingInvoices = proposals
-      .filter((p) => p.status === "sent")
+      .filter((p) => p.status === "sent" && !!p.invoiced_at)
       .reduce((sum, p) => sum + p.amount, 0);
 
     // Revenue by month (last 6 months)

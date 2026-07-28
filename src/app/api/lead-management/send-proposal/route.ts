@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { stripe } from "@/integrations/stripe/server";
 import { generateProposalPDF } from "@/lib/pdf/generateProposalPDF";
-import { generateInvoicePDFArabic } from "@/lib/pdf/generateInvoicePDFArabic";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 import { companyDetails } from "@/config/company";
+import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,7 +14,7 @@ const supabaseAdmin = createClient(
 export async function POST(request: NextRequest) {
   try {
     // Resolve the calling user so we can route the email via their Outlook
-    // when connected. Falls back to the system Resend sender otherwise.
+    // when connected, and check they're allowed to manage this lead's deal.
     let callerId: string | null = null;
     const authHeader = request.headers.get("authorization") || "";
     const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
@@ -24,7 +24,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { leadId, amount, currency = "AED", proposalContent, leadEmail, leadName } = body;
+    const {
+      leadId,
+      amount,
+      currency = "AED",
+      proposalContent,
+      leadEmail,
+      leadName,
+      line_items,
+    } = body;
 
     if (!leadId || !amount || !proposalContent) {
       return NextResponse.json(
@@ -45,6 +53,11 @@ export async function POST(request: NextRequest) {
         { error: "Lead not found" },
         { status: 404 }
       );
+    }
+
+    const auth = await assertCanManageLeadDeal(supabaseAdmin, callerId, lead);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     // Use provided email/name if available (from edited lead), otherwise use from database
@@ -72,70 +85,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Create proposal record (invoice_number is auto-generated)
-    const { data: proposal, error: proposalError } = await supabaseAdmin
-      .from("proposals")
-      .insert({
-        lead_id: leadId,
-        amount,
-        currency,
-        proposal_content: proposalContent,
-        status: "draft",
-      })
-      .select()
-      .single();
+    // Itemised charges (drafting / court fee / MOJ stamps etc). Subtotal is
+    // their sum; falls back to the flat amount when no items are supplied.
+    const items: InvoiceLineItem[] = normalizeLineItems(line_items, amount);
+    const subtotalAmount = lineItemsSubtotal(items);
+    const vatAmount = subtotalAmount * (companyDetails.vatRate / 100);
+    const totalAmount = subtotalAmount + vatAmount;
 
-    if (proposalError || !proposal) {
-      console.error("Error creating proposal:", proposalError);
-      return NextResponse.json(
-        { error: "Failed to create proposal" },
-        { status: 500 }
-      );
-    }
-
-    // 3. Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      customer_email: effectiveEmail,
-      line_items: [
-        {
-          price_data: {
-            currency: currency.toLowerCase(),
-            product_data: {
-              name: `${companyDetails.legalName} - Legal Services`,
-              description: `Proposal ${proposal.invoice_number} for ${effectiveName}`,
-            },
-            unit_amount: Math.round(amount * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: {
-        proposalId: proposal.id,
-        leadEmail: effectiveEmail,
-        leadName: effectiveName,
-      },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/payment/cancelled`,
+    // 2. Create or update this lead's active proposal record. A proposal is
+    //    purely informational — no Stripe session, no payment capability.
+    //    That only happens later when staff explicitly send an invoice.
+    const { proposal } = await upsertLeadDeal(supabaseAdmin, {
+      leadId,
+      mode: "proposal",
+      amount: subtotalAmount,
+      currency,
+      lineItems: items,
+      proposalContent,
     });
 
-    // 4. Update proposal with Stripe info
-    const { error: updateError } = await supabaseAdmin
-      .from("proposals")
-      .update({
-        stripe_checkout_session_id: session.id,
-        stripe_payment_link: session.url,
-        status: "sent",
-        sent_at: new Date().toISOString(),
-      })
-      .eq("id", proposal.id);
-
-    if (updateError) {
-      console.error("Error updating proposal:", updateError);
-    }
-
-    // 5. Update lead status to pending
+    // 3. Update lead status to pending
     await supabaseAdmin
       .from("leads")
       .update({
@@ -144,12 +113,10 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", leadId);
 
-    // 6. Generate PDFs
+    // 4. Generate the Proposal PDF (itemised)
     const now = new Date();
-    const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
     const validUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
 
-    // Generate Proposal PDF
     const proposalPDFBase64 = generateProposalPDF({
       invoiceNumber: proposal.invoice_number,
       proposalDate: now,
@@ -158,30 +125,53 @@ export async function POST(request: NextRequest) {
       clientEmail: effectiveEmail,
       clientPhone: lead.phone,
       clientCompany: lead.company_name,
-      amount: amount,
+      amount: subtotalAmount,
       currency: currency,
       proposalContent: proposalContent,
+      lineItems: items,
     });
 
-    // Generate Invoice PDF in Arabic
-    const invoicePDFBase64 = await generateInvoicePDFArabic({
-      invoiceNumber: proposal.invoice_number,
-      invoiceDate: now,
-      dueDate: dueDate,
-      clientName: effectiveName,
-      clientEmail: effectiveEmail,
-      clientPhone: lead.phone,
-      clientCompany: lead.company_name,
-      amount: amount,
-      currency: currency,
-      description: "خدمات صياغة الوصايا الاحترافية", // Professional Will Drafting Services in Arabic
-    });
+    // Persist the PDF so the existing View/Download PDF menu in the admin UI
+    // (ViewProposalDialog) actually has something to open.
+    let proposalPdfPath: string | null = null;
+    try {
+      proposalPdfPath = `${leadId}/proposal_${proposal.id}_${Date.now()}.pdf`;
+      const { error: storageError } = await supabaseAdmin.storage
+        .from("proposals")
+        .upload(proposalPdfPath, Buffer.from(proposalPDFBase64, "base64"), {
+          contentType: "application/pdf",
+          upsert: true,
+        });
+      if (storageError) {
+        console.error("Error uploading proposal PDF:", storageError);
+        proposalPdfPath = null;
+      }
+    } catch (storageErr) {
+      console.error("Error uploading proposal PDF:", storageErr);
+    }
+    if (proposalPdfPath) {
+      await supabaseAdmin
+        .from("proposals")
+        .update({ proposal_pdf_path: proposalPdfPath })
+        .eq("id", proposal.id);
+    }
 
-    // 7. Send email with PDF attachments
+    // 5. Send email with the Proposal PDF attached only — no invoice, no
+    //    payment link. The client hasn't agreed to anything yet.
     const formattedAmount = new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency,
-    }).format(amount);
+    }).format(totalAmount);
+
+    const itemRows = items
+      .map(
+        (item) => `
+                  <tr>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #E6E6E4; color: #222222; font-size: 13px;">${item.description}</td>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #E6E6E4; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(item.amount)}</td>
+                  </tr>`
+      )
+      .join("");
 
     // Build the "What to Expect" process timeline block
     const timelineRows = companyDetails.processTimeline
@@ -197,11 +187,10 @@ export async function POST(request: NextRequest) {
     // Route email via the caller's Outlook when connected, else Resend.
     const emailResult = await sendUserEmail(callerId, {
       to: effectiveEmail,
-      subject: `Your Proposal & Invoice - ${proposal.invoice_number}`,
+      subject: `Your Proposal - ${proposal.invoice_number}`,
       refId: proposal.id,
       attachments: [
         { content: proposalPDFBase64, filename: `Proposal-${proposal.invoice_number}.pdf` },
-        { content: invoicePDFBase64, filename: `Invoice-${proposal.invoice_number}.pdf` },
       ],
       html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -212,22 +201,14 @@ export async function POST(request: NextRequest) {
             <div style="padding: 30px; background-color: #FAFAF8;">
               <h2 style="color: #0C5536; margin-top: 0;">Dear ${effectiveName},</h2>
               <p style="color: #222222; line-height: 1.6;">
-                Thank you for your interest in our services. Please find attached your <strong>Proposal</strong> and <strong>Invoice</strong> for your review.
+                Thank you for your interest in our services. Please find attached your <strong>Proposal</strong> for your review.
               </p>
 
               <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <table style="width: 100%; border-collapse: collapse;">
                   <tr>
-                    <td style="padding: 8px 0; color: #666666;">Invoice Number:</td>
+                    <td style="padding: 8px 0; color: #666666;">Reference Number:</td>
                     <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #222222;">${proposal.invoice_number}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; color: #666666;">Amount Due:</td>
-                    <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0C5536; font-size: 18px;">${formattedAmount}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; color: #666666;">Due Date:</td>
-                    <td style="padding: 8px 0; text-align: right; color: #222222;">${dueDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
                   </tr>
                   <tr>
                     <td style="padding: 8px 0; color: #666666;">Account Manager:</td>
@@ -239,23 +220,38 @@ export async function POST(request: NextRequest) {
                 </table>
               </div>
 
-              <div style="background-color: #FFF8E7; border: 1px solid #C6A03B; border-radius: 8px; padding: 15px; margin: 20px 0;">
-                <p style="margin: 0; color: #8B6914; font-size: 14px;">
-                  <strong>Attachments:</strong><br/>
-                  📄 Proposal-${proposal.invoice_number}.pdf<br/>
-                  📄 Invoice-${proposal.invoice_number}.pdf
-                </p>
-              </div>
-
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${session.url}" style="background-color: #0C5536; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 5px; display: inline-block; font-size: 16px; font-weight: bold;">
-                  Pay ${formattedAmount} Now
-                </a>
+              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <h3 style="color: #0C5536; margin: 0 0 12px 0; font-size: 14px;">Estimated Charges</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <thead>
+                    <tr>
+                      <th style="text-align: left; padding: 8px 12px; border-bottom: 2px solid #0C5536; font-size: 12px; color: #0C5536;">Description</th>
+                      <th style="text-align: right; padding: 8px 12px; border-bottom: 2px solid #0C5536; font-size: 12px; color: #0C5536;">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${itemRows}
+                  </tbody>
+                </table>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                  <tr>
+                    <td style="padding: 4px 12px; color: #666666; font-size: 13px;">Sub-Total</td>
+                    <td style="padding: 4px 12px; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(subtotalAmount)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 12px; color: #666666; font-size: 13px;">VAT (${companyDetails.vatRate}%)</td>
+                    <td style="padding: 4px 12px; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(vatAmount)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 12px; color: #0C5536; font-weight: bold; font-size: 15px; border-top: 1px solid #E6E6E4;">Total Estimated Amount</td>
+                    <td style="padding: 8px 12px; text-align: right; color: #0C5536; font-weight: bold; font-size: 15px; border-top: 1px solid #E6E6E4;">${formattedAmount}</td>
+                  </tr>
+                </table>
               </div>
 
               <p style="color: #6B6B6B; font-size: 13px; text-align: center;">
-                Click the button above to securely complete your payment via Stripe.<br/>
-                Your invoice can be used for tax and accounting purposes.
+                This is a proposal only — no payment is required at this stage.<br/>
+                Once you're ready to proceed, we'll send you a formal invoice with a secure payment link.
               </p>
 
               <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 25px 0 10px 0;">
@@ -290,7 +286,6 @@ export async function POST(request: NextRequest) {
       success: true,
       proposalId: proposal.id,
       invoiceNumber: proposal.invoice_number,
-      paymentUrl: session.url,
       emailProvider: emailResult.provider,
     });
   } catch (error) {

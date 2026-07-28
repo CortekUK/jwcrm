@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import { companyDetails } from "@/config/company";
+import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "./invoiceLineItems";
 
 export type ProposalData = {
   invoiceNumber: string;
@@ -12,6 +13,7 @@ export type ProposalData = {
   amount: number;
   currency: string;
   proposalContent: string; // HTML content from TipTap
+  lineItems?: InvoiceLineItem[]; // itemised charges (drafting, court fee, MOJ stamps, etc.)
 };
 
 // Colors
@@ -251,21 +253,70 @@ export function generateProposalPDF(data: ProposalData): string {
 
   y += 40;
 
-  // ========== AMOUNT BOX ==========
-  doc.setFillColor(...PRIMARY_COLOR);
-  doc.roundedRect(margin, y, pageWidth - 2 * margin, 20, 3, 3, "F");
+  // ========== ITEMISED CHARGES ==========
+  const items = normalizeLineItems(data.lineItems, data.amount);
+  const subtotal = lineItemsSubtotal(items);
+  const vatAmount = subtotal * (companyDetails.vatRate / 100);
+  const total = subtotal + vatAmount;
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "normal");
-  doc.text("Total Amount:", margin + 10, y + 13);
+  if (y > pageHeight - 60 - items.length * 8) {
+    doc.addPage();
+    y = margin;
+  }
 
-  doc.setTextColor(...GOLD_COLOR);
-  doc.setFontSize(18);
+  const tableX = margin;
+  const tableW = pageWidth - 2 * margin;
+  const descColW = tableW * 0.7;
+  const amountColW = tableW - descColW;
+  const rowH = 8;
+
+  // Header row
+  doc.setFillColor(...LIGHT_GRAY);
+  doc.rect(tableX, y, tableW, rowH, "F");
+  doc.setDrawColor(...GOLD_COLOR);
+  doc.setLineWidth(0.3);
+  doc.rect(tableX, y, tableW, rowH);
+  doc.setTextColor(...PRIMARY_COLOR);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text(formatCurrency(data.amount), pageWidth - margin - 10, y + 14, { align: "right" });
+  doc.text("DESCRIPTION", tableX + 4, y + 5.5);
+  doc.text("AMOUNT", tableX + tableW - 4, y + 5.5, { align: "right" });
+  y += rowH;
 
-  y += 30;
+  // Item rows
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  for (const item of items) {
+    doc.setDrawColor(220, 220, 218);
+    doc.rect(tableX, y, tableW, rowH);
+    doc.setTextColor(...TEXT_COLOR);
+    doc.text(doc.splitTextToSize(item.description, descColW - 8)[0], tableX + 4, y + 5.5);
+    doc.text(formatCurrency(item.amount), tableX + tableW - 4, y + 5.5, { align: "right" });
+    y += rowH;
+  }
+
+  y += 4;
+
+  // Totals block
+  const totalsX = tableX + descColW;
+  const drawTotalRow = (label: string, value: string, emphasize = false) => {
+    doc.setFontSize(emphasize ? 11 : 9.5);
+    doc.setFont("helvetica", emphasize ? "bold" : "normal");
+    doc.setTextColor(...(emphasize ? PRIMARY_COLOR : GRAY_COLOR));
+    doc.text(label, totalsX, y);
+    doc.setTextColor(...(emphasize ? PRIMARY_COLOR : TEXT_COLOR));
+    doc.text(value, tableX + tableW - 4, y, { align: "right" });
+    y += emphasize ? 8 : 6;
+  };
+  drawTotalRow("Sub-Total:", formatCurrency(subtotal));
+  drawTotalRow(`VAT (${companyDetails.vatRate}%):`, formatCurrency(vatAmount));
+  y += 2;
+  doc.setDrawColor(...GOLD_COLOR);
+  doc.setLineWidth(0.5);
+  doc.line(totalsX, y - 5, tableX + tableW, y - 5);
+  drawTotalRow("Total Amount:", formatCurrency(total), true);
+
+  y += 15;
 
   // ========== FOOTER ==========
   // Footer line

@@ -17,12 +17,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Lead } from "./LeadTable";
 import { ProposalPDFTemplate, ProposalPDFData } from "./ProposalPDFTemplate";
 import { InvoicePDFTemplate, InvoicePDFData } from "./InvoicePDFTemplate";
 import { supabase } from "@/integrations/supabase/client";
+import { companyDetails } from "@/config/company";
+import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 import { format } from "date-fns";
-import { Download, FileText, Receipt, Loader2, ExternalLink, Eye, ChevronDown } from "lucide-react";
+import { Download, FileText, Receipt, Loader2, ExternalLink, Eye, ChevronDown, CircleDollarSign, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 interface Proposal {
@@ -37,7 +48,25 @@ interface Proposal {
   sent_at: string | null;
   paid_at: string | null;
   created_at: string;
+  invoiced_at: string | null;
+  line_items: InvoiceLineItem[] | null;
 }
+
+interface ProposalPayment {
+  id: string;
+  proposal_id: string;
+  amount: number;
+  method: string;
+  notes: string | null;
+  paid_at: string;
+}
+
+const PAYMENT_METHODS = [
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "stripe", label: "Stripe / Card" },
+  { value: "cash", label: "Cash" },
+  { value: "other", label: "Other" },
+];
 
 interface ViewProposalDialogProps {
   lead: Lead | null;
@@ -57,6 +86,14 @@ export function ViewProposalDialog({
   const [downloadType, setDownloadType] = useState<"proposal" | "invoice" | null>(null);
   const [viewingProposal, setViewingProposal] = useState<{ id: string; type: "proposal" | "invoice" } | null>(null);
 
+  // Payments (partial-payment / balance-due tracking)
+  const [paymentsByProposal, setPaymentsByProposal] = useState<Record<string, ProposalPayment[]>>({});
+  const [recordingPaymentFor, setRecordingPaymentFor] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+
   // Refs for PDF templates
   const proposalRef = useRef<HTMLDivElement>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
@@ -72,6 +109,82 @@ export function ViewProposalDialog({
     }
   }, [lead, open]);
 
+  const fetchPayments = async (proposalIds: string[]) => {
+    if (proposalIds.length === 0) {
+      setPaymentsByProposal({});
+      return;
+    }
+    const { data, error } = await supabase
+      .from("proposal_payments")
+      .select("*")
+      .in("proposal_id", proposalIds)
+      .order("paid_at", { ascending: false });
+    if (error) {
+      console.error("Error fetching payments:", error);
+      return;
+    }
+    const grouped: Record<string, ProposalPayment[]> = {};
+    for (const payment of data || []) {
+      (grouped[payment.proposal_id] ??= []).push(payment as ProposalPayment);
+    }
+    setPaymentsByProposal(grouped);
+  };
+
+  const balanceFor = (proposal: Proposal) => {
+    const items = normalizeLineItems(proposal.line_items ?? undefined, proposal.amount);
+    const subtotal = lineItemsSubtotal(items);
+    const vatAmount = subtotal * (companyDetails.vatRate / 100);
+    const invoiceTotal = subtotal + vatAmount;
+    const totalPaid = (paymentsByProposal[proposal.id] || []).reduce(
+      (sum, p) => sum + Number(p.amount),
+      0
+    );
+    return { invoiceTotal, totalPaid, balanceDue: Math.max(0, invoiceTotal - totalPaid) };
+  };
+
+  const resetPaymentForm = () => {
+    setRecordingPaymentFor(null);
+    setPaymentAmount("");
+    setPaymentMethod("bank_transfer");
+    setPaymentNotes("");
+  };
+
+  const handleRecordPayment = async (proposal: Proposal) => {
+    const amountNum = parseFloat(paymentAmount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      toast.error(t("validAmountRequired"));
+      return;
+    }
+    setIsRecordingPayment(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch(`/api/lead-management/proposals/${proposal.id}/payments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          amount: amountNum,
+          method: paymentMethod,
+          notes: paymentNotes.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to record payment");
+
+      toast.success(t("paymentRecorded", "Payment recorded"));
+      resetPaymentForm();
+      await fetchProposals();
+    } catch (error) {
+      console.error("Error recording payment:", error);
+      toast.error(error instanceof Error ? error.message : t("failedToRecordPayment", "Failed to record payment"));
+    } finally {
+      setIsRecordingPayment(false);
+    }
+  };
+
   const fetchProposals = async () => {
     if (!lead) return;
 
@@ -85,6 +198,7 @@ export function ViewProposalDialog({
 
       if (error) throw error;
       setProposals(data || []);
+      await fetchPayments((data || []).map((p) => p.id));
     } catch (error) {
       console.error("Error fetching proposals:", error);
       toast.error(t("failedToFetchProposals"));
@@ -270,6 +384,9 @@ export function ViewProposalDialog({
                           <span className="font-semibold text-lg">
                             {proposal.invoice_number}
                           </span>
+                          <Badge variant="outline" className="text-xs">
+                            {proposal.invoiced_at ? t("invoice", "Invoice") : t("proposal", "Proposal")}
+                          </Badge>
                           <Badge className={getStatusColor(proposal.status)}>
                             {getStatusLabel(proposal.status)}
                           </Badge>
@@ -367,7 +484,128 @@ export function ViewProposalDialog({
                           {t("paymentLink")}
                         </Button>
                       )}
+
+                      {proposal.invoiced_at && proposal.status !== "paid" && proposal.status !== "cancelled" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setRecordingPaymentFor(
+                              recordingPaymentFor === proposal.id ? null : proposal.id
+                            )
+                          }
+                        >
+                          <CircleDollarSign className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                          {t("recordPayment", "Record Payment")}
+                        </Button>
+                      )}
                     </div>
+
+                    {/* Balance / payment history — only for real, payable invoices */}
+                    {proposal.invoiced_at && (() => {
+                      const { invoiceTotal, totalPaid, balanceDue } = balanceFor(proposal);
+                      const payments = paymentsByProposal[proposal.id] || [];
+                      return (
+                        <div className="pt-3 border-t space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              {t("balanceSummary", "{{paid}} of {{total}} paid", {
+                                paid: formatCurrency(totalPaid, proposal.currency),
+                                total: formatCurrency(invoiceTotal, proposal.currency),
+                              })}
+                            </span>
+                            <span
+                              className={
+                                balanceDue > 0.01
+                                  ? "font-semibold text-amber-700"
+                                  : "font-semibold text-green-700"
+                              }
+                            >
+                              {balanceDue > 0.01
+                                ? t("balanceOutstanding", "{{amount}} outstanding", {
+                                    amount: formatCurrency(balanceDue, proposal.currency),
+                                  })
+                                : t("fullyPaid", "Fully paid")}
+                            </span>
+                          </div>
+
+                          {payments.length > 0 && (
+                            <div className="space-y-1">
+                              {payments.map((payment) => (
+                                <div
+                                  key={payment.id}
+                                  className="flex items-center justify-between text-xs text-muted-foreground bg-muted/40 rounded px-2 py-1"
+                                >
+                                  <span>
+                                    {formatCurrency(payment.amount, proposal.currency)} &middot;{" "}
+                                    {PAYMENT_METHODS.find((m) => m.value === payment.method)?.label ||
+                                      payment.method}
+                                    {payment.notes ? ` — ${payment.notes}` : ""}
+                                  </span>
+                                  <span>{format(new Date(payment.paid_at), "MMM d, yyyy")}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {recordingPaymentFor === proposal.id && (
+                            <div className="mt-2 p-3 bg-[#FAFAF8] border border-[#E6E6E4] rounded-lg space-y-2">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="relative">
+                                  <span className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                                    AED
+                                  </span>
+                                  <Input
+                                    type="number"
+                                    placeholder="0.00"
+                                    value={paymentAmount}
+                                    onChange={(e) => setPaymentAmount(e.target.value)}
+                                    className="ltr:pl-10 rtl:pr-10"
+                                    min="0"
+                                    step="0.01"
+                                  />
+                                </div>
+                                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {PAYMENT_METHODS.map((m) => (
+                                      <SelectItem key={m.value} value={m.value}>
+                                        {m.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <Textarea
+                                placeholder={t("paymentNotesPlaceholder", "Notes (optional)")}
+                                value={paymentNotes}
+                                onChange={(e) => setPaymentNotes(e.target.value)}
+                                className="min-h-[50px]"
+                              />
+                              <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="sm" onClick={resetPaymentForm}>
+                                  {t("cancel")}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleRecordPayment(proposal)}
+                                  disabled={isRecordingPayment}
+                                >
+                                  {isRecordingPayment ? (
+                                    <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Plus className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                                  )}
+                                  {t("save")}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Expandable View Section */}
                     {viewingProposal?.id === proposal.id && (

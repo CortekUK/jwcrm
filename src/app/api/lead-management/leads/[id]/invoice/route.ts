@@ -12,13 +12,12 @@ import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 import { companyDetails } from "@/config/company";
 import { buildInvoiceEmailHTML } from "@/lib/email/invoiceEmailTemplate";
 import { normalizeLineItems, lineItemsSubtotal } from "@/lib/pdf/invoiceLineItems";
+import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const ALLOWED_ROLES = new Set(["admin", "superadmin", "lead_management", "finance", "salesperson"]);
 
 export async function POST(
   request: NextRequest,
@@ -39,20 +38,6 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const callerId = userInfo.user.id;
-
-    const { data: roleRows, error: roleErr } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", callerId);
-    if (roleErr) {
-      console.error("user_roles fetch failed:", roleErr);
-      return NextResponse.json({ error: "Role lookup failed" }, { status: 500 });
-    }
-    const callerRoles = new Set((roleRows || []).map((r) => r.role));
-    const hasAllowedRole = [...callerRoles].some((r) => ALLOWED_ROLES.has(r));
-    if (!hasAllowedRole) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const body = await request.json().catch(() => ({}));
     const rawAmount = Number(body.amount);
@@ -80,36 +65,23 @@ export async function POST(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // If the caller is *only* a salesperson, they must own the lead.
-    const isOnlySalesperson =
-      callerRoles.has("salesperson") &&
-      !callerRoles.has("admin") &&
-      !callerRoles.has("superadmin") &&
-      !callerRoles.has("lead_management") &&
-      !callerRoles.has("finance");
-    if (isOnlySalesperson && lead.assigned_to !== callerId) {
-      return NextResponse.json({ error: "This lead is not assigned to you" }, { status: 403 });
+    const auth = await assertCanManageLeadDeal(supabaseAdmin, callerId, lead);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    // 1. Create the proposal/invoice row. invoice_number is filled by the
-    //    proposals trigger.
-    const { data: proposal, error: proposalErr } = await supabaseAdmin
-      .from("proposals")
-      .insert({
-        lead_id: leadId,
-        amount,
-        currency,
-        proposal_content: `<p>${escapeHtml(description)}</p>`,
-        line_items: items,
-        status: "sent",
-        sent_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-    if (proposalErr || !proposal) {
-      console.error("proposal insert failed:", proposalErr);
-      return NextResponse.json({ error: "Failed to create invoice" }, { status: 500 });
-    }
+    // 1. Create or update this lead's active proposal record — if a proposal
+    //    was already sent for this lead, this turns that SAME record into a
+    //    real, payable invoice instead of creating a disconnected new one.
+    //    proposal_content is intentionally left untouched here so this never
+    //    overwrites a real proposal a client already received.
+    const { proposal } = await upsertLeadDeal(supabaseAdmin, {
+      leadId,
+      mode: "invoice",
+      amount,
+      currency,
+      lineItems: items,
+    });
 
     // 2. Stripe checkout session (best effort).
     let paymentUrl: string | null = null;
@@ -169,6 +141,28 @@ export async function POST(
       lineItems: items,
     });
 
+    // Persist the PDF so the existing View/Download PDF menu in the admin UI
+    // (ViewProposalDialog) actually has something to open.
+    try {
+      const invoicePdfPath = `${leadId}/invoice_${proposal.id}_${Date.now()}.pdf`;
+      const { error: storageError } = await supabaseAdmin.storage
+        .from("proposals")
+        .upload(invoicePdfPath, Buffer.from(pdfBase64, "base64"), {
+          contentType: "application/pdf",
+          upsert: true,
+        });
+      if (!storageError) {
+        await supabaseAdmin
+          .from("proposals")
+          .update({ invoice_pdf_path: invoicePdfPath })
+          .eq("id", proposal.id);
+      } else {
+        console.error("Error uploading invoice PDF:", storageError);
+      }
+    } catch (storageErr) {
+      console.error("Error uploading invoice PDF:", storageErr);
+    }
+
     // 4. Send email (best effort). Goes via the caller's Outlook if they
     //    have it connected; otherwise Resend.
     let emailProvider: string | null = null;
@@ -215,13 +209,4 @@ export async function POST(
     console.error("invoice route crashed:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }

@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -21,15 +20,13 @@ import {
 } from "@/components/ui/collapsible";
 import { Lead } from "./LeadTable";
 import { InvoicePDFTemplate } from "./InvoicePDFTemplate";
-import { Loader2, Receipt, ChevronDown, ChevronUp, FileText, User, Mail, Plus, Trash2 } from "lucide-react";
+import { LineItemsEditor, DEFAULT_LINE_ITEM_ROWS, type LineItemRow } from "./LineItemsEditor";
+import { Loader2, Receipt, ChevronDown, ChevronUp, FileText, User, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-type ItemRow = { description: string; amount: string };
-const INITIAL_ITEMS: ItemRow[] = [
-  { description: "Will Drafting (UAE)", amount: "" },
-  { description: "Court Fee", amount: "" },
-];
+type ItemRow = LineItemRow;
+const INITIAL_ITEMS: ItemRow[] = DEFAULT_LINE_ITEM_ROWS;
 
 interface SendInvoiceDialogProps {
   lead: Lead | null;
@@ -54,12 +51,6 @@ export function SendInvoiceDialog({
     .filter((it) => it.description.trim())
     .map((it) => ({ description: it.description.trim(), amount: parseFloat(it.amount) || 0 }));
   const total = parsedItems.reduce((s, it) => s + it.amount, 0);
-
-  const updateItem = (idx: number, field: keyof ItemRow, value: string) =>
-    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
-  const addItem = () => setItems((prev) => [...prev, { description: "", amount: "" }]);
-  const removeItem = (idx: number) =>
-    setItems((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
 
   const resetForm = () => {
     setItems(INITIAL_ITEMS);
@@ -157,57 +148,7 @@ export function SendInvoiceDialog({
           </div>
 
           {/* Line Items */}
-          <div className="space-y-2">
-            <Label className="text-base font-semibold">
-              {t("invoiceItems", "Invoice Items")} *
-            </Label>
-            <div className="space-y-2">
-              {items.map((it, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <Input
-                    placeholder={t("itemDescription", "Description (e.g. Court Fee, POA, MOFA & MOJ)")}
-                    value={it.description}
-                    onChange={(e) => updateItem(idx, "description", e.target.value)}
-                    className="flex-1 border-[#E6E6E4] focus:border-[#C6A03B]"
-                  />
-                  <div className="relative w-36">
-                    <span className="absolute ltr:left-2 rtl:right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                      AED
-                    </span>
-                    <Input
-                      type="number"
-                      placeholder="0.00"
-                      value={it.amount}
-                      onChange={(e) => updateItem(idx, "amount", e.target.value)}
-                      className="ltr:pl-10 rtl:pr-10 border-[#E6E6E4] focus:border-[#C6A03B]"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeItem(idx)}
-                    disabled={items.length <= 1}
-                    className="text-muted-foreground hover:text-[#C0392B]"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={addItem}
-              className="border-dashed border-[#C6A03B] text-[hsl(var(--jw-primary-green))]"
-            >
-              <Plus className="ltr:mr-1 rtl:ml-1 h-4 w-4" />
-              {t("addItem", "Add item")}
-            </Button>
-          </div>
+          <LineItemsEditor items={items} onChange={setItems} />
 
           {/* Description Input */}
           <div className="space-y-2">

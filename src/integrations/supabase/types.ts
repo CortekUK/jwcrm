@@ -864,7 +864,9 @@ export type Database = {
           id: string
           invoice_number: string | null
           invoice_pdf_path: string | null
+          invoiced_at: string | null
           lead_id: string
+          line_items: Json
           paid_at: string | null
           proposal_content: string | null
           proposal_pdf_path: string | null
@@ -882,7 +884,9 @@ export type Database = {
           id?: string
           invoice_number?: string | null
           invoice_pdf_path?: string | null
+          invoiced_at?: string | null
           lead_id: string
+          line_items?: Json
           paid_at?: string | null
           proposal_content?: string | null
           proposal_pdf_path?: string | null
@@ -900,7 +904,9 @@ export type Database = {
           id?: string
           invoice_number?: string | null
           invoice_pdf_path?: string | null
+          invoiced_at?: string | null
           lead_id?: string
+          line_items?: Json
           paid_at?: string | null
           proposal_content?: string | null
           proposal_pdf_path?: string | null
@@ -917,6 +923,47 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          method: string
+          notes: string | null
+          paid_at: string
+          proposal_id: string
+          recorded_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          method: string
+          notes?: string | null
+          paid_at?: string
+          proposal_id: string
+          recorded_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          method?: string
+          notes?: string | null
+          paid_at?: string
+          proposal_id?: string
+          recorded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_payments_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
             referencedColumns: ["id"]
           },
         ]

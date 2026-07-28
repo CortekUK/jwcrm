@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProposalEditor } from "./ProposalEditor";
 import { ProposalPDFTemplate, ProposalPDFData } from "./ProposalPDFTemplate";
+import { LineItemsEditor, DEFAULT_LINE_ITEM_ROWS, type LineItemRow } from "./LineItemsEditor";
 import { Lead } from "./LeadTable";
 import { Loader2, Send, Pencil, Lock, Save, Eye } from "lucide-react";
 import { toast } from "sonner";
@@ -27,6 +28,7 @@ interface Proposal {
   proposal_content: string;
   status: string;
   created_at: string;
+  line_items?: { description: string; amount: number }[] | null;
 }
 
 interface SendProposalDialogProps {
@@ -65,7 +67,7 @@ export function SendProposalDialog({
   onLeadUpdate,
 }: SendProposalDialogProps) {
   const { t } = useTranslation("leadManagement");
-  const [amount, setAmount] = useState<string>("");
+  const [items, setItems] = useState<LineItemRow[]>(DEFAULT_LINE_ITEM_ROWS);
   const [proposalContent, setProposalContent] = useState(defaultProposalContent);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProposal, setIsLoadingProposal] = useState(false);
@@ -79,6 +81,11 @@ export function SendProposalDialog({
   });
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+
+  const parsedItems = items
+    .filter((it) => it.description.trim())
+    .map((it) => ({ description: it.description.trim(), amount: parseFloat(it.amount) || 0 }));
+  const total = parsedItems.reduce((s, it) => s + it.amount, 0);
 
   // Fetch existing proposal and initialize form when dialog opens
   useEffect(() => {
@@ -116,14 +123,24 @@ export function SendProposalDialog({
         const proposal = data[0];
         setExistingProposal(proposal);
         setProposalContent(proposal.proposal_content);
-        setAmount(proposal.amount.toString());
+        const existingItems = (proposal.line_items ?? null) as
+          | { description: string; amount: number }[]
+          | null;
+        setItems(
+          existingItems && existingItems.length > 0
+            ? existingItems.map((it) => ({
+                description: it.description,
+                amount: it.amount ? it.amount.toString() : "",
+              }))
+            : DEFAULT_LINE_ITEM_ROWS
+        );
       } else {
         // No existing proposal, use default
         setExistingProposal(null);
         setProposalContent(
           defaultProposalContent.replace("[Client Name]", lead.full_name)
         );
-        setAmount("");
+        setItems(DEFAULT_LINE_ITEM_ROWS);
       }
     } catch (error) {
       console.error("Error:", error);
@@ -149,8 +166,7 @@ export function SendProposalDialog({
       return;
     }
 
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
+    if (parsedItems.length === 0 || total <= 0) {
       toast.error(t("validAmountRequired"));
       return;
     }
@@ -188,7 +204,8 @@ export function SendProposalDialog({
         },
         body: JSON.stringify({
           leadId: lead.id,
-          amount: amountNum,
+          amount: total,
+          line_items: parsedItems,
           currency: "AED",
           proposalContent,
           // Pass updated lead info to ensure email goes to correct address
@@ -206,7 +223,7 @@ export function SendProposalDialog({
       onOpenChange(false);
       onSuccess();
       // Reset form
-      setAmount("");
+      setItems(DEFAULT_LINE_ITEM_ROWS);
       setProposalContent(defaultProposalContent);
       setExistingProposal(null);
       setIsEditingLead(false);
@@ -231,8 +248,6 @@ export function SendProposalDialog({
       return;
     }
 
-    const amountNum = parseFloat(amount) || 0;
-
     setIsSavingDraft(true);
     try {
       // Update lead info if changed
@@ -256,7 +271,8 @@ export function SendProposalDialog({
         const { error } = await supabase
           .from("proposals")
           .update({
-            amount: amountNum,
+            amount: total,
+            line_items: parsedItems,
             proposal_content: proposalContent,
             updated_at: new Date().toISOString(),
           })
@@ -269,7 +285,8 @@ export function SendProposalDialog({
           .from("proposals")
           .insert({
             lead_id: lead.id,
-            amount: amountNum,
+            amount: total,
+            line_items: parsedItems,
             currency: "AED",
             proposal_content: proposalContent,
             status: "draft",
@@ -301,7 +318,7 @@ export function SendProposalDialog({
         clientEmail: editedLead.email,
         clientPhone: editedLead.phone || null,
         clientCompany: editedLead.company_name || null,
-        amount: parseFloat(amount) || 0,
+        amount: total,
         currency: "AED",
         proposalContent: proposalContent,
         createdAt: new Date(),
@@ -405,25 +422,12 @@ export function SendProposalDialog({
             </div>
           </div>
 
-          {/* Amount */}
-          <div className="space-y-2">
-            <Label htmlFor="amount">{t("amountAED", "Amount (AED)")} *</Label>
-            <div className="relative">
-              <span className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-                AED
-              </span>
-              <Input
-                id="amount"
-                type="number"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="ltr:pl-12 rtl:pr-12"
-                min="0"
-                step="0.01"
-              />
-            </div>
-          </div>
+          {/* Estimated Charges */}
+          <LineItemsEditor
+            items={items}
+            onChange={setItems}
+            label={t("proposalItems", "Estimated Charges")}
+          />
 
           {/* Proposal Content */}
           <div className="space-y-2">

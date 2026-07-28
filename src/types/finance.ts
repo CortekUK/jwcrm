@@ -93,6 +93,10 @@ export interface Proposal {
   status: ProposalStatus;
   sent_at: string | null;
   paid_at: string | null;
+  // Set once this proposal became a real, payable invoice (vs. an
+  // informational proposal with no payment capability).
+  invoiced_at: string | null;
+  line_items: { description: string; amount: number }[] | null;
   created_at: string;
   updated_at: string;
   // Joined fields

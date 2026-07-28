@@ -195,6 +195,7 @@ export function calculateFinanceStats(
     status: string;
     amount: number;
     currency: string;
+    invoiced_at?: string | null;
   }>,
   transactions: Array<{
     type: string;
@@ -210,7 +211,10 @@ export function calculateFinanceStats(
   const paidInvoices = paidProposals.length;
   const paidAmount = paidProposals.reduce((sum, p) => sum + p.amount, 0);
 
-  const pendingProposals = proposals.filter((p) => p.status === "sent");
+  // Only real, payable invoices count toward outstanding/pending revenue — a
+  // proposal that was only ever sent as a proposal (never invoiced) has no
+  // payment capability and shouldn't inflate this figure.
+  const pendingProposals = proposals.filter((p) => p.status === "sent" && !!p.invoiced_at);
   const pendingInvoices = pendingProposals.length;
   const pendingAmount = pendingProposals.reduce((sum, p) => sum + p.amount, 0);
 
@@ -228,8 +232,8 @@ export function calculateFinanceStats(
       amount: proposals.filter((p) => p.status === "draft").reduce((sum, p) => sum + p.amount, 0),
     },
     sent: {
-      count: proposals.filter((p) => p.status === "sent").length,
-      amount: proposals.filter((p) => p.status === "sent").reduce((sum, p) => sum + p.amount, 0),
+      count: pendingInvoices,
+      amount: pendingAmount,
     },
     paid: {
       count: proposals.filter((p) => p.status === "paid").length,

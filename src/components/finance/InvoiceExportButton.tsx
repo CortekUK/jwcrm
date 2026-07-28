@@ -98,6 +98,7 @@ export function InvoiceExportButton() {
       // Generate CSV
       const headers = [
         t("finance:invoiceNumber", "Invoice Number"),
+        t("finance:type", "Type"),
         t("finance:client", "Client"),
         "Email",
         t("finance:company", "Company"),
@@ -111,6 +112,7 @@ export function InvoiceExportButton() {
 
       const rows = invoices.map((inv) => [
         inv.invoice_number || "",
+        inv.invoiced_at ? t("finance:invoice", "Invoice") : t("finance:proposal", "Proposal"),
         inv.lead?.full_name || "",
         inv.lead?.email || "",
         inv.lead?.company_name || "",
