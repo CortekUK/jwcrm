@@ -7,6 +7,7 @@ import {
   Footer,
   PageNumber,
   BorderStyle,
+  ImageRun,
 } from "docx";
 import { companyDetails } from "@/config/company";
 import type { WillPdfInput } from "@/lib/pdf/generateWillPDF";
@@ -48,7 +49,7 @@ function describePerson(p: PersonLike): string {
 }
 
 export async function generateWillDocx(input: WillPdfInput): Promise<Buffer> {
-  const { answers, jurisdiction, clientName, draft } = input;
+  const { answers, jurisdiction, clientName, draft, signature, signatureDate } = input;
   const isAUD = jurisdiction === "abu_dhabi";
   const cityLine = isAUD ? "Abu Dhabi, United Arab Emirates" : "Dubai, United Arab Emirates";
   const ageOfMajority = isAUD ? "twenty-one (21)" : "eighteen (18)";
@@ -331,7 +332,53 @@ export async function generateWillDocx(input: WillPdfInput): Promise<Buffer> {
   );
   paragraph("This document is executed as follows:");
   paragraph(`NAME: ${val(testator.full_name || clientName)}`);
-  paragraph("SIGNATURE: ______________________________");
+
+  // Embed the captured signature when the will has been signed; otherwise
+  // keep the ruled line for wet signing. Any decoding problem falls back to
+  // the blank line rather than failing the whole document.
+  let signatureRendered = false;
+  if (signature) {
+    try {
+      const base64 = signature.includes(",") ? signature.split(",")[1] : signature;
+      const imageData = Buffer.from(base64, "base64");
+      if (imageData.length > 0) {
+        children.push(
+          new Paragraph({
+            spacing: { before: 100, after: 0 },
+            children: [
+              new TextRun({ text: "SIGNATURE: ", size: 22, font: "Times New Roman" }),
+              new ImageRun({
+                type: "png",
+                data: imageData,
+                transformation: { width: 180, height: 60 },
+              }),
+            ],
+          })
+        );
+        if (signatureDate) {
+          children.push(
+            new Paragraph({
+              spacing: { before: 0, after: 120 },
+              children: [
+                new TextRun({
+                  text: `Signed electronically on ${new Date(signatureDate).toLocaleString("en-GB")}`,
+                  size: 18,
+                  color: "6E6E6E",
+                  font: "Times New Roman",
+                }),
+              ],
+            })
+          );
+        }
+        signatureRendered = true;
+      }
+    } catch (err) {
+      console.error("Failed to embed signature in will DOCX:", err);
+    }
+  }
+  if (!signatureRendered) {
+    paragraph("SIGNATURE: ______________________________");
+  }
 
   if (isAUD) {
     children.push(

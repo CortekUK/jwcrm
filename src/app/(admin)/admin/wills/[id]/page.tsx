@@ -1690,6 +1690,38 @@ export default function AdminWillDetail() {
                 </div>
               )}
 
+              {/* Client-signed copy — surfaced here in Quick Actions (as well
+                  as on the Final PDF tab) because this sidebar is where staff
+                  actually look after a client signs. */}
+              {will.signed_pdf_path && (
+                <div className="mt-3 rounded-md border border-[#C6A03B]/40 bg-[rgba(198,160,59,0.06)] p-3 text-xs">
+                  <div className="font-semibold text-[hsl(var(--jw-primary-green))] mb-1 flex items-center gap-1.5">
+                    <FileCheck className="h-3.5 w-3.5 text-[hsl(var(--jw-gold-accent))]" />
+                    {t('admin:signedCopy', 'Client-signed copy')}
+                  </div>
+                  {will.client_signature_at && (
+                    <p className="text-[#777777] mb-2">
+                      {t('admin:signedOn', 'Signed on')}{" "}
+                      {format(new Date(will.client_signature_at), "d MMM yyyy, h:mm a")}
+                    </p>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-[hsl(var(--jw-primary-green))] text-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-primary-green))] hover:text-white"
+                    onClick={async () => {
+                      const { data } = await supabase.storage
+                        .from('wills')
+                        .createSignedUrl(will.signed_pdf_path!, 600);
+                      if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                    }}
+                  >
+                    <Download className="ltr:mr-2 rtl:ml-2 h-3.5 w-3.5" />
+                    {t('admin:openSignedCopy', 'Open signed copy')}
+                  </Button>
+                </div>
+              )}
+
               {/* Amendment history: previous draft versions */}
               {docVersions && docVersions.length > 0 && (
                 <div className="mt-3 rounded-md border border-[#EAEAE8] bg-white p-3 text-xs">
@@ -4171,6 +4203,41 @@ export default function AdminWillDetail() {
               </Card>
             )}
 
+            {/* Client-signed copy — a SEPARATE document from the finalised
+                PDF below, which is never modified by signing. */}
+            {will.signed_pdf_path && (
+              <Card className="border-[#C6A03B]/40 bg-[rgba(198,160,59,0.05)] shadow-[0_2px_8px_rgba(12,85,54,0.08)]">
+                <CardHeader className="border-b border-[hsl(var(--jw-gold-accent))]/20">
+                  <div className={`flex items-center justify-between gap-4 ${isRtl ? 'flex-row-reverse' : ''}`}>
+                    <div className="min-w-0">
+                      <CardTitle className={`text-[hsl(var(--jw-primary-green))] flex items-center gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
+                        <FileCheck className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
+                        {t('admin:signedCopy', 'Client-signed copy')}
+                      </CardTitle>
+                      <CardDescription className={`text-[#777777] mt-1 ${textAlign(isRtl)}`}>
+                        {will.client_signature_at
+                          ? `${t('admin:signedOn', 'Signed on')} ${format(new Date(will.client_signature_at), "PPP 'at' h:mm a")}`
+                          : t('admin:signedByClient', 'Signed by the client')}
+                      </CardDescription>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="border-[hsl(var(--jw-primary-green))] text-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-primary-green))] hover:text-white transition-all duration-150 shrink-0"
+                      onClick={async () => {
+                        const { data } = await supabase.storage
+                          .from('wills')
+                          .createSignedUrl(will.signed_pdf_path!, 600);
+                        if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                      }}
+                    >
+                      <Download className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                      {t('admin:openSignedCopy', 'Open signed copy')}
+                    </Button>
+                  </div>
+                </CardHeader>
+              </Card>
+            )}
+
             {will.pdf_path ? (
               <Card className="border-[#E6E6E4] shadow-[0_2px_8px_rgba(12,85,54,0.08)]">
                 <CardHeader className="border-b border-[hsl(var(--jw-gold-accent))]/10">
@@ -4179,6 +4246,11 @@ export default function AdminWillDetail() {
                       <CardTitle className={`text-[hsl(var(--jw-primary-green))] flex items-center gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
                         <FileCheck className="h-5 w-5 text-[hsl(var(--jw-gold-accent))]" />
                         {will.status === 'finalized' ? t('admin:finalPdf') : t('admin:draftWillDocument')}
+                        {will.signed_pdf_path && (
+                          <span className="text-[12px] font-normal text-[#777777]">
+                            {t('admin:originalUnsigned', '(original, unsigned)')}
+                          </span>
+                        )}
                       </CardTitle>
                       <CardDescription className={`text-[#777777] mt-1 ${textAlign(isRtl)}`}>
                         {t('admin:generatedOn')}{" "}

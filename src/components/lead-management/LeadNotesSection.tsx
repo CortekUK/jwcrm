@@ -7,6 +7,7 @@ import { StickyNote, Loader2, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LeadNotesSectionProps {
   leadId: string;
@@ -25,20 +26,37 @@ export function LeadNotesSection({ leadId, initialNotes, updatedAt }: LeadNotesS
   const saveNotes = useCallback(async (value: string) => {
     setIsSaving(true);
     try {
+      // The notes endpoint identifies the caller from their access token, and
+      // restricts salespeople to leads assigned to them, so it must be sent.
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+
       const response = await fetch(`/api/lead-management/leads/${leadId}/notes`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({ notes: value }),
       });
 
-      if (!response.ok) throw new Error("Failed to save notes");
+      if (!response.ok) {
+        // Surface the server's reason (e.g. "This lead is not assigned to
+        // you") instead of a generic failure the user can't act on.
+        const detail = await response.json().catch(() => null);
+        throw new Error(detail?.error || "Failed to save notes");
+      }
 
       const { data } = await response.json();
       setLastSaved(data.updated_at);
       setHasChanges(false);
     } catch (error) {
       console.error("Error saving notes:", error);
-      toast.error(t("failedToSaveNotes"));
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : t("failedToSaveNotes")
+      );
     } finally {
       setIsSaving(false);
     }

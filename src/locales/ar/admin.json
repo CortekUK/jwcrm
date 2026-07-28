@@ -421,5 +421,9 @@
   "generateDraftFromTemplateBtn": "إنشاء مسودة",
   "draftGeneratedFromTemplate": "تم إنشاء المسودة من القالب",
   "abuDhabiTemplate": "قالب أبوظبي",
-  "dubaiTemplate": "قالب دبي"
+  "dubaiTemplate": "قالب دبي",
+  "signedCopy": "نسخة موقعة من العميل",
+  "signedByClient": "موقعة من العميل",
+  "openSignedCopy": "فتح النسخة الموقعة",
+  "originalUnsigned": "(الأصل، غير موقعة)"
 }

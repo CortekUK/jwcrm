@@ -20,6 +20,14 @@ export type WillPdfInput = {
   jurisdiction: WillJurisdiction;
   clientName: string;
   draft?: boolean; // add a DRAFT watermark
+  /**
+   * Base64 PNG data URL of the testator's signature on the FINALISED will
+   * (wills.client_signature). When present it is drawn onto the execution
+   * block instead of a blank ruled line. Absent for drafts, which are
+   * produced before the client has signed anything.
+   */
+  signature?: string | null;
+  signatureDate?: string | null;
 };
 
 const BLANK = "____________";
@@ -50,7 +58,7 @@ function describePerson(p: PersonLike): string {
 }
 
 export function generateWillPDF(input: WillPdfInput): string {
-  const { answers, jurisdiction, clientName, draft } = input;
+  const { answers, jurisdiction, clientName, draft, signature, signatureDate } = input;
   const isAUD = jurisdiction === "abu_dhabi";
   const cityLine = isAUD ? "Abu Dhabi, United Arab Emirates" : "Dubai, United Arab Emirates";
   const ageOfMajority = isAUD ? "twenty-one (21)" : "eighteen (18)";
@@ -369,7 +377,43 @@ export function generateWillPDF(input: WillPdfInput): string {
   y += 7;
   paragraph("This document is executed as follows:", { gap: 6 });
   paragraph(`NAME: ${val(testator.full_name || clientName)}`, { gap: 10 });
-  paragraph("SIGNATURE: ______________________________", { gap: 8 });
+
+  if (signature) {
+    // Draw the captured signature in place of the ruled line. Wrapped so a
+    // malformed data URL can never abort generation of the whole will —
+    // worst case we fall back to the blank line below.
+    let drawn = false;
+    try {
+      ensureSpace(30);
+      doc.setFont("times", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(18, 18, 18);
+      doc.text("SIGNATURE:", M, y);
+      doc.addImage(signature, "PNG", M + 28, y - 10, 55, 18);
+      y += 14;
+      doc.setDrawColor(190, 190, 190);
+      doc.line(M + 28, y, M + 100, y);
+      y += 6;
+      if (signatureDate) {
+        doc.setFontSize(9.5);
+        doc.setTextColor(110, 110, 110);
+        doc.text(
+          `Signed electronically on ${new Date(signatureDate).toLocaleString("en-GB")}`,
+          M + 28,
+          y
+        );
+        y += 8;
+      }
+      drawn = true;
+    } catch (err) {
+      console.error("Failed to embed signature in will PDF:", err);
+    }
+    if (!drawn) {
+      paragraph("SIGNATURE: ______________________________", { gap: 8 });
+    }
+  } else {
+    paragraph("SIGNATURE: ______________________________", { gap: 8 });
+  }
 
   if (isAUD) {
     ensureSpace(30);

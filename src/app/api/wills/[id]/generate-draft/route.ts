@@ -71,11 +71,18 @@ export async function POST(
 
     // Generate the PDF (DRAFT watermark until finalized)
     const isFinal = will.status === "finalized";
+    // Only a finalized will carries the client's signature — a draft is
+    // produced before they have signed, so it keeps the blank ruled line.
+    const signature = isFinal ? will.client_signature : null;
+    const signatureDate = isFinal ? will.client_signature_at : null;
+
     const base64 = generateWillPDF({
       answers,
       jurisdiction,
       clientName,
       draft: !isFinal,
+      signature,
+      signatureDate,
     });
     const pdfBuffer = Buffer.from(base64, "base64");
 
@@ -106,6 +113,8 @@ export async function POST(
         jurisdiction,
         clientName,
         draft: !isFinal,
+        signature,
+        signatureDate,
       });
       docxFileName = `${will.user_id}/draft_${Date.now()}.docx`;
       const { error: docxUploadError } = await supabaseAdmin.storage

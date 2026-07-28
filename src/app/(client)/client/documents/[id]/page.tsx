@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/portal/PageHeader";
 import { StatusTimeline } from "@/components/StatusTimeline";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EditRequestModal } from "@/components/EditRequestModal";
+import { SignaturePad } from "@/components/ui/SignaturePad";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,12 @@ interface Will {
   client_approval_status?: "approved" | "disapproved" | null;
   client_approval_at?: string | null;
   client_approval_comments?: string | null;
+  // Signature on the FINALISED will — distinct from the intake signature
+  // stored in answers.family_exclusion.signature.
+  client_signature?: string | null;
+  client_signature_at?: string | null;
+  // Signed COPY of the finalised will. pdf_path keeps the original.
+  signed_pdf_path?: string | null;
 }
 
 export default function ClientDocumentDetail() {
@@ -64,6 +71,10 @@ export default function ClientDocumentDetail() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [submittingApproval, setSubmittingApproval] = useState(false);
+  // Drawn but not yet submitted — the client must confirm before it is saved.
+  const [pendingSignature, setPendingSignature] = useState<string>("");
+  const [submittingSignature, setSubmittingSignature] = useState(false);
+  const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchWill = async () => {
@@ -72,7 +83,7 @@ export default function ClientDocumentDetail() {
       try {
         const { data, error } = await supabase
           .from('wills')
-          .select('id, status, pdf_path, pdf_generated_at, submitted_at, created_at, updated_at, visible_to_client, client_approval_status, client_approval_at, client_approval_comments')
+          .select('id, status, pdf_path, pdf_generated_at, submitted_at, created_at, updated_at, visible_to_client, client_approval_status, client_approval_at, client_approval_comments, client_signature, client_signature_at, signed_pdf_path')
           .eq('id', id)
           .eq('user_id', user.id)
           .not('submitted_at', 'is', null)
@@ -93,6 +104,17 @@ export default function ClientDocumentDetail() {
 
           if (urlData?.signedUrl) {
             setPdfUrl(urlData.signedUrl);
+          }
+        }
+
+        // The signed copy is a separate file, so it needs its own URL.
+        if (data?.signed_pdf_path && data?.visible_to_client) {
+          const { data: signedUrlData } = await supabase.storage
+            .from('wills')
+            .createSignedUrl(data.signed_pdf_path, 600);
+
+          if (signedUrlData?.signedUrl) {
+            setSignedPdfUrl(signedUrlData.signedUrl);
           }
         }
       } catch (error) {
@@ -163,6 +185,68 @@ export default function ClientDocumentDetail() {
       }
     };
   }, [imagePreview]);
+
+  // Sign the finalised will. Writes to its own columns so the intake
+  // signature (answers.family_exclusion.signature) is never touched.
+  const handleSignDocument = async () => {
+    if (!id || !user || !pendingSignature) return;
+
+    setSubmittingSignature(true);
+    try {
+      // Handled server-side: it appends the execution page to a COPY of the
+      // finalised PDF, so the original document is never modified.
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(`/api/wills/${id}/sign`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : {}),
+        },
+        body: JSON.stringify({ signature: pendingSignature }),
+      });
+
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(result?.error || "Could not save your signature");
+      }
+
+      setWill((prev) =>
+        prev
+          ? {
+              ...prev,
+              client_signature: pendingSignature,
+              client_signature_at: result.signedAt,
+              signed_pdf_path: result.signedPdfPath,
+            }
+          : prev
+      );
+
+      // Fetch a URL for the newly created signed copy so it appears at once.
+      if (result?.signedPdfPath) {
+        const { data: signedUrlData } = await supabase.storage
+          .from('wills')
+          .createSignedUrl(result.signedPdfPath, 600);
+        if (signedUrlData?.signedUrl) setSignedPdfUrl(signedUrlData.signedUrl);
+      }
+
+      setPendingSignature("");
+      toast({
+        title: t('documentDetail.signature.signedTitle', 'Document signed'),
+        description: t('documentDetail.signature.signedDescription', 'Your signature has been recorded on your will.'),
+      });
+    } catch (error) {
+      console.error("Error signing document:", error);
+      toast({
+        variant: "destructive",
+        title: t('documentDetail.signature.failedTitle', 'Could not save signature'),
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setSubmittingSignature(false);
+    }
+  };
 
   const handleApproval = async (status: "approved" | "disapproved") => {
     if (!id || !user) return;
@@ -480,7 +564,15 @@ export default function ClientDocumentDetail() {
                 </div>
                 <div className={`flex items-center justify-between ${textAlign(isRtl)}`}>
                   <span className="text-[#6B6B6B]">{t('documentDetail.version')}</span>
-                  <span className="text-[#121212]">{docType.type === "final" ? t('documentDetail.finalVersion') : t('documentDetail.draftVersion')}</span>
+                  <span className="text-[#121212]">
+                    {docType.type === "final" ? t('documentDetail.finalVersion') : t('documentDetail.draftVersion')}
+                    {will.signed_pdf_path && (
+                      <span className="text-[#6B6B6B]">
+                        {" "}
+                        {t('documentDetail.signature.originalSuffix', '(original, unsigned)')}
+                      </span>
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
@@ -497,6 +589,105 @@ export default function ClientDocumentDetail() {
             </div>
           </CardContent>
         </Card>
+
+        {/* E-signature - only on the FINAL will, once it is the client's to sign */}
+        {will.status === 'finalized' && (
+          <Card className="mb-8 overflow-hidden border-[#E6E6E4] shadow-[0_1px_4px_rgba(12,85,54,0.05)]">
+            <CardContent className="p-6">
+              {will.client_signature ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 flex-shrink-0">
+                      <CheckCircle className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div className={textAlign(isRtl)}>
+                      <h3 className="text-lg font-semibold text-[#0C5536]">
+                        {t('documentDetail.signature.signedTitle', 'Document signed')}
+                      </h3>
+                      {will.client_signature_at && (
+                        <p className="text-sm text-[#6B6B6B]">
+                          {t('documentDetail.signature.signedOn', 'Signed on')}{' '}
+                          {format(new Date(will.client_signature_at), "d MMMM yyyy, h:mm a")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-[#E6E6E4] bg-white p-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={will.client_signature}
+                      alt={t('documentDetail.signature.yourSignature', 'Your signature')}
+                      className="max-h-32 object-contain"
+                    />
+                  </div>
+
+                  {/* The signed copy is a separate document from the original
+                      final will above, so it gets its own clearly-labelled
+                      actions rather than replacing them. */}
+                  {signedPdfUrl && (
+                    <div className="rounded-lg border border-[#C6A03B]/40 bg-[rgba(198,160,59,0.06)] p-4">
+                      <div className={`mb-3 ${textAlign(isRtl)}`}>
+                        <p className="text-[14px] font-semibold text-[#0C5536]">
+                          {t('documentDetail.signature.signedCopyTitle', 'Signed copy')}
+                        </p>
+                        <p className="text-[12px] text-[#6B6B6B]">
+                          {t('documentDetail.signature.signedCopyHint', 'Your final will with the signed execution page attached. The original above is unchanged.')}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        <Button
+                          onClick={() => window.open(signedPdfUrl, '_blank')}
+                          className="flex-1 bg-[#0C5536] text-white hover:bg-[#0C5536]/90"
+                        >
+                          <Eye className={isRtl ? "ml-2 h-4 w-4" : "mr-2 h-4 w-4"} />
+                          {t('documentDetail.signature.viewSigned', 'View signed copy')}
+                        </Button>
+                        <Button
+                          onClick={() => window.open(signedPdfUrl, '_blank')}
+                          variant="outline"
+                          className="flex-1 border-2 border-[#0C5536] bg-background text-[#0C5536] hover:bg-[#0C5536] hover:text-white hover:border-[#C6A03B]"
+                        >
+                          <Download className={isRtl ? "ml-2 h-4 w-4" : "mr-2 h-4 w-4"} />
+                          {t('documentDetail.signature.downloadSigned', 'Download signed copy')}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className={textAlign(isRtl)}>
+                    <h3 className="text-lg font-semibold text-[#0C5536]">
+                      {t('documentDetail.signature.title', 'Sign your will')}
+                    </h3>
+                    <p className="mt-1 text-sm text-[#6B6B6B]">
+                      {t('documentDetail.signature.instruction', 'Please review the document above, then sign below to confirm it reflects your wishes.')}
+                    </p>
+                  </div>
+
+                  <SignaturePad
+                    value={pendingSignature}
+                    onChange={(signature) => setPendingSignature(signature)}
+                    label={t('documentDetail.signature.label', 'Your signature')}
+                  />
+
+                  <Button
+                    onClick={handleSignDocument}
+                    disabled={!pendingSignature || submittingSignature}
+                    className="w-full bg-[#0C5536] text-white hover:bg-[#0C5536]/90 sm:w-auto"
+                  >
+                    {submittingSignature ? (
+                      <Loader2 className={isRtl ? "ml-2 h-4 w-4 animate-spin" : "mr-2 h-4 w-4 animate-spin"} />
+                    ) : (
+                      <CheckCircle className={isRtl ? "ml-2 h-4 w-4" : "mr-2 h-4 w-4"} />
+                    )}
+                    {t('documentDetail.signature.confirm', 'Confirm and sign')}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Client Approval Section - Only for draft_released */}
         {will.status === 'draft_released' && (

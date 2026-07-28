@@ -1144,6 +1144,9 @@ export type Database = {
         Row: {
           account_manager_id: string | null
           answers: Json | null
+          client_signature: string | null
+          client_signature_at: string | null
+          signed_pdf_path: string | null
           client_approval_at: string | null
           client_approval_comments: string | null
           client_approval_image_path: string | null
@@ -1170,6 +1173,9 @@ export type Database = {
         Insert: {
           account_manager_id?: string | null
           answers?: Json | null
+          client_signature?: string | null
+          client_signature_at?: string | null
+          signed_pdf_path?: string | null
           client_approval_at?: string | null
           client_approval_comments?: string | null
           client_approval_image_path?: string | null
@@ -1196,6 +1202,9 @@ export type Database = {
         Update: {
           account_manager_id?: string | null
           answers?: Json | null
+          client_signature?: string | null
+          client_signature_at?: string | null
+          signed_pdf_path?: string | null
           client_approval_at?: string | null
           client_approval_comments?: string | null
           client_approval_image_path?: string | null

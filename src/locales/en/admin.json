@@ -272,7 +272,7 @@
   "location": "Location",
   "description": "Description",
   "digitalAssets": "Digital Assets",
-  "signedOn": "Signed On",
+  "signedOn": "Signed on",
   "includeSignatureInPdf": "Include Signature in PDF",
   "controlSignatureAppears": "Control whether this signature appears in the generated will document",
   "uploadedOn": "Uploaded on",
@@ -421,5 +421,9 @@
   "generateDraftFromTemplateBtn": "Generate Draft",
   "draftGeneratedFromTemplate": "Draft generated from template",
   "abuDhabiTemplate": "Abu Dhabi template",
-  "dubaiTemplate": "Dubai template"
+  "dubaiTemplate": "Dubai template",
+  "signedCopy": "Client-signed copy",
+  "signedByClient": "Signed by the client",
+  "openSignedCopy": "Open signed copy",
+  "originalUnsigned": "(original, unsigned)"
 }
