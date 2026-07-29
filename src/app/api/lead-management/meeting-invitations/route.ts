@@ -8,6 +8,9 @@ import {
   MeetingDetails,
 } from "@/lib/calendar-links";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
+import { getLeadEmailTemplates } from "@/lib/lead-management/settingsServer";
+import { resolveLeadTemplate, type RenderedLeadEmail } from "@/lib/lead-management/leadEmailTemplates";
+import { resolveUserName } from "@/lib/lead-management/leadNotifications";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -109,11 +112,62 @@ export async function POST(request: NextRequest) {
         ? `${durationHours}h ${durationRemainingMinutes > 0 ? `${durationRemainingMinutes}m` : ""}`
         : `${durationMinutes}m`;
 
+    // The .ics call-to-action and the copy-paste calendar links survive
+    // whichever way the prose is produced — without them the invite is not
+    // actually usable.
+    const meetingStructuredHtml = `
+              <div style="background-color: #0C5536; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+                <p style="margin: 0 0 10px 0; color: #ffffff; font-size: 16px; font-weight: bold;">📎 Add to Your Calendar</p>
+                <p style="margin: 0; color: #E6E6E4; font-size: 14px;">
+                  Open the attached <strong>.ics file</strong> to instantly add this meeting to your calendar.
+                </p>
+              </div>
+              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <p style="margin: 0 0 15px 0; color: #666666; font-size: 14px; text-align: center;">
+                  Or copy one of these links into your browser:
+                </p>
+                <div style="margin-bottom: 15px;">
+                  <p style="margin: 0 0 5px 0; color: #0C5536; font-size: 13px; font-weight: bold;">📆 Google Calendar:</p>
+                  <div style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; word-break: break-all;">
+                    <span style="font-size: 11px; color: #333333; font-family: monospace;">${googleCalendarLink}</span>
+                  </div>
+                </div>
+                <div>
+                  <p style="margin: 0 0 5px 0; color: #0078D4; font-size: 13px; font-weight: bold;">📅 Outlook Calendar:</p>
+                  <div style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; word-break: break-all;">
+                    <span style="font-size: 11px; color: #333333; font-family: monospace;">${outlookWebLink}</span>
+                  </div>
+                </div>
+              </div>`;
+
+    // Active "Meeting Invitation" template drives subject + prose; inactive
+    // falls back to the original hardcoded builder below.
+    let meetingTemplate: RenderedLeadEmail | null = null;
+    try {
+      const templates = await getLeadEmailTemplates();
+      const salespersonName = actorUserId ? await resolveUserName(actorUserId) : null;
+      meetingTemplate = resolveLeadTemplate(
+        templates,
+        "meeting_invite",
+        {
+          lead_name: lead.full_name,
+          meeting_title: title,
+          meeting_date: formattedDate,
+          meeting_time: `${formattedStartTime} - ${formattedEndTime}`,
+          meeting_location: location || "To be confirmed",
+          salesperson_name: salespersonName || "The Just Wills Team",
+        },
+        { extraHtml: meetingStructuredHtml }
+      );
+    } catch (templateError) {
+      console.error("Meeting template lookup failed, using default:", templateError);
+    }
+
     // Route the invite via the actor's Outlook when connected, else
     // fall back to Resend.
     const emailResult = await sendUserEmail(actorUserId, {
       to: lead.email,
-      subject: `Meeting Invitation: ${title}`,
+      subject: meetingTemplate?.subject || `Meeting Invitation: ${title}`,
       refId: leadId,
       attachments: [
         {
@@ -121,7 +175,7 @@ export async function POST(request: NextRequest) {
           filename: `meeting-${meetingDate.toISOString().split("T")[0]}.ics`,
         },
       ],
-      html: `
+      html: meetingTemplate?.html ?? `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <!-- Header: Just Wills branding -->
             <div style="background-color: #0C5536; padding: 20px; text-align: center;">

@@ -31,6 +31,58 @@ function formatCurrency(amount: number, currency: string): string {
   }).format(amount);
 }
 
+interface LeadEmailTemplate {
+  id: string;
+  subject: string;
+  body: string;
+  variables: string[];
+  isActive: boolean;
+}
+
+const escHtml = (s: string) =>
+  String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** `{{variable}}` substitution, limited to the names the template declares. */
+function renderTemplateText(
+  text: string,
+  variables: string[],
+  values: Record<string, string>
+): string {
+  let out = text || '';
+  for (const name of variables) {
+    out = out.split(`{{${name}}}`).join(values[name] ?? '');
+  }
+  return out;
+}
+
+/** The house branded shell — templates supply prose only. */
+function buildBrandedHtml(bodyText: string, extraHtml = ''): string {
+  const paragraphs = (bodyText || '')
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .map(
+      (b) =>
+        `<p style="color:#222222;line-height:1.6;margin:0 0 16px 0;">${escHtml(b).replace(/\n/g, '<br/>')}</p>`
+    )
+    .join('');
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #0C5536; padding: 20px; text-align: center;">
+        <h1 style="color: #C6A03B; margin: 0;">Just Wills</h1>
+        <p style="color: #E6E6E4; margin: 5px 0 0 0; font-size: 12px;">Professional Will Drafting Services</p>
+      </div>
+      <div style="padding: 30px; background-color: #FAFAF8;">
+        ${paragraphs}
+        ${extraHtml}
+      </div>
+      <div style="background-color: #222222; padding: 15px; text-align: center;">
+        <p style="color: #E6E6E4; margin: 0; font-size: 12px;">&copy; ${new Date().getFullYear()} Just Wills. All rights reserved.</p>
+        <p style="color: #666666; margin: 5px 0 0 0; font-size: 11px;">Questions? Contact us at support@justwills.ae</p>
+      </div>
+    </div>`;
+}
+
 function generateFollowupEmailHtml(
   proposal: Proposal,
   leadName: string,
@@ -158,8 +210,23 @@ Deno.serve(async (req) => {
     const resend = new Resend(resendApiKey);
     const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
 
-    // All emails go to admin for now (test mode)
     const adminEmail = Deno.env.get('ADMIN_EMAIL') || 'aw736024@gmail.com';
+    const isTestMode = !Deno.env.get('PRODUCTION_EMAIL_MODE');
+
+    // The editable "Follow-up Email" template from the Settings page. This is
+    // the follow-up chaser the template describes; inactive or missing means
+    // the original hardcoded builder is used, so no empty email can go out.
+    const { data: templateRow } = await supabase
+      .from('system_settings')
+      .select('setting_value')
+      .eq('setting_key', 'lead_email_templates')
+      .maybeSingle();
+    const templateList = (templateRow?.setting_value?.templates || []) as LeadEmailTemplate[];
+    const followupTemplate = Array.isArray(templateList)
+      ? templateList.find(
+          (t) => t?.id === 'followup' && t.isActive && t.subject?.trim() && t.body?.trim()
+        )
+      : undefined;
 
     let emailsSent = 0;
     let emailsFailed = 0;
@@ -172,26 +239,53 @@ Deno.serve(async (req) => {
         const leadEmail = proposal.lead?.email || 'unknown@email.com';
         const formattedAmount = formatCurrency(proposal.amount, proposal.currency);
 
-        // Generate subject with original recipient info (test mode)
-        const subject = `[Original: ${leadEmail}] Friendly Reminder: Your Proposal ${proposal.invoice_number} Awaits`;
+        const paymentCta = `
+        <div style="background-color:#ffffff;border:1px solid #E6E6E4;border-radius:8px;padding:20px;margin:20px 0;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="padding:8px 0;color:#666666;">Invoice Number:</td>
+              <td style="padding:8px 0;text-align:right;font-weight:bold;color:#222222;">${proposal.invoice_number}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 0;color:#666666;">Amount Due:</td>
+              <td style="padding:8px 0;text-align:right;font-weight:bold;color:#0C5536;font-size:18px;">${formattedAmount}</td>
+            </tr>
+          </table>
+        </div>
+        <div style="text-align:center;margin:30px 0;">
+          <a href="${proposal.stripe_payment_link}" style="background-color:#0C5536;color:#ffffff;padding:15px 40px;text-decoration:none;border-radius:5px;display:inline-block;font-size:16px;font-weight:bold;">Complete Payment</a>
+        </div>`;
 
-        const html = generateFollowupEmailHtml(
-          proposal as Proposal,
-          leadName,
-          leadEmail,
-          formattedAmount
-        );
+        const baseSubject = followupTemplate
+          ? renderTemplateText(followupTemplate.subject, followupTemplate.variables, {
+              lead_name: leadName,
+              salesperson_name: 'The Just Wills Team',
+            })
+          : `Friendly Reminder: Your Proposal ${proposal.invoice_number} Awaits`;
 
-        console.log(`Sending follow-up for proposal ${proposal.invoice_number} to ${adminEmail} (original: ${leadEmail})`);
+        // Trial Resend account delivers to one verified address; the intended
+        // recipient stays in the subject until PRODUCTION_EMAIL_MODE is set.
+        const subject = isTestMode ? `[Original: ${leadEmail}] ${baseSubject}` : baseSubject;
+
+        const html = followupTemplate
+          ? buildBrandedHtml(
+              renderTemplateText(followupTemplate.body, followupTemplate.variables, {
+                lead_name: leadName,
+                salesperson_name: 'The Just Wills Team',
+              }),
+              paymentCta
+            )
+          : generateFollowupEmailHtml(proposal as Proposal, leadName, leadEmail, formattedAmount);
+
+        console.log(`Sending follow-up for proposal ${proposal.invoice_number} (original: ${leadEmail})`);
 
         if (fromEmail === 'onboarding@resend.dev') {
           console.warn('Using test email domain - email will only be sent to verified addresses');
         }
 
-        // Send email to admin (test mode)
         const { data: emailResult, error: emailError } = await resend.emails.send({
           from: fromEmail,
-          to: adminEmail,
+          to: isTestMode ? adminEmail : leadEmail,
           subject: subject,
           html: html,
           headers: {

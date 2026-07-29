@@ -45,129 +45,36 @@ import {
   Lock,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  ALL_FAILED_OUTCOMES,
+  DEFAULT_LEAD_AUTOMATION,
+  DEFAULT_LEAD_CADENCE,
+  DEFAULT_LEAD_NOTIFICATIONS,
+  DEFAULT_LEAD_TEAM,
+  DEFAULT_LEAD_TEMPLATES,
+  LEAD_SETTINGS_WRITE_ROLES,
+  type LeadAutomationRule,
+  type LeadCadenceSettings,
+  type LeadEmailTemplate,
+  type LeadNotificationSettings,
+  type LeadTeamSettings,
+} from "@/lib/lead-management/settingsTypes";
 import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 import { OutlookConnectionCard } from "@/components/integrations/OutlookConnectionCard";
 
-interface NotificationSettings {
-  emailNewLeadAssigned: boolean;
-  emailStatusChanges: boolean;
-  emailReminders: boolean;
-  emailProposalViewed: boolean;
-  browserNotifications: boolean;
-  notificationFrequency: "immediate" | "daily" | "weekly";
-}
+// Types and defaults are shared with the API routes and the server-side
+// senders (src/lib/lead-management/settingsTypes.ts) so what this page renders
+// and what the server falls back to can never drift apart.
+type NotificationSettings = LeadNotificationSettings;
+type EmailTemplate = LeadEmailTemplate;
+type AutomationRule = LeadAutomationRule;
+type TeamSettings = LeadTeamSettings;
+type CadenceSettings = LeadCadenceSettings;
 
-interface EmailTemplate {
-  id: string;
-  name: string;
-  subject: string;
-  body: string;
-  variables: string[];
-  isActive: boolean;
-}
-
-interface AutomationRule {
-  id: string;
-  name: string;
-  trigger: string;
-  action: string;
-  isActive: boolean;
-}
-
-interface TeamSettings {
-  defaultAssignmentMethod: "round_robin" | "manual" | "by_source";
-  workingHoursStart: string;
-  workingHoursEnd: string;
-  autoAssignNewLeads: boolean;
-  notifyOnAssignment: boolean;
-}
-
-interface CadenceSettings {
-  maxAttempts: number;
-  intervalDays: number;
-  autoMarkUnreachable: boolean;
-  failedOutcomes: string[];
-}
-
-const DEFAULT_CADENCE_SETTINGS: CadenceSettings = {
-  maxAttempts: 3,
-  intervalDays: 2,
-  autoMarkUnreachable: true,
-  failedOutcomes: ["no_answer", "voicemail", "busy", "wrong_number"],
-};
-
-const ALL_FAILED_OUTCOMES = [
-  { value: "no_answer", label: "No Answer" },
-  { value: "voicemail", label: "Voicemail" },
-  { value: "busy", label: "Busy" },
-  { value: "wrong_number", label: "Wrong Number" },
-];
-
-const DEFAULT_TEMPLATES: EmailTemplate[] = [
-  {
-    id: "proposal",
-    name: "Proposal Email",
-    subject: "Your Proposal from Just Wills - {{invoice_number}}",
-    body: "Dear {{lead_name}},\n\nThank you for your interest in our services. Please find attached your personalized proposal.\n\nProposal Amount: {{amount}}\n\nIf you have any questions, please don't hesitate to contact us.\n\nBest regards,\n{{salesperson_name}}",
-    variables: ["lead_name", "invoice_number", "amount", "salesperson_name"],
-    isActive: true,
-  },
-  {
-    id: "reminder",
-    name: "Reminder Email",
-    subject: "Reminder: {{reminder_title}}",
-    body: "Dear {{lead_name}},\n\nThis is a friendly reminder about: {{reminder_title}}\n\n{{reminder_description}}\n\nPlease feel free to reach out if you need any assistance.\n\nBest regards,\n{{salesperson_name}}",
-    variables: ["lead_name", "reminder_title", "reminder_description", "salesperson_name"],
-    isActive: true,
-  },
-  {
-    id: "followup",
-    name: "Follow-up Email",
-    subject: "Following up on our conversation",
-    body: "Dear {{lead_name}},\n\nI wanted to follow up on our recent conversation regarding your will and estate planning needs.\n\nPlease let me know if you have any questions or if there's anything I can help with.\n\nBest regards,\n{{salesperson_name}}",
-    variables: ["lead_name", "salesperson_name"],
-    isActive: true,
-  },
-  {
-    id: "meeting_invite",
-    name: "Meeting Invitation",
-    subject: "Meeting Invitation: {{meeting_title}}",
-    body: "Dear {{lead_name}},\n\nYou are invited to a meeting:\n\nTitle: {{meeting_title}}\nDate: {{meeting_date}}\nTime: {{meeting_time}}\nLocation: {{meeting_location}}\n\nPlease confirm your attendance.\n\nBest regards,\n{{salesperson_name}}",
-    variables: ["lead_name", "meeting_title", "meeting_date", "meeting_time", "meeting_location", "salesperson_name"],
-    isActive: true,
-  },
-];
-
-const DEFAULT_AUTOMATION_RULES: AutomationRule[] = [
-  {
-    id: "auto_reminder_7days",
-    name: "Auto-create reminder for stale leads",
-    trigger: "Lead not contacted for 7 days",
-    action: "Create follow-up reminder",
-    isActive: true,
-  },
-  {
-    id: "auto_status_contacted",
-    name: "Auto-update status on first contact",
-    trigger: "First communication logged",
-    action: "Change status to 'Contacted'",
-    isActive: true,
-  },
-  {
-    id: "notify_manager_won",
-    name: "Notify manager on deal won",
-    trigger: "Lead status changed to 'Won'",
-    action: "Send notification to manager",
-    isActive: false,
-  },
-  {
-    id: "auto_assign_source",
-    name: "Auto-assign by source",
-    trigger: "New lead created",
-    action: "Assign to salesperson based on source",
-    isActive: true,
-  },
-];
+const DEFAULT_CADENCE_SETTINGS = DEFAULT_LEAD_CADENCE;
+const DEFAULT_TEMPLATES = DEFAULT_LEAD_TEMPLATES;
+const DEFAULT_AUTOMATION_RULES = DEFAULT_LEAD_AUTOMATION.rules;
 
 export default function LeadManagementSettings() {
   const { t } = useTranslation(["leadManagement", "common", "portal"]);
@@ -176,15 +83,17 @@ export default function LeadManagementSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("account");
 
+  // Only these roles may WRITE. Salespeople see every control, disabled —
+  // nothing is hidden and the layout is unchanged. The real gate is
+  // server-side in each PUT route; this is only so the UI does not invite a
+  // click that would 403.
+  const canWrite = (profile?.roles || []).some((role) =>
+    (LEAD_SETTINGS_WRITE_ROLES as readonly string[]).includes(role)
+  );
+
   // Notification settings state
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
-    emailNewLeadAssigned: true,
-    emailStatusChanges: true,
-    emailReminders: true,
-    emailProposalViewed: false,
-    browserNotifications: true,
-    notificationFrequency: "immediate",
-  });
+  const [notificationSettings, setNotificationSettings] =
+    useState<NotificationSettings>(DEFAULT_LEAD_NOTIFICATIONS);
 
   // Email templates state
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>(DEFAULT_TEMPLATES);
@@ -194,57 +103,102 @@ export default function LeadManagementSettings() {
   const [automationRules, setAutomationRules] = useState<AutomationRule[]>(DEFAULT_AUTOMATION_RULES);
 
   // Team settings state
-  const [teamSettings, setTeamSettings] = useState<TeamSettings>({
-    defaultAssignmentMethod: "by_source",
-    workingHoursStart: "09:00",
-    workingHoursEnd: "18:00",
-    autoAssignNewLeads: true,
-    notifyOnAssignment: true,
-  });
+  const [teamSettings, setTeamSettings] = useState<TeamSettings>(DEFAULT_LEAD_TEAM);
+
+  // Threshold for the "stale leads" automation rule (permitted UI addition).
+  const [staleLeadDays, setStaleLeadDays] = useState<number>(
+    DEFAULT_LEAD_AUTOMATION.staleLeadDays
+  );
 
   // Cadence settings state
   const [cadenceSettings, setCadenceSettings] = useState<CadenceSettings>(DEFAULT_CADENCE_SETTINGS);
 
-  // Load settings from localStorage
+  // Load the org-wide settings from the database. These used to live in
+  // localStorage, which meant every browser had its own private copy and no
+  // server code could ever read them. Old localStorage values are deliberately
+  // not migrated — the DB rows are seeded with clean defaults instead.
   useEffect(() => {
-    const loadSettings = () => {
+    const loadSettings = async () => {
+      setIsLoading(true);
       try {
-        const savedNotifications = localStorage.getItem("leadManagement_notifications");
-        const savedTemplates = localStorage.getItem("leadManagement_templates");
-        const savedRules = localStorage.getItem("leadManagement_rules");
-        const savedTeam = localStorage.getItem("leadManagement_team");
-        const savedCadence = localStorage.getItem("leadManagement_cadence");
+        const [notifications, templates, automation, team, cadence] = await Promise.all([
+          fetch("/api/lead-management/settings/notifications").then((r) => r.json()),
+          fetch("/api/lead-management/settings/email-templates").then((r) => r.json()),
+          fetch("/api/lead-management/settings/automation").then((r) => r.json()),
+          fetch("/api/lead-management/settings/team").then((r) => r.json()),
+          fetch("/api/lead-management/settings/followup-cadence").then((r) => r.json()),
+        ]);
 
-        if (savedNotifications) setNotificationSettings(JSON.parse(savedNotifications));
-        if (savedTemplates) setEmailTemplates(JSON.parse(savedTemplates));
-        if (savedRules) setAutomationRules(JSON.parse(savedRules));
-        if (savedTeam) setTeamSettings(JSON.parse(savedTeam));
-        if (savedCadence) setCadenceSettings(JSON.parse(savedCadence));
+        if (notifications?.data) setNotificationSettings(notifications.data);
+        if (templates?.data?.templates) setEmailTemplates(templates.data.templates);
+        if (automation?.data?.rules) setAutomationRules(automation.data.rules);
+        if (typeof automation?.data?.staleLeadDays === "number") {
+          setStaleLeadDays(automation.data.staleLeadDays);
+        }
+        if (team?.data) setTeamSettings(team.data);
+        if (cadence?.data) setCadenceSettings(cadence.data);
       } catch (error) {
         console.error("Error loading settings:", error);
+        toast.error(t("failedToLoadSettings", "Failed to load settings"));
+      } finally {
+        setIsLoading(false);
       }
     };
     loadSettings();
-  }, []);
+  }, [t]);
 
-  // Save settings
+  // Save settings. One PUT per group; every route re-checks the caller's role
+  // server-side, so a salesperson who bypasses the disabled controls still
+  // gets a 403.
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      localStorage.setItem("leadManagement_notifications", JSON.stringify(notificationSettings));
-      localStorage.setItem("leadManagement_templates", JSON.stringify(emailTemplates));
-      localStorage.setItem("leadManagement_rules", JSON.stringify(automationRules));
-      localStorage.setItem("leadManagement_team", JSON.stringify(teamSettings));
-      localStorage.setItem("leadManagement_cadence", JSON.stringify(cadenceSettings));
-      
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const headers = {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      };
+
+      const groups: { url: string; body: unknown }[] = [
+        { url: "/api/lead-management/settings/notifications", body: notificationSettings },
+        { url: "/api/lead-management/settings/email-templates", body: { templates: emailTemplates } },
+        { url: "/api/lead-management/settings/automation", body: { rules: automationRules, staleLeadDays } },
+        { url: "/api/lead-management/settings/team", body: teamSettings },
+        { url: "/api/lead-management/settings/followup-cadence", body: cadenceSettings },
+      ];
+
+      const results = await Promise.all(
+        groups.map(async (group) => {
+          const response = await fetch(group.url, {
+            method: "PUT",
+            headers,
+            body: JSON.stringify(group.body),
+          });
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.error || `Failed to save ${group.url}`);
+          }
+          return response.json();
+        })
+      );
+
+      // Adopt the server's normalised values so the screen shows exactly what
+      // was stored (e.g. the stale rule's trigger text tracking the threshold).
+      if (results[2]?.data?.rules) setAutomationRules(results[2].data.rules);
+
       toast.success(t("settingsSaved", "Settings saved successfully"));
     } catch (error) {
       console.error("Error saving settings:", error);
-      toast.error(t("failedToSaveSettings", "Failed to save settings"));
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : t("failedToSaveSettings", "Failed to save settings")
+      );
     } finally {
       setIsSaving(false);
     }
-  }, [notificationSettings, emailTemplates, automationRules, teamSettings, cadenceSettings, t]);
+  }, [notificationSettings, emailTemplates, automationRules, staleLeadDays, teamSettings, cadenceSettings, t]);
 
   // Toggle automation rule
   const toggleAutomationRule = (ruleId: string) => {
@@ -276,9 +230,43 @@ export default function LeadManagementSettings() {
     }
   };
 
-  // Send test email
+  // Send test email. This used to be a lie — it only showed a toast. It now
+  // actually renders the template (including any unsaved edits on screen) and
+  // sends it to the signed-in user's own address.
+  const [isTesting, setIsTesting] = useState(false);
   const sendTestEmail = async (templateId: string) => {
-    toast.success(t("testEmailSent", "Test email sent to your address"));
+    const template = emailTemplates.find((item) => item.id === templateId);
+    setIsTesting(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const response = await fetch("/api/lead-management/settings/test-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({
+          templateId,
+          subject: template?.subject,
+          body: template?.body,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to send test email");
+      }
+      toast.success(t("testEmailSent", "Test email sent to your address"));
+    } catch (error) {
+      console.error("Error sending test email:", error);
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : t("failedToSendTestEmail", "Failed to send test email")
+      );
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   return (
@@ -299,7 +287,7 @@ export default function LeadManagementSettings() {
           </div>
           <Button 
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || isLoading || !canWrite}
             className="bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
           >
             {isSaving ? (
@@ -417,6 +405,7 @@ export default function LeadManagementSettings() {
                   <p className="text-sm text-[#6B6B6B]">{t("newLeadAssignedDesc", "Get notified when a lead is assigned to you")}</p>
                 </div>
                 <Switch 
+                  disabled={!canWrite}
                   checked={notificationSettings.emailNewLeadAssigned}
                   onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, emailNewLeadAssigned: checked }))}
                 />
@@ -427,28 +416,20 @@ export default function LeadManagementSettings() {
                   <p className="text-sm text-[#6B6B6B]">{t("statusChangesDesc", "Get notified when a lead status changes")}</p>
                 </div>
                 <Switch 
+                  disabled={!canWrite}
                   checked={notificationSettings.emailStatusChanges}
                   onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, emailStatusChanges: checked }))}
                 />
               </div>
-              <div className="flex items-center justify-between py-3 border-b border-[#E6E6E4]">
+              <div className="flex items-center justify-between py-3">
                 <div>
                   <Label className="text-[#222222] font-medium">{t("remindersDue", "Reminders Due")}</Label>
                   <p className="text-sm text-[#6B6B6B]">{t("remindersDueDesc", "Get notified when reminders are due")}</p>
                 </div>
                 <Switch 
+                  disabled={!canWrite}
                   checked={notificationSettings.emailReminders}
                   onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, emailReminders: checked }))}
-                />
-              </div>
-              <div className="flex items-center justify-between py-3">
-                <div>
-                  <Label className="text-[#222222] font-medium">{t("proposalViewed", "Proposal Viewed")}</Label>
-                  <p className="text-sm text-[#6B6B6B]">{t("proposalViewedDesc", "Get notified when a client views your proposal")}</p>
-                </div>
-                <Switch 
-                  checked={notificationSettings.emailProposalViewed}
-                  onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, emailProposalViewed: checked }))}
                 />
               </div>
             </CardContent>
@@ -473,7 +454,7 @@ export default function LeadManagementSettings() {
                   setNotificationSettings(prev => ({ ...prev, notificationFrequency: value }))
                 }
               >
-                <SelectTrigger className="w-[300px] border-[#E6E6E4]">
+                <SelectTrigger disabled={!canWrite} className="w-[300px] border-[#E6E6E4]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -504,6 +485,7 @@ export default function LeadManagementSettings() {
                   <p className="text-sm text-[#6B6B6B]">{t("browserNotificationsNote", "You may need to allow notifications in your browser")}</p>
                 </div>
                 <Switch 
+                  disabled={!canWrite}
                   checked={notificationSettings.browserNotifications}
                   onCheckedChange={(checked) => setNotificationSettings(prev => ({ ...prev, browserNotifications: checked }))}
                 />
@@ -572,12 +554,14 @@ export default function LeadManagementSettings() {
                         variant="outline"
                         size="sm"
                         onClick={() => sendTestEmail(selectedTemplate.id)}
+                        disabled={!canWrite || isTesting}
                         className="border-[#E6E6E4]"
                       >
                         <Send className="h-4 w-4 mr-1" />
                         {t("testSend", "Test")}
                       </Button>
                       <Switch 
+                        disabled={!canWrite}
                         checked={selectedTemplate.isActive}
                         onCheckedChange={(checked) => toggleEmailTemplate(selectedTemplate.id)}
                       />
@@ -591,6 +575,7 @@ export default function LeadManagementSettings() {
                     <div>
                       <Label className="text-[#222222]">{t("subject", "Subject")}</Label>
                       <Input
+                        disabled={!canWrite}
                         value={selectedTemplate.subject}
                         onChange={(e) => updateEmailTemplate(selectedTemplate.id, { subject: e.target.value })}
                         className="mt-1 border-[#E6E6E4]"
@@ -599,6 +584,7 @@ export default function LeadManagementSettings() {
                     <div>
                       <Label className="text-[#222222]">{t("body", "Body")}</Label>
                       <Textarea
+                        disabled={!canWrite}
                         value={selectedTemplate.body}
                         onChange={(e) => updateEmailTemplate(selectedTemplate.id, { body: e.target.value })}
                         className="mt-1 border-[#E6E6E4] min-h-[200px] font-mono text-sm"
@@ -672,10 +658,25 @@ export default function LeadManagementSettings() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
+                    {rule.id === "auto_reminder_7days" && (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={365}
+                          disabled={!canWrite}
+                          value={staleLeadDays}
+                          onChange={(e) => setStaleLeadDays(parseInt(e.target.value) || 7)}
+                          className="w-20 border-[#E6E6E4]"
+                        />
+                        <span className="text-sm text-[#6B6B6B]">{t("days", "days")}</span>
+                      </div>
+                    )}
                     <Badge className={rule.isActive ? "bg-[#E6F7F1] text-[#0C5536] border-0" : "bg-[#F5F5F5] text-[#6B6B6B] border-0"}>
                       {rule.isActive ? t("active", "Active") : t("inactive", "Inactive")}
                     </Badge>
                     <Switch 
+                      disabled={!canWrite}
                       checked={rule.isActive}
                       onCheckedChange={() => toggleAutomationRule(rule.id)}
                     />
@@ -716,6 +717,7 @@ export default function LeadManagementSettings() {
                     type="number"
                     min={1}
                     max={20}
+                    disabled={!canWrite}
                     value={cadenceSettings.maxAttempts}
                     onChange={(e) => setCadenceSettings(prev => ({ ...prev, maxAttempts: parseInt(e.target.value) || 3 }))}
                     className="border-[#E6E6E4]"
@@ -728,6 +730,7 @@ export default function LeadManagementSettings() {
                     type="number"
                     min={1}
                     max={30}
+                    disabled={!canWrite}
                     value={cadenceSettings.intervalDays}
                     onChange={(e) => setCadenceSettings(prev => ({ ...prev, intervalDays: parseInt(e.target.value) || 2 }))}
                     className="border-[#E6E6E4]"
@@ -742,6 +745,7 @@ export default function LeadManagementSettings() {
                   <p className="text-sm text-[#6B6B6B]">{t("autoMarkUnreachableDesc", "Automatically change lead status to unreachable after max attempts")}</p>
                 </div>
                 <Switch
+                  disabled={!canWrite}
                   checked={cadenceSettings.autoMarkUnreachable}
                   onCheckedChange={(checked) => setCadenceSettings(prev => ({ ...prev, autoMarkUnreachable: checked }))}
                 />
@@ -754,6 +758,7 @@ export default function LeadManagementSettings() {
                     <div key={outcome.value} className="flex items-center space-x-2">
                       <Checkbox
                         id={`outcome_${outcome.value}`}
+                        disabled={!canWrite}
                         checked={cadenceSettings.failedOutcomes.includes(outcome.value)}
                         onCheckedChange={(checked) => {
                           setCadenceSettings(prev => ({
@@ -802,7 +807,7 @@ export default function LeadManagementSettings() {
                     setTeamSettings(prev => ({ ...prev, defaultAssignmentMethod: value }))
                   }
                 >
-                  <SelectTrigger className="w-full mt-1 border-[#E6E6E4]">
+                  <SelectTrigger disabled={!canWrite} className="w-full mt-1 border-[#E6E6E4]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -819,6 +824,7 @@ export default function LeadManagementSettings() {
                   <p className="text-sm text-[#6B6B6B]">{t("autoAssignNewLeadsDesc", "Automatically assign new leads based on the method above")}</p>
                 </div>
                 <Switch 
+                  disabled={!canWrite}
                   checked={teamSettings.autoAssignNewLeads}
                   onCheckedChange={(checked) => setTeamSettings(prev => ({ ...prev, autoAssignNewLeads: checked }))}
                 />
@@ -830,6 +836,7 @@ export default function LeadManagementSettings() {
                   <p className="text-sm text-[#6B6B6B]">{t("notifyOnAssignmentDesc", "Send email when a lead is assigned")}</p>
                 </div>
                 <Switch 
+                  disabled={!canWrite}
                   checked={teamSettings.notifyOnAssignment}
                   onCheckedChange={(checked) => setTeamSettings(prev => ({ ...prev, notifyOnAssignment: checked }))}
                 />
@@ -855,6 +862,7 @@ export default function LeadManagementSettings() {
                   <Label className="text-[#222222]">{t("startTime", "Start Time")}</Label>
                   <Input
                     type="time"
+                    disabled={!canWrite}
                     value={teamSettings.workingHoursStart}
                     onChange={(e) => setTeamSettings(prev => ({ ...prev, workingHoursStart: e.target.value }))}
                     className="mt-1 border-[#E6E6E4]"
@@ -864,6 +872,7 @@ export default function LeadManagementSettings() {
                   <Label className="text-[#222222]">{t("endTime", "End Time")}</Label>
                   <Input
                     type="time"
+                    disabled={!canWrite}
                     value={teamSettings.workingHoursEnd}
                     onChange={(e) => setTeamSettings(prev => ({ ...prev, workingHoursEnd: e.target.value }))}
                     className="mt-1 border-[#E6E6E4]"

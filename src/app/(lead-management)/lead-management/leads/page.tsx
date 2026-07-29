@@ -259,9 +259,17 @@ export default function LeadsPage() {
     }
   ) => {
     try {
-      const { error } = await supabase
-        .from("leads")
-        .update({
+      // Goes through the API rather than the table directly so a status
+      // change here fires the same notifications as everywhere else.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const response = await fetch(`/api/lead-management/leads/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({
           full_name: data.full_name,
           email: data.email,
           phone: data.phone || null,
@@ -270,11 +278,13 @@ export default function LeadsPage() {
           source: data.source || null,
           notes: data.notes || null,
           status: data.status,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id);
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || "Failed to update lead");
+      }
 
       toast.success(t("leadUpdated"));
       fetchLeads();
@@ -353,15 +363,23 @@ export default function LeadsPage() {
   // Change lead status
   const handleStatusChange = async (leadId: string, status: LeadStatus) => {
     try {
-      const { error } = await supabase
-        .from("leads")
-        .update({
-          status,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", leadId);
+      // Via the API so the status-change notification and the
+      // notify-manager-on-won automation rule actually fire.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const response = await fetch(`/api/lead-management/leads/${leadId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ status }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || "Failed to update status");
+      }
 
       const statusMap: Record<LeadStatus, string> = {
         not_started: t("notStarted"),

@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
+import { resolveLeadAssignment } from "@/lib/lead-management/leadAssignment";
+import { notifyLeadEvent } from "@/lib/lead-management/leadNotifications";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -85,71 +87,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Auto-assignment logic. Prefer salespeople linked to the lead's source;
-    // if the source has none (or there is no source), fall back to ALL
-    // salespeople so a new lead is never left unassigned.
-    let assignedTo: string | null = null;
-    let assignedAt: string | null = null;
-
-    {
-      let salespersonIds: string[] = [];
-
-      if (source_id) {
-        const { data: assignments } = await supabaseAdmin
-          .from("source_salesperson_assignments")
-          .select("salesperson_id")
-          .eq("source_id", source_id);
-        salespersonIds = (assignments || []).map((a) => a.salesperson_id);
-      }
-
-      if (salespersonIds.length === 0) {
-        // Fallback: every user with the salesperson role.
-        const { data: roleRows } = await supabaseAdmin
-          .from("user_roles")
-          .select("user_id")
-          .eq("role", "salesperson");
-        salespersonIds = (roleRows || []).map((r) => r.user_id);
-      }
-
-      if (salespersonIds.length === 1) {
-        assignedTo = salespersonIds[0];
-      } else if (salespersonIds.length > 1) {
-        // Round-robin by workload (least assigned leads).
-        const { data: leadCounts, error: countError } = await supabaseAdmin
-          .from("leads")
-          .select("assigned_to")
-          .in("assigned_to", salespersonIds)
-          .not("assigned_to", "is", null);
-
-        if (!countError) {
-          const countMap: Record<string, number> = {};
-          salespersonIds.forEach((id) => {
-            countMap[id] = 0;
-          });
-          leadCounts?.forEach((lead) => {
-            if (lead.assigned_to) {
-              countMap[lead.assigned_to] = (countMap[lead.assigned_to] || 0) + 1;
-            }
-          });
-
-          let minCount = Infinity;
-          let selectedSalesperson = salespersonIds[0];
-          for (const id of salespersonIds) {
-            if (countMap[id] < minCount) {
-              minCount = countMap[id];
-              selectedSalesperson = id;
-            }
-          }
-          assignedTo = selectedSalesperson;
-        } else {
-          assignedTo = salespersonIds[0];
-        }
-      }
-
-      if (assignedTo) {
-        assignedAt = new Date().toISOString();
-      }
-    }
+    // Assignment is decided by the shared resolver so the dashboard route and
+    // the public QR intake form can never drift apart. See
+    // src/lib/lead-management/leadAssignment.ts for the full rule table.
+    const { assignedTo, assignedAt, teamSettings } = await resolveLeadAssignment(
+      supabaseAdmin,
+      source_id || null
+    );
 
     // Create the lead
     const { data: lead, error: createError } = await supabaseAdmin
@@ -267,9 +211,12 @@ export async function POST(request: NextRequest) {
       console.error("Failed to send enquiry confirmation email:", emailError);
     }
 
-    // Send notification email to assigned salesperson — via creator's Outlook
-    // when authenticated and connected, else Resend.
-    if (assignedTo) {
+    // Notify the assigned salesperson. The email body below is unchanged —
+    // it is now routed through notifyLeadEvent so the Notifications tab's
+    // "New Lead Assigned" switch, the immediate/daily/weekly frequency and
+    // the working-hours hold all apply, and so the event also lands in the
+    // in-app bell. The Team tab's "Notify on Assignment" switch gates it too.
+    if (assignedTo && teamSettings.notifyOnAssignment) {
       try {
         // Get salesperson profile and email
         const { data: salespersonProfile } = await supabaseAdmin
@@ -285,8 +232,15 @@ export async function POST(request: NextRequest) {
         if (salespersonEmail) {
           const sourceName = lead.source_data?.name || "Unknown Source";
 
-          const assignedNotifyResult = await sendUserEmail(callerId, {
-            to: salespersonEmail,
+          const assignedNotifyResult = await notifyLeadEvent({
+            eventType: "lead_assigned",
+            recipientId: assignedTo,
+            leadId: lead.id,
+            actorUserId: callerId,
+            title: `New lead assigned: ${lead.full_name}`,
+            body: lead.company_name || lead.email || null,
+            metadata: { source: lead.source_data?.name || null },
+            email: {
             subject: `New Lead Assigned: ${lead.full_name}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -355,11 +309,17 @@ export async function POST(request: NextRequest) {
                 </div>
               </div>
             `,
+            },
           });
-          if (!assignedNotifyResult.ok) {
-            console.error("Failed to send salesperson notification email:", assignedNotifyResult.error);
+          if (assignedNotifyResult.error) {
+            console.error("Lead assignment notification issue:", assignedNotifyResult.error);
           } else {
-            console.log("Lead assignment notification sent via", assignedNotifyResult.provider, "to:", salespersonEmail);
+            console.log(
+              "Lead assignment notification recorded for",
+              salespersonEmail,
+              "email state:",
+              assignedNotifyResult.emailState
+            );
           }
         }
       } catch (salespersonEmailError) {

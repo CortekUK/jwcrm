@@ -1,99 +1,81 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  assertCanWriteLeadSettings,
+  getLeadCadenceSettings,
+  writeSettingRow,
+} from "@/lib/lead-management/settingsServer";
+import {
+  ALL_FAILED_OUTCOMES,
+  DEFAULT_LEAD_CADENCE,
+  LEAD_SETTING_KEYS,
+  type LeadCadenceSettings,
+} from "@/lib/lead-management/settingsTypes";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-const SETTING_KEY = "lead_followup_cadence";
-
-const DEFAULT_SETTINGS = {
-  enabled: true,
-  max_attempts: 3,
-  interval_hours: 48,
-};
-
+// Contact cadence. This route previously exposed an unrelated shape
+// ({enabled, max_attempts, interval_hours}) that only the never-rendered
+// FollowupCadenceSettings component spoke, while the Settings page kept its
+// own copy in localStorage. The Settings page UI is the source of truth, so
+// the route now serves that shape and the old one is gone.
 export async function GET() {
   try {
-    const { data, error } = await supabaseAdmin
-      .from("system_settings")
-      .select("setting_value, updated_at")
-      .eq("setting_key", SETTING_KEY)
-      .single();
-
-    if (error && error.code === "PGRST116") {
-      // Not found - return defaults
-      return NextResponse.json({ data: { setting_value: DEFAULT_SETTINGS, updated_at: null } });
-    }
-
-    if (error) throw error;
-
-    return NextResponse.json({ data });
+    const settings = await getLeadCadenceSettings();
+    return NextResponse.json({ data: settings });
   } catch (error) {
-    console.error("Error fetching followup cadence settings:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch settings" },
-      { status: 500 }
-    );
+    console.error("Error fetching contact cadence settings:", error);
+    return NextResponse.json({ data: DEFAULT_LEAD_CADENCE });
   }
 }
 
 export async function PUT(request: NextRequest) {
+  const auth = await assertCanWriteLeadSettings(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await request.json();
-    const { enabled, max_attempts, interval_hours } = body;
 
-    // Validate inputs
-    if (typeof enabled !== "boolean") {
-      return NextResponse.json({ error: "enabled must be a boolean" }, { status: 400 });
-    }
-    if (!Number.isInteger(max_attempts) || max_attempts < 1 || max_attempts > 10) {
-      return NextResponse.json({ error: "max_attempts must be an integer between 1 and 10" }, { status: 400 });
-    }
-    if (!Number.isInteger(interval_hours) || interval_hours < 1 || interval_hours > 720) {
-      return NextResponse.json({ error: "interval_hours must be an integer between 1 and 720" }, { status: 400 });
+    const maxAttempts = Number(body?.maxAttempts);
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20) {
+      return NextResponse.json(
+        { error: "maxAttempts must be an integer between 1 and 20" },
+        { status: 400 }
+      );
     }
 
-    const settingValue = { enabled, max_attempts, interval_hours };
-
-    // Upsert the setting
-    const { data: existing } = await supabaseAdmin
-      .from("system_settings")
-      .select("id")
-      .eq("setting_key", SETTING_KEY)
-      .single();
-
-    let data;
-    let error;
-
-    if (existing) {
-      ({ data, error } = await supabaseAdmin
-        .from("system_settings")
-        .update({ setting_value: settingValue })
-        .eq("setting_key", SETTING_KEY)
-        .select("setting_value, updated_at")
-        .single());
-    } else {
-      ({ data, error } = await supabaseAdmin
-        .from("system_settings")
-        .insert({
-          setting_key: SETTING_KEY,
-          setting_value: settingValue,
-          description: "Settings for automated proposal follow-up emails.",
-        })
-        .select("setting_value, updated_at")
-        .single());
+    const intervalDays = Number(body?.intervalDays);
+    if (!Number.isInteger(intervalDays) || intervalDays < 1 || intervalDays > 30) {
+      return NextResponse.json(
+        { error: "intervalDays must be an integer between 1 and 30" },
+        { status: 400 }
+      );
     }
 
-    if (error) throw error;
+    const allowed = new Set(ALL_FAILED_OUTCOMES.map((o) => o.value));
+    const failedOutcomes = Array.isArray(body?.failedOutcomes)
+      ? (body.failedOutcomes as unknown[])
+          .filter((o): o is string => typeof o === "string" && allowed.has(o))
+      : DEFAULT_LEAD_CADENCE.failedOutcomes;
 
-    return NextResponse.json({ data });
-  } catch (error) {
-    console.error("Error updating followup cadence settings:", error);
-    return NextResponse.json(
-      { error: "Failed to update settings" },
-      { status: 500 }
+    const value: LeadCadenceSettings = {
+      maxAttempts,
+      intervalDays,
+      autoMarkUnreachable:
+        typeof body?.autoMarkUnreachable === "boolean"
+          ? body.autoMarkUnreachable
+          : DEFAULT_LEAD_CADENCE.autoMarkUnreachable,
+      failedOutcomes: [...new Set(failedOutcomes)],
+    };
+
+    await writeSettingRow(
+      LEAD_SETTING_KEYS.cadence,
+      value,
+      "Contact cadence: how many consecutive failed call outcomes mark a lead unreachable, the recommended gap between attempts, and which outcomes count as failed."
     );
+
+    return NextResponse.json({ data: value });
+  } catch (error) {
+    console.error("Error updating contact cadence settings:", error);
+    return NextResponse.json({ error: "Failed to update settings" }, { status: 500 });
   }
 }

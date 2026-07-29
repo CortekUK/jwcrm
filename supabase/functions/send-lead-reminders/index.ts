@@ -29,6 +29,91 @@ interface LeadReminder {
   };
 }
 
+const TEAM_TIMEZONE = 'Asia/Dubai';
+
+interface LeadEmailTemplate {
+  id: string;
+  subject: string;
+  body: string;
+  variables: string[];
+  isActive: boolean;
+}
+
+const escHtml = (s: string) =>
+  String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** `{{variable}}` substitution, limited to the names the template declares. */
+function renderTemplateText(
+  text: string,
+  variables: string[],
+  values: Record<string, string>
+): string {
+  let out = text || '';
+  for (const name of variables) {
+    out = out.split(`{{${name}}}`).join(values[name] ?? '');
+  }
+  return out;
+}
+
+/**
+ * Same branded shell the app-side builder uses (green header / gold accent /
+ * dark footer). Templates supply prose only, so an edited template can never
+ * produce an unbranded wall of text.
+ */
+function buildBrandedHtml(bodyText: string, extraHtml = ''): string {
+  const paragraphs = (bodyText || '')
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .map(
+      (b) =>
+        `<p style="color:#222222;line-height:1.6;margin:0 0 16px 0;">${escHtml(b).replace(/\n/g, '<br/>')}</p>`
+    )
+    .join('');
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #0C5536; padding: 20px; text-align: center;">
+        <h1 style="color: #C6A03B; margin: 0;">Just Wills</h1>
+        <p style="color: #E6E6E4; margin: 5px 0 0 0; font-size: 12px;">Professional Will Drafting Services</p>
+      </div>
+      <div style="padding: 30px; background-color: #FAFAF8;">
+        ${paragraphs}
+        ${extraHtml}
+      </div>
+      <div style="background-color: #222222; padding: 15px; text-align: center;">
+        <p style="color: #E6E6E4; margin: 0; font-size: 12px;">&copy; ${new Date().getFullYear()} Just Wills. All rights reserved.</p>
+        <p style="color: #666666; margin: 5px 0 0 0; font-size: 11px;">Questions? Contact us at support@justwills.ae</p>
+      </div>
+    </div>`;
+}
+
+function minutesOf(hhmm: string | undefined, fallback: number): number {
+  const m = /^(\d{1,2}):(\d{2})$/.exec((hhmm || '').trim());
+  if (!m) return fallback;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/**
+ * Working-hours window from the Team tab, evaluated in Asia/Dubai. An
+ * inverted/empty window counts as "always open" so a misconfiguration can
+ * never silently swallow every reminder.
+ */
+function isWithinWorkingHours(team: { workingHoursStart?: string; workingHoursEnd?: string }): boolean {
+  const start = minutesOf(team.workingHoursStart, 0);
+  const end = minutesOf(team.workingHoursEnd, 24 * 60);
+  if (start >= end) return true;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TEAM_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
+  const now = hour * 60 + minute;
+  return now >= start && now < end;
+}
+
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleString('en-US', {
@@ -142,6 +227,48 @@ Deno.serve(async (req) => {
     const now = new Date().toISOString();
     console.log(`Processing lead reminders at ${now}`);
 
+    // Settings from the lead-management Settings page decide whether the
+    // reminder EMAIL goes out, and when. The reminder itself is always
+    // triggered so the in-app bell stays truthful.
+    const { data: settingRows } = await supabase
+      .from('system_settings')
+      .select('setting_key, setting_value')
+      .in('setting_key', ['lead_notifications', 'lead_team', 'lead_email_templates']);
+    const settingsByKey = new Map<string, Record<string, unknown>>();
+    for (const row of settingRows || []) {
+      settingsByKey.set(row.setting_key, (row.setting_value ?? {}) as Record<string, unknown>);
+    }
+    const notificationSettings = settingsByKey.get('lead_notifications') || {};
+    const teamSettings = (settingsByKey.get('lead_team') || {}) as {
+      workingHoursStart?: string;
+      workingHoursEnd?: string;
+    };
+    // The editable "Reminder Email" template. Inactive or missing => the
+    // original hardcoded builder below is used, so an empty email is
+    // impossible.
+    const templateList = (settingsByKey.get('lead_email_templates')?.templates ||
+      []) as LeadEmailTemplate[];
+    const reminderTemplate = Array.isArray(templateList)
+      ? templateList.find((t) => t?.id === 'reminder' && t.isActive && t.subject?.trim() && t.body?.trim())
+      : undefined;
+
+    // Missing row => defaults, and reminder emails ship enabled.
+    const remindersEmailOn = notificationSettings.emailReminders !== false;
+    const frequency = (notificationSettings.notificationFrequency as string) || 'immediate';
+
+    // What happens to each reminder's email, decided once for this run:
+    //   suppressed  the "Reminders Due" switch is off
+    //   digest      frequency is daily/weekly — the digest cron batches it
+    //   pending     immediate, but outside working hours — the flush cron
+    //               sends it at the next working-hours start
+    //   sent        immediate and inside working hours — sent right now
+    let emailPlan: 'sent' | 'pending' | 'digest' | 'suppressed';
+    if (!remindersEmailOn) emailPlan = 'suppressed';
+    else if (frequency !== 'immediate') emailPlan = 'digest';
+    else if (!isWithinWorkingHours(teamSettings)) emailPlan = 'pending';
+    else emailPlan = 'sent';
+    console.log(`Reminder email plan for this run: ${emailPlan}`);
+
     // Fetch all pending reminders that are due (remind_at <= now)
     const { data: reminders, error: remindersError } = await supabase
       .from('lead_reminders')
@@ -183,8 +310,9 @@ Deno.serve(async (req) => {
     const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
     const appUrl = Deno.env.get('APP_URL') || 'http://localhost:3000';
 
-    // Send to admin for testing (same pattern as other edge functions)
-    const adminEmail = 'aw736024@gmail.com';
+    // Test-mode swap, same pattern as the other edge functions.
+    const adminEmail = Deno.env.get('ADMIN_EMAIL') || 'aw736024@gmail.com';
+    const isTestMode = !Deno.env.get('PRODUCTION_EMAIL_MODE');
 
     let emailsSent = 0;
     let emailsFailed = 0;
@@ -207,33 +335,77 @@ Deno.serve(async (req) => {
         const salespersonEmail = authUser?.user?.email || adminEmail;
 
         const leadName = reminder.lead?.full_name || 'Unknown Lead';
-        const subject = `Reminder: ${reminder.title} - ${leadName}`;
-        const html = generateReminderEmailHtml(
-          reminder as LeadReminder,
-          salespersonName,
-          appUrl
-        );
+        // Configurable template first; hardcoded builder as the fallback.
+        const templateValues: Record<string, string> = {
+          lead_name: leadName,
+          reminder_title: reminder.title,
+          reminder_description: reminder.description || '',
+          salesperson_name: salespersonName,
+        };
+        const dashboardCta = `
+        <div style="text-align:center;margin:25px 0;">
+          <a href="${appUrl}/admin/salesperson/leads/${reminder.lead_id}"
+             style="display:inline-block;background-color:#0C5536;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">
+            View Lead Details
+          </a>
+        </div>`;
 
-        console.log(`Sending reminder email for lead "${leadName}" to ${salespersonEmail} (via ${adminEmail})`);
+        const subject = reminderTemplate
+          ? renderTemplateText(reminderTemplate.subject, reminderTemplate.variables, templateValues)
+          : `Reminder: ${reminder.title} - ${leadName}`;
+        const html = reminderTemplate
+          ? buildBrandedHtml(
+              renderTemplateText(reminderTemplate.body, reminderTemplate.variables, templateValues),
+              dashboardCta
+            )
+          : generateReminderEmailHtml(reminder as LeadReminder, salespersonName, appUrl);
 
         if (fromEmail === 'onboarding@resend.dev') {
           console.warn('Using test email domain - email will only be sent to verified addresses');
         }
 
-        // Send email (to admin for testing with Resend test account)
-        const { data: emailResult, error: emailError } = await resend.emails.send({
-          from: fromEmail,
-          to: adminEmail, // Send to admin for testing
-          subject: subject,
-          html: html,
-        });
+        let emailState: string = emailPlan;
 
-        if (emailError) {
-          console.error(`Failed to send email for reminder ${reminder.id}:`, emailError);
-          emailsFailed++;
+        if (emailPlan === 'sent') {
+          console.log(`Sending reminder email for lead "${leadName}" to ${salespersonEmail}`);
+          // Trial Resend account delivers to one verified address; the intended
+          // recipient is preserved in the subject until PRODUCTION_EMAIL_MODE.
+          const { data: emailResult, error: emailError } = await resend.emails.send({
+            from: fromEmail,
+            to: isTestMode ? adminEmail : salespersonEmail,
+            subject: isTestMode ? `[Original: ${salespersonEmail}] ${subject}` : subject,
+            html: html,
+          });
+
+          if (emailError) {
+            console.error(`Failed to send email for reminder ${reminder.id}:`, emailError);
+            // Park it so the flush cron retries rather than losing it.
+            emailState = 'pending';
+            emailsFailed++;
+          } else {
+            console.log(`Email sent successfully for reminder ${reminder.id}, Resend ID: ${emailResult?.id}`);
+            emailsSent++;
+          }
         } else {
-          console.log(`Email sent successfully for reminder ${reminder.id}, Resend ID: ${emailResult?.id}`);
-          emailsSent++;
+          console.log(`Reminder ${reminder.id} email not sent now (state: ${emailPlan})`);
+        }
+
+        // Record the event either way: the in-app bell and the digests both
+        // read this table, and a held email needs its rendered copy stored.
+        const { error: eventError } = await supabase.from('lead_notification_events').insert({
+          recipient_id: reminder.salesperson_id,
+          lead_id: reminder.lead_id,
+          event_type: 'reminder_due',
+          title: `Reminder due: ${reminder.title}`,
+          body: leadName,
+          metadata: { reminder_id: reminder.id },
+          email_state: emailState,
+          email_subject: emailState === 'suppressed' ? null : subject,
+          email_html: emailState === 'suppressed' ? null : html,
+          email_sent_at: emailState === 'sent' ? new Date().toISOString() : null,
+        });
+        if (eventError) {
+          console.error(`Failed to record reminder event for ${reminder.id}:`, eventError);
         }
 
         // Update reminder status to 'triggered' regardless of email success

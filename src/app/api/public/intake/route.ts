@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { resolveLeadAssignment } from "@/lib/lead-management/leadAssignment";
 
 // Public (unauthenticated) lead intake endpoint. Backs the QR-code intake form
 // so prospects can submit their details straight into the CRM. Uses the service
@@ -41,46 +42,15 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     const sourceId = source?.id ?? null;
 
-    // Auto-assign by round-robin (least-loaded). Prefer salespeople linked to
-    // this lead's source; if the source has none, fall back to ALL salespeople
-    // so a public/QR lead is never left unassigned.
-    let candidateIds: string[] = [];
-    if (sourceId) {
-      const { data: assignments } = await supabaseAdmin
-        .from("source_salesperson_assignments")
-        .select("salesperson_id")
-        .eq("source_id", sourceId);
-      candidateIds = (assignments || []).map((a) => a.salesperson_id);
-    }
-    if (candidateIds.length === 0) {
-      // Fallback: every user with the salesperson role.
-      const { data: roleRows } = await supabaseAdmin
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "salesperson");
-      candidateIds = (roleRows || []).map((r) => r.user_id);
-    }
-
-    let assignedTo: string | null = null;
-    if (candidateIds.length === 1) {
-      assignedTo = candidateIds[0];
-    } else if (candidateIds.length > 1) {
-      const { data: counts } = await supabaseAdmin
-        .from("leads")
-        .select("assigned_to")
-        .in("assigned_to", candidateIds);
-      const map: Record<string, number> = Object.fromEntries(
-        candidateIds.map((i) => [i, 0])
-      );
-      (counts || []).forEach((l) => {
-        if (l.assigned_to && map[l.assigned_to] !== undefined) map[l.assigned_to]++;
-      });
-      assignedTo = candidateIds.reduce(
-        (best, i) => (map[i] < map[best] ? i : best),
-        candidateIds[0]
-      );
-    }
-    const assignedAt = assignedTo ? new Date().toISOString() : null;
+    // Assignment goes through the SAME resolver as the dashboard route, so the
+    // Team tab's assignment method, the auto-assign switch and the
+    // `auto_assign_source` rule govern QR-form leads too. This used to be a
+    // private copy of the round-robin here, which meant public leads silently
+    // ignored every one of those settings.
+    const { assignedTo, assignedAt } = await resolveLeadAssignment(
+      supabaseAdmin,
+      sourceId
+    );
 
     const { data: lead, error } = await supabaseAdmin
       .from("leads")

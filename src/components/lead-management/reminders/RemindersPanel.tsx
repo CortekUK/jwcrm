@@ -30,6 +30,14 @@ interface Reminder {
   } | null;
 }
 
+interface LeadNotification {
+  id: string;
+  event_type: string;
+  title: string;
+  body: string | null;
+  created_at: string;
+}
+
 interface RemindersPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,6 +47,7 @@ export function RemindersPanel({ open, onOpenChange }: RemindersPanelProps) {
   const { t } = useTranslation("leadManagement");
   const { user } = useAuth();
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [notifications, setNotifications] = useState<LeadNotification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
 
@@ -58,11 +67,45 @@ export function RemindersPanel({ open, onOpenChange }: RemindersPanelProps) {
     }
   };
 
+  // The lead-management notification feed (new lead assigned, status changed,
+  // lead gone stale). Empty when "browser notifications" is switched off in
+  // the Settings page — that switch means this in-app feed, not Web Push.
+  const fetchNotifications = async () => {
+    if (!user?.id) return;
+    try {
+      const response = await fetch(`/api/lead-management/notifications?user_id=${user.id}`);
+      if (!response.ok) return;
+      const { data } = await response.json();
+      setNotifications(data || []);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
+  };
+
   useEffect(() => {
     if (open && user?.id) {
       fetchReminders();
+      fetchNotifications();
     }
   }, [open, user?.id]);
+
+  // Opening the panel is the acknowledgement — clear the feed on close so the
+  // badge does not keep counting things the user has now seen.
+  const handleOpenChange = async (nextOpen: boolean) => {
+    if (!nextOpen && notifications.length > 0 && user?.id) {
+      try {
+        await fetch("/api/lead-management/notifications", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: user.id }),
+        });
+        setNotifications([]);
+      } catch (error) {
+        console.error("Error marking notifications read:", error);
+      }
+    }
+    onOpenChange(nextOpen);
+  };
 
   const activeReminders = reminders.filter(
     (r) => r.status === "pending" || r.status === "triggered"
@@ -72,12 +115,28 @@ export function RemindersPanel({ open, onOpenChange }: RemindersPanelProps) {
   );
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{t("reminders")}</SheetTitle>
           <SheetDescription>{t("remindersDescription")}</SheetDescription>
         </SheetHeader>
+
+        {notifications.length > 0 && (
+          <div className="mt-6 space-y-2">
+            {notifications.map((notification) => (
+              <div
+                key={notification.id}
+                className="rounded-lg border border-[#E6E6E4] bg-[#FAFAF8] p-3"
+              >
+                <p className="text-sm font-medium text-[#222222]">{notification.title}</p>
+                {notification.body && (
+                  <p className="text-xs text-[#6B6B6B] mt-0.5">{notification.body}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="mt-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>

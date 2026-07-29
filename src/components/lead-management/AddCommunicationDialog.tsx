@@ -171,10 +171,15 @@ export function AddCommunicationDialog({
       const callOutcome = isPhoneCall ? data.call_outcome : null;
       if (callOutcome) {
         try {
-          const cadenceRaw = localStorage.getItem("leadManagement_cadence");
-          if (cadenceRaw) {
-            const cadence = JSON.parse(cadenceRaw);
-            if (cadence.autoMarkUnreachable && cadence.failedOutcomes?.includes(callOutcome)) {
+          // Contact cadence is org-wide and lives in the DB now — reading it
+          // from localStorage meant the rule only applied on machines that had
+          // visited the Settings page.
+          const cadenceResponse = await fetch(
+            "/api/lead-management/settings/followup-cadence"
+          );
+          if (cadenceResponse.ok) {
+            const { data: cadence } = await cadenceResponse.json();
+            if (cadence?.autoMarkUnreachable && cadence.failedOutcomes?.includes(callOutcome)) {
               // Fetch communications to count consecutive failures
               const commResponse = await fetch(`/api/lead-management/leads/${leadId}/communications`);
               if (commResponse.ok) {

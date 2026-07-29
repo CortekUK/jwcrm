@@ -34,22 +34,40 @@ export function ReminderNotificationBadge({ className }: ReminderNotificationBad
     userIdRef.current = user?.id || null;
   }, [user?.id]);
 
-  // Fetch pending reminders - stable function that reads from ref
+  // Fetch pending reminders - stable function that reads from ref.
+  //
+  // The badge also carries the lead-management notification feed (new lead
+  // assigned / status changed / lead gone stale). That feed is what the
+  // Settings page calls "browser notifications" — in-app only, no Web Push.
+  // When the switch is off the API returns an empty feed, so the badge simply
+  // stops counting them.
   const fetchPendingReminders = async () => {
     const userId = userIdRef.current;
     if (!userId) return;
 
     try {
-      const response = await fetch(`/api/lead-management/reminders/pending?salesperson_id=${userId}`);
-      if (!response.ok) return;
+      const [reminderRes, notificationRes] = await Promise.all([
+        fetch(`/api/lead-management/reminders/pending?salesperson_id=${userId}`),
+        fetch(`/api/lead-management/notifications?user_id=${userId}`),
+      ]);
 
-      const { data, count: pendingCount } = await response.json();
-      setCount(pendingCount || 0);
+      let total = 0;
 
-      // Track seen reminders (no toast notification)
-      if (data && data.length > 0) {
-        data.forEach((r: PendingReminder) => seenReminderIds.current.add(r.id));
+      if (reminderRes.ok) {
+        const { data, count: pendingCount } = await reminderRes.json();
+        total += pendingCount || 0;
+        // Track seen reminders (no toast notification)
+        if (data && data.length > 0) {
+          data.forEach((r: PendingReminder) => seenReminderIds.current.add(r.id));
+        }
       }
+
+      if (notificationRes.ok) {
+        const { count: notificationCount } = await notificationRes.json();
+        total += notificationCount || 0;
+      }
+
+      setCount(total);
     } catch (error) {
       console.error("Error fetching pending reminders:", error);
     }

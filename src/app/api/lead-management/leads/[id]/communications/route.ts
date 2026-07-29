@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getLeadAutomationSettings,
+  resolveCallerId,
+} from "@/lib/lead-management/settingsServer";
+import { isRuleActive } from "@/lib/lead-management/settingsTypes";
+import { notifyLeadEvent } from "@/lib/lead-management/leadNotifications";
+import { buildBrandedLeadEmailHtml } from "@/lib/lead-management/leadEmailTemplates";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -95,10 +102,11 @@ export async function POST(
       );
     }
 
-    // Verify the lead exists
+    // Verify the lead exists. The current status matters: the auto-status
+    // rule must never drag a lead backwards from a stage it has progressed to.
     const { data: lead } = await supabaseAdmin
       .from("leads")
-      .select("id")
+      .select("id, status, assigned_to, full_name")
       .eq("id", leadId)
       .single();
 
@@ -130,13 +138,47 @@ export async function POST(
       );
     }
 
-    // Update lead status to 'contacted' when communication is logged
-    // Note: If call_outcome indicates the call wasn't answered, the database trigger
-    // will handle creating retry reminders and tracking attempt counts
-    await supabaseAdmin
-      .from("leads")
-      .update({ status: "contacted" })
-      .eq("id", leadId);
+    // `auto_status_contacted`: move the lead to Contacted when a communication
+    // is logged — but ONLY from `not_started`. This route used to force
+    // "contacted" unconditionally, which silently reversed leads that had
+    // already reached qualified/negotiation/won. With the rule switched off it
+    // is now genuinely inert and the status is left alone.
+    //
+    // If call_outcome indicates the call wasn't answered, the database trigger
+    // still handles retry reminders and attempt counts.
+    const automation = await getLeadAutomationSettings();
+    if (isRuleActive(automation, "auto_status_contacted") && lead.status === "not_started") {
+      const { error: statusError } = await supabaseAdmin
+        .from("leads")
+        .update({ status: "contacted", updated_at: new Date().toISOString() })
+        .eq("id", leadId);
+
+      if (statusError) {
+        console.error("Failed to auto-advance lead status:", statusError);
+      } else if (lead.assigned_to) {
+        const actorUserId = (await resolveCallerId(request)) || created_by || null;
+        const leadName = lead.full_name || "Lead";
+        if (lead.assigned_to !== actorUserId) {
+          await notifyLeadEvent({
+            eventType: "status_changed",
+            recipientId: lead.assigned_to,
+            leadId,
+            actorUserId,
+            title: `${leadName}: Not Started → Contacted`,
+            body: "Status advanced automatically after a communication was logged.",
+            metadata: { previousStatus: "not_started", newStatus: "contacted", rule: "auto_status_contacted" },
+            email: {
+              subject: `Lead status updated: ${leadName} is now Contacted`,
+              html: buildBrandedLeadEmailHtml({
+                heading: leadName,
+                subtitle: "Lead Status Update",
+                bodyText: `${leadName} moved from Not Started to Contacted after a communication was logged.`,
+              }),
+            },
+          });
+        }
+      }
+    }
 
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {

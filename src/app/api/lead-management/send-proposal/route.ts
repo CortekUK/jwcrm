@@ -5,6 +5,8 @@ import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 import { companyDetails } from "@/config/company";
 import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
+import { getLeadEmailTemplates } from "@/lib/lead-management/settingsServer";
+import { resolveLeadTemplate, type RenderedLeadEmail } from "@/lib/lead-management/leadEmailTemplates";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -184,15 +186,93 @@ export async function POST(request: NextRequest) {
       )
       .join("");
 
+    // The structured blocks (charges table, process timeline) are kept
+    // whichever way the prose is produced — a template author edits the
+    // wording, not the itemised figures the client needs to see.
+    const proposalStructuredHtml = `
+              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #666666;">Reference Number:</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #222222;">${proposal.invoice_number}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #666666;">Account Manager:</td>
+                    <td style="padding: 8px 0; text-align: right; color: #222222;">
+                      <span style="font-weight: bold;">${accountManagerName}</span><br/>
+                      <a href="mailto:${accountManagerEmail}" style="color: #0C5536; font-size: 13px; text-decoration: none;">${accountManagerEmail}</a>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <h3 style="color: #0C5536; margin: 0 0 12px 0; font-size: 14px;">Estimated Charges</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <thead>
+                    <tr>
+                      <th style="text-align: left; padding: 8px 12px; border-bottom: 2px solid #0C5536; font-size: 12px; color: #0C5536;">Description</th>
+                      <th style="text-align: right; padding: 8px 12px; border-bottom: 2px solid #0C5536; font-size: 12px; color: #0C5536;">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>${itemRows}</tbody>
+                </table>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                  <tr>
+                    <td style="padding: 4px 12px; color: #666666; font-size: 13px;">Sub-Total</td>
+                    <td style="padding: 4px 12px; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(subtotalAmount)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 12px; color: #666666; font-size: 13px;">VAT (${companyDetails.vatRate}%)</td>
+                    <td style="padding: 4px 12px; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(vatAmount)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 12px; color: #0C5536; font-weight: bold; font-size: 15px; border-top: 1px solid #E6E6E4;">Total Estimated Amount</td>
+                    <td style="padding: 8px 12px; text-align: right; color: #0C5536; font-weight: bold; font-size: 15px; border-top: 1px solid #E6E6E4;">${formattedAmount}</td>
+                  </tr>
+                </table>
+              </div>
+              <p style="color: #6B6B6B; font-size: 13px; text-align: center;">
+                This is a proposal only — no payment is required at this stage.<br/>
+                Once you're ready to proceed, we'll send you a formal invoice with a secure payment link.
+              </p>
+              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 25px 0 10px 0;">
+                <h3 style="color: #0C5536; margin: 0 0 12px 0; font-size: 16px;">What to Expect — Process Timeline</h3>
+                <table style="width: 100%; border-collapse: collapse;">${timelineRows}</table>
+              </div>`;
+
+    // When the "Proposal Email" template is active it supplies the subject and
+    // the prose. Toggled off (or blank), we fall back to the original
+    // hardcoded builder below so an empty proposal email can never go out.
+    let proposalTemplate: RenderedLeadEmail | null = null;
+    try {
+      const templates = await getLeadEmailTemplates();
+      proposalTemplate = resolveLeadTemplate(
+        templates,
+        "proposal",
+        {
+          lead_name: effectiveName,
+          invoice_number: proposal.invoice_number,
+          amount: formattedAmount,
+          salesperson_name: accountManagerName,
+        },
+        {
+          extraHtml: proposalStructuredHtml,
+          subtitle: `Professional Will Drafting Services · ${companyDetails.invoiceCity}`,
+        }
+      );
+    } catch (templateError) {
+      console.error("Proposal template lookup failed, using default:", templateError);
+    }
+
     // Route email via the caller's Outlook when connected, else Resend.
     const emailResult = await sendUserEmail(callerId, {
       to: effectiveEmail,
-      subject: `Your Proposal - ${proposal.invoice_number}`,
+      subject: proposalTemplate?.subject || `Your Proposal - ${proposal.invoice_number}`,
       refId: proposal.id,
       attachments: [
         { content: proposalPDFBase64, filename: `Proposal-${proposal.invoice_number}.pdf` },
       ],
-      html: `
+      html: proposalTemplate?.html ?? `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background-color: #0C5536; padding: 20px; text-align: center;">
               <h1 style="color: #C6A03B; margin: 0; font-size: 22px;">${companyDetails.legalName}</h1>
