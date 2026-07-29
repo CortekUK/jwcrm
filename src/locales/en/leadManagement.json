@@ -629,5 +629,8 @@
     "today": "Today",
     "week": "This Week",
     "year": "This Year"
-  }
+  },
+  "partiallyPaid": "Part paid",
+  "outstanding": "Outstanding",
+  "eventPaymentRecordedDescription": "Payment received for {{invoiceNumber}} via {{method}}."
 }

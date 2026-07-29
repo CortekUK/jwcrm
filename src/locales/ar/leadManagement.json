@@ -629,5 +629,8 @@
     "today": "اليوم",
     "week": "هذا الأسبوع",
     "year": "هذه السنة"
-  }
+  },
+  "partiallyPaid": "مدفوع جزئياً",
+  "outstanding": "المبلغ المستحق",
+  "eventPaymentRecordedDescription": "تم استلام دفعة للفاتورة {{invoiceNumber}} عبر {{method}}."
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 import { LeadTable, Lead, CommunicationMethod } from "@/components/lead-management/LeadTable";
@@ -16,6 +16,10 @@ import { QuickActionsButton } from "@/components/lead-management/QuickActionsBut
 import { LeadStatus } from "@/components/lead-management/LeadStatusBadge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  computeLeadPaymentStates,
+  type LeadPaymentSummary,
+} from "@/lib/finance/leadPaymentState";
 import { toast } from "sonner";
 import { Target, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,6 +43,11 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  // The search box hits the database, so the raw value is debounced before it
+  // becomes a query. Typing straight through used to fire one request per
+  // keystroke and whichever finished last won — which is why results
+  // sometimes belonged to a half-typed term.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
 
@@ -69,8 +78,14 @@ export default function LeadsPage() {
     localStorage.setItem("leadManagement_viewMode", mode);
   };
 
+  // Only the newest in-flight fetch is allowed to write to state. Without
+  // this, a slow early request could land after a faster later one and
+  // replace the current results with stale ones.
+  const fetchSeqRef = useRef(0);
+
   // Fetch leads
   const fetchLeads = async () => {
+    const seq = ++fetchSeqRef.current;
     setIsLoading(true);
     try {
       let query = supabase
@@ -85,13 +100,27 @@ export default function LeadsPage() {
         query = query.eq("status", statusFilter);
       }
 
-      if (searchQuery) {
+      const term = debouncedSearch.trim();
+      if (term) {
+        // PostgREST parses the `or` filter as a comma-separated list, so a
+        // term containing a comma, bracket or quote used to produce a
+        // malformed filter and fail the whole request. Quoting the pattern
+        // (and escaping quotes/backslashes inside it) keeps any typed
+        // character searchable.
+        const pattern = `%${term.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}%`;
         query = query.or(
-          `full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,company_name.ilike.%${searchQuery}%`
+          [
+            `full_name.ilike."${pattern}"`,
+            `email.ilike."${pattern}"`,
+            `phone.ilike."${pattern}"`,
+            `company_name.ilike."${pattern}"`,
+          ].join(",")
         );
       }
 
       const { data, error } = await query;
+
+      if (seq !== fetchSeqRef.current) return; // superseded by a newer search
 
       if (error) throw error;
 
@@ -110,18 +139,58 @@ export default function LeadsPage() {
         })
       );
 
-      setLeads(leadsWithProfiles);
+      // Derive each lead's real payment state from the payment ledger. The
+      // leads.is_paid flag only records that *something* was once paid, so on
+      // its own it hides a second invoice that is still part paid.
+      const leadIds = leadsWithProfiles.map((l) => l.id);
+      let paymentStates = new Map<string, LeadPaymentSummary>();
+      if (leadIds.length > 0) {
+        const { data: proposalRows } = await supabase
+          .from("proposals")
+          .select("id, lead_id, amount, currency, line_items, status, invoiced_at")
+          .in("lead_id", leadIds);
+
+        const proposalIds = (proposalRows || []).map((p) => p.id);
+        const { data: paymentRows } = proposalIds.length
+          ? await supabase
+              .from("proposal_payments")
+              .select("proposal_id, amount")
+              .in("proposal_id", proposalIds)
+          : { data: [] };
+
+        paymentStates = computeLeadPaymentStates(
+          (proposalRows || []) as unknown as Parameters<typeof computeLeadPaymentStates>[0],
+          paymentRows || []
+        );
+      }
+
+      if (seq !== fetchSeqRef.current) return; // superseded by a newer search
+
+      setLeads(
+        leadsWithProfiles.map((lead) => ({
+          ...lead,
+          payment_state: paymentStates.get(lead.id)?.state,
+          balance_due: paymentStates.get(lead.id)?.balanceDue,
+        }))
+      );
     } catch (error) {
       console.error("Error fetching leads:", error);
       toast.error(t("failedToFetchLeads"));
     } finally {
-      setIsLoading(false);
+      if (seq === fetchSeqRef.current) setIsLoading(false);
     }
   };
 
+  // Debounce the typed term so one search is one request, not one per key.
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
+
   useEffect(() => {
     fetchLeads();
-  }, [statusFilter, searchQuery]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, debouncedSearch]);
 
   // Fetch communication methods
   useEffect(() => {

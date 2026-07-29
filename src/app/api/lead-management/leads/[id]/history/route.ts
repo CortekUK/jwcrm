@@ -57,10 +57,13 @@ export async function GET(
       .from("proposals")
       .select(`
         id,
+        lead_id,
         invoice_number,
         amount,
         currency,
         status,
+        line_items,
+        invoiced_at,
         proposal_content,
         created_at,
         sent_at,
@@ -71,6 +74,31 @@ export async function GET(
 
     if (proposalsError) {
       console.error("Error fetching proposals:", proposalsError);
+    }
+
+    // Individual payments against those invoices. The timeline used to derive
+    // a single "Payment Received" entry from proposals.paid_at, so a client
+    // who paid in instalments showed nothing until the final one landed.
+    const proposalIds = (proposals || []).map((p) => p.id);
+    let payments: Array<{
+      id: string;
+      proposal_id: string;
+      amount: number;
+      method: string | null;
+      notes: string | null;
+      paid_at: string;
+    }> = [];
+    if (proposalIds.length > 0) {
+      const { data: paymentRows, error: paymentsError } = await supabaseAdmin
+        .from("proposal_payments")
+        .select("id, proposal_id, amount, method, notes, paid_at")
+        .in("proposal_id", proposalIds)
+        .order("paid_at", { ascending: false });
+      if (paymentsError) {
+        console.error("Error fetching payments:", paymentsError);
+      } else {
+        payments = paymentRows || [];
+      }
     }
 
     // Fetch all communications for this lead
@@ -166,6 +194,7 @@ export async function GET(
           assigned_user: assignedUser,
         },
         proposals: proposals || [],
+        payments,
         communications: communicationsWithCreator || [],
         notes: notesWithCreator || [],
         reminders: reminders || [],

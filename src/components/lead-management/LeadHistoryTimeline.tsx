@@ -239,6 +239,13 @@ export function buildTimelineEvents(
       name: string;
       icon: string;
     } | null;
+  }>,
+  payments?: Array<{
+    id: string;
+    proposal_id: string;
+    amount: number;
+    method: string | null;
+    paid_at: string;
   }>
 ): TimelineEvent[] {
   const events: TimelineEvent[] = [];
@@ -282,6 +289,12 @@ export function buildTimelineEvents(
       });
     });
   }
+
+  // Which invoices have real payment rows. Those get one entry per payment
+  // below; the rest fall back to the proposal's paid_at so invoices settled
+  // before the payment ledger existed still show up exactly once.
+  const proposalsWithPayments = new Set((payments || []).map((p) => p.proposal_id));
+  const proposalById = new Map(proposals.map((p) => [p.id, p]));
 
   // Proposal / Invoice events
   proposals.forEach((proposal) => {
@@ -327,8 +340,8 @@ export function buildTimelineEvents(
       });
     }
 
-    // Payment received
-    if (proposal.paid_at) {
+    // Payment received (legacy fallback — see proposalsWithPayments above)
+    if (proposal.paid_at && !proposalsWithPayments.has(proposal.id)) {
       events.push({
         id: `payment_received_${proposal.id}`,
         type: "payment_received",
@@ -343,6 +356,39 @@ export function buildTimelineEvents(
         },
       });
     }
+  });
+
+  // One entry per payment, so an instalment is visible the moment it is
+  // recorded rather than only when the invoice finally closes.
+  (payments || []).forEach((payment) => {
+    const proposal = proposalById.get(payment.proposal_id);
+    const invoiceNumber = proposal?.invoice_number;
+    const methodLabel = payment.method
+      ? payment.method
+          .split("_")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ")
+      : null;
+
+    events.push({
+      id: `payment_${payment.id}`,
+      type: "payment_received",
+      timestamp: payment.paid_at,
+      title: t("eventPaymentReceived"),
+      description: methodLabel
+        ? t("eventPaymentRecordedDescription", {
+            invoiceNumber,
+            method: methodLabel,
+            defaultValue: "Payment received for {{invoiceNumber}} via {{method}}.",
+          })
+        : t("eventPaymentReceivedDescription", { invoiceNumber }),
+      metadata: {
+        proposalId: payment.proposal_id,
+        invoiceNumber,
+        amount: Number(payment.amount),
+        currency: proposal?.currency,
+      },
+    });
   });
 
   // Sort by timestamp descending (most recent first)

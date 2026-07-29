@@ -142,6 +142,14 @@ export function ViewProposalDialog({
     return { invoiceTotal, totalPaid, balanceDue: Math.max(0, invoiceTotal - totalPaid) };
   };
 
+  // Status shown on the card. Only a display concern — the stored
+  // proposal_status enum is untouched, so nothing downstream has to change.
+  const displayStatusFor = (proposal: Proposal): string => {
+    if (proposal.status !== "sent" || !proposal.invoiced_at) return proposal.status;
+    const { totalPaid, balanceDue } = balanceFor(proposal);
+    return totalPaid > 0 && balanceDue > 0.01 ? "partially_paid" : proposal.status;
+  };
+
   const resetPaymentForm = () => {
     setRecordingPaymentFor(null);
     setPaymentAmount("");
@@ -211,6 +219,8 @@ export function ViewProposalDialog({
     switch (status) {
       case "paid":
         return "bg-green-100 text-green-800";
+      case "partially_paid":
+        return "bg-[#FFF4DC] text-[#8B6914]";
       case "sent":
         return "bg-yellow-100 text-yellow-800";
       case "draft":
@@ -335,6 +345,8 @@ export function ViewProposalDialog({
     switch (status) {
       case "paid":
         return t("paid");
+      case "partially_paid":
+        return t("partiallyPaid", "Part paid");
       case "sent":
         return t("sent");
       case "draft":
@@ -387,9 +399,17 @@ export function ViewProposalDialog({
                           <Badge variant="outline" className="text-xs">
                             {proposal.invoiced_at ? t("invoice", "Invoice") : t("proposal", "Proposal")}
                           </Badge>
-                          <Badge className={getStatusColor(proposal.status)}>
-                            {getStatusLabel(proposal.status)}
-                          </Badge>
+                          {/* "Sent" is technically right for a part-paid
+                              invoice, but it hides that money has already come
+                              in. Show that explicitly instead. */}
+                          {(() => {
+                            const display = displayStatusFor(proposal);
+                            return (
+                              <Badge className={getStatusColor(display)}>
+                                {getStatusLabel(display)}
+                              </Badge>
+                            );
+                          })()}
                         </div>
                         <p className="text-2xl font-bold text-primary mt-1">
                           {formatCurrency(proposal.amount, proposal.currency)}

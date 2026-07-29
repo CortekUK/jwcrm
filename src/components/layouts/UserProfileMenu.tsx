@@ -112,13 +112,19 @@ export function UserProfileMenu({
   // Expanded mode
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <div className={cn("flex items-center gap-3", isRtl && "flex-row-reverse")}>
-        {showReminderBadge && selectedRole === "salesperson" && <ReminderNotificationBadge />}
-        {showReminderBadge && selectedRole === "hr" && <HRNotificationBadge />}
+      <div className={cn("flex w-full min-w-0 items-center gap-3", isRtl && "flex-row-reverse")}>
+        {showReminderBadge && selectedRole === "salesperson" && (
+          <ReminderNotificationBadge className="shrink-0" />
+        )}
+        {showReminderBadge && selectedRole === "hr" && (
+          <HRNotificationBadge className="shrink-0" />
+        )}
         <PopoverTrigger asChild>
           <button
             className={cn(
-              "flex items-center gap-3 flex-1 rounded-lg bg-sidebar-accent/30 p-3 hover:bg-sidebar-accent/50 transition-colors cursor-pointer text-left",
+              // min-w-0 lets flex-1 shrink this below its content width; without
+              // it the card keeps its natural size and pushes past the sidebar.
+              "flex min-w-0 flex-1 items-center gap-3 overflow-hidden rounded-lg bg-sidebar-accent/30 p-3 hover:bg-sidebar-accent/50 transition-colors cursor-pointer text-left",
               isRtl && "flex-row-reverse text-right"
             )}
           >

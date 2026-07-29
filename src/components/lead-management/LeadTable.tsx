@@ -39,7 +39,8 @@ import {
   FileText, 
   ChevronDown, 
   Send, 
-  CheckCircle2, 
+  CheckCircle2,
+  CircleDollarSign,
   History, 
   Bell, 
   Phone, 
@@ -87,6 +88,11 @@ export interface Lead {
   paid_at: string | null;
   paid_amount: number | null;
   paid_currency: string | null;
+  // Derived from the payment ledger (see lib/finance/leadPaymentState). Unlike
+  // is_paid this can go back to "partially paid" when a newer invoice is only
+  // part settled, so the badge never claims a lead owes nothing when they do.
+  payment_state?: "unpaid" | "partially_paid" | "paid";
+  balance_due?: number;
   created_at: string;
   updated_at: string;
   last_contact_date?: string | null;
@@ -310,11 +316,13 @@ export function LeadTable({
       });
     }
 
-    // Paid filter
+    // Paid filter — matched against the ledger-derived state so "Paid" means
+    // nothing outstanding, not merely "paid something once".
     if (effectivePaidFilter !== "all") {
-      result = result.filter((lead) => 
-        effectivePaidFilter === "paid" ? lead.is_paid : !lead.is_paid
-      );
+      result = result.filter((lead) => {
+        const state = lead.payment_state ?? (lead.is_paid ? "paid" : "unpaid");
+        return state === effectivePaidFilter;
+      });
     }
 
     // Sorting
@@ -680,6 +688,7 @@ export function LeadTable({
           <SelectContent>
             <SelectItem value="all">{t("all", "All")}</SelectItem>
             <SelectItem value="paid">{t("paid", "Paid")}</SelectItem>
+            <SelectItem value="partially_paid">{t("partiallyPaid", "Part paid")}</SelectItem>
             <SelectItem value="unpaid">{t("unpaid", "Unpaid")}</SelectItem>
           </SelectContent>
         </Select>
@@ -1039,12 +1048,36 @@ export function LeadTable({
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        {lead.is_paid && (
-                          <Badge className="bg-[#E6F7F1] text-[#0C5536] border-0 gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            {t("paid")}
-                          </Badge>
-                        )}
+                        {(() => {
+                          // Prefer the ledger-derived state; fall back to the
+                          // legacy flag for leads whose invoices predate it.
+                          const state =
+                            lead.payment_state ?? (lead.is_paid ? "paid" : "unpaid");
+                          if (state === "partially_paid") {
+                            return (
+                              <Badge
+                                className="bg-[#FFF4DC] text-[#8B6914] border-0 gap-1"
+                                title={
+                                  lead.balance_due
+                                    ? `${t("outstanding", "Outstanding")}: ${lead.balance_due.toFixed(2)}`
+                                    : undefined
+                                }
+                              >
+                                <CircleDollarSign className="h-3 w-3" />
+                                {t("partiallyPaid", "Part paid")}
+                              </Badge>
+                            );
+                          }
+                          if (state === "paid") {
+                            return (
+                              <Badge className="bg-[#E6F7F1] text-[#0C5536] border-0 gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                {t("paid")}
+                              </Badge>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     </TableCell>
                     {/* Health Indicator */}

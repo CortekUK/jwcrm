@@ -113,7 +113,7 @@ function SidebarContent() {
               )}
               <Icon className={cn("h-6 w-6 shrink-0", isActive ? "text-white" : "text-[#E8E8E8]")} />
               {!isCollapsed && (
-                <span className="font-medium text-[14px]">{item.name}</span>
+                <span className="font-medium text-[14px] truncate">{item.name}</span>
               )}
             </div>
           </Link>
@@ -160,7 +160,12 @@ function SidebarContent() {
   return (
     <aside
       className={cn(
-        "hidden border-r border-sidebar-border bg-sidebar lg:block sticky top-0 h-screen overflow-y-hidden transition-all duration-200",
+        "hidden border-r border-sidebar-border bg-sidebar lg:block sticky top-0 h-screen overflow-hidden transition-all duration-200",
+        // The sidebar is a flex item, so its default min-width:auto lets
+        // content push it wider than the width set below — a long nav label
+        // or the user card would stretch the whole sidebar and spill over its
+        // border. shrink-0 + min-w-0 make the width an actual cap.
+        "shrink-0 min-w-0",
         isCollapsed ? "w-16" : "w-[220px]"
       )}
     >
@@ -258,7 +263,7 @@ function MobileSidebar() {
                 />
               )}
               <Icon className={cn("h-6 w-6", isActive ? "text-white" : "text-[#E8E8E8]")} />
-              <span className="font-medium text-[14px]">{item.name}</span>
+              <span className="font-medium text-[14px] truncate">{item.name}</span>
             </div>
           </Link>
         );

@@ -30,6 +30,8 @@ import { AddReminderDialog } from "@/components/lead-management/reminders/AddRem
 import { LeadNotesSection } from "@/components/lead-management/LeadNotesSection";
 import { GenerateInvoiceDialog } from "@/components/lead-management/GenerateInvoiceDialog";
 import { Receipt } from "lucide-react";
+import { computeLeadPaymentStates } from "@/lib/finance/leadPaymentState";
+import type { InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 
 interface LeadData {
   id: string;
@@ -55,13 +57,25 @@ interface LeadData {
 
 interface Proposal {
   id: string;
+  lead_id: string;
   invoice_number: string;
   amount: number;
   currency: string;
   status: string;
+  line_items?: InvoiceLineItem[] | null;
+  invoiced_at?: string | null;
   created_at: string;
   sent_at: string | null;
   paid_at: string | null;
+}
+
+interface ProposalPayment {
+  id: string;
+  proposal_id: string;
+  amount: number;
+  method: string | null;
+  notes: string | null;
+  paid_at: string;
 }
 
 interface Communication {
@@ -98,6 +112,7 @@ export default function LeadHistoryPage({
 
   const [lead, setLead] = useState<LeadData | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [payments, setPayments] = useState<ProposalPayment[]>([]);
   const [communications, setCommunications] = useState<Communication[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -125,6 +140,7 @@ export default function LeadHistoryPage({
         const { data } = await response.json();
         setLead(data.lead);
         setProposals(data.proposals);
+        setPayments(data.payments || []);
         setCommunications(data.communications || []);
         setReminders(data.reminders || []);
       } catch (error) {
@@ -178,6 +194,16 @@ export default function LeadHistoryPage({
     return statusMap[status] || status;
   };
 
+  // Badge comes from the payment ledger, not leads.is_paid — see
+  // lib/finance/leadPaymentState for why that flag can't answer this.
+  const leadPaymentState =
+    computeLeadPaymentStates(
+      proposals as unknown as Parameters<typeof computeLeadPaymentStates>[0],
+      payments
+    )?.get(
+      resolvedParams.leadId
+    )?.state ?? (lead?.is_paid ? "paid" : "unpaid");
+
   const timelineEvents = lead
     ? buildTimelineEvents(
         {
@@ -194,7 +220,8 @@ export default function LeadHistoryPage({
           scheduled_at: c.scheduled_at,
           notes: c.notes,
           communication_method: c.communication_method
-        }))
+        })),
+        payments
       )
     : [];
 
@@ -266,11 +293,15 @@ export default function LeadHistoryPage({
             <Badge className={getStatusColor(lead.status)}>
               {getStatusLabel(lead.status)}
             </Badge>
-            {lead.is_paid && (
+            {leadPaymentState === "partially_paid" ? (
+              <Badge className="bg-[#FFF4DC] text-[#8B6914]">
+                {t("partiallyPaid", "Part paid")}
+              </Badge>
+            ) : leadPaymentState === "paid" ? (
               <Badge className="bg-emerald-100 text-emerald-800">
                 {t("paid")}
               </Badge>
-            )}
+            ) : null}
           </div>
           <p className="text-muted-foreground">{t("leadHistory")}</p>
         </div>
