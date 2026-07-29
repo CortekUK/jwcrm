@@ -68,7 +68,7 @@ export function LeadStatusBadge({ status, className }: LeadStatusBadgeProps) {
   const config = statusConfig[status];
 
   return (
-    <Badge variant="secondary" className={cn(config.className, className)}>
+    <Badge variant="status" className={cn(config.className, className)}>
       {config.label}
     </Badge>
   );

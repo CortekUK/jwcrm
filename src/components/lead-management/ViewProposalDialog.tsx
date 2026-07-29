@@ -405,7 +405,7 @@ export function ViewProposalDialog({
                           {(() => {
                             const display = displayStatusFor(proposal);
                             return (
-                              <Badge className={getStatusColor(display)}>
+                              <Badge variant="status" className={getStatusColor(display)}>
                                 {getStatusLabel(display)}
                               </Badge>
                             );

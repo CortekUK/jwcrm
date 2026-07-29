@@ -178,8 +178,9 @@ export function LeadHealthIndicator({
         <Tooltip>
           <TooltipTrigger asChild>
             <Badge 
+              variant="status"
               className={cn(
-                "gap-1 border cursor-default",
+                "gap-1 whitespace-nowrap border cursor-default",
                 health.bgColor,
                 health.color,
                 health.borderColor
@@ -210,8 +211,9 @@ export function LeadHealthIndicator({
         <Tooltip>
           <TooltipTrigger asChild>
             <Badge 
+              variant="status"
               className={cn(
-                "gap-1 border cursor-default",
+                "gap-1 whitespace-nowrap border cursor-default",
                 health.bgColor,
                 health.color,
                 health.borderColor
@@ -253,8 +255,9 @@ export function LeadHealthIndicator({
           <Tooltip>
             <TooltipTrigger asChild>
               <Badge 
+                variant="status"
                 className={cn(
-                  "gap-1 cursor-default",
+                  "gap-1 whitespace-nowrap cursor-default",
                   nextActionInfo.isOverdue 
                     ? "bg-[#FEECEC] text-[#C0392B] border-[#C0392B]/20" 
                     : nextActionInfo.daysUntil <= 2
@@ -278,7 +281,7 @@ export function LeadHealthIndicator({
 
       {/* Paid indicator */}
       {isPaid && (
-        <Badge className="bg-[#E6F7F1] text-[#0C5536] border-0 gap-1">
+        <Badge variant="status" className="bg-[#E6F7F1] text-[#0C5536] border-0 gap-1">
           <CheckCircle2 className="h-3 w-3" />
           {t("paid")}
         </Badge>

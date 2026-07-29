@@ -290,15 +290,15 @@ export default function LeadHistoryPage({
             <h1 className="text-2xl font-bold tracking-tight">
               {lead.full_name}
             </h1>
-            <Badge className={getStatusColor(lead.status)}>
+            <Badge variant="status" className={getStatusColor(lead.status)}>
               {getStatusLabel(lead.status)}
             </Badge>
             {leadPaymentState === "partially_paid" ? (
-              <Badge className="bg-[#FFF4DC] text-[#8B6914]">
+              <Badge variant="status" className="bg-[#FFF4DC] text-[#8B6914]">
                 {t("partiallyPaid", "Part paid")}
               </Badge>
             ) : leadPaymentState === "paid" ? (
-              <Badge className="bg-emerald-100 text-emerald-800">
+              <Badge variant="status" className="bg-emerald-100 text-emerald-800">
                 {t("paid")}
               </Badge>
             ) : null}

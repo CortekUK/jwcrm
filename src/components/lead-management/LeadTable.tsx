@@ -793,21 +793,21 @@ export function LeadTable({
       <div className="space-y-4">
         {headerSection}
         <div className="rounded-lg border border-[#E6E6E4] overflow-hidden">
-        <Table>
+        <Table className="min-w-[1720px] [&_th]:px-4 [&_td]:px-4 [&_td]:py-3">
           <TableHeader>
             <TableRow className="bg-[#FAFAF8]" style={{ borderBottom: '1px solid #EAEAE8' }}>
-              <TableHead className="w-[40px]"></TableHead>
-              <TableHead className="font-semibold text-[#555555]">{t("name")}</TableHead>
-              <TableHead className="font-semibold text-[#555555]">{t("email")}</TableHead>
-              <TableHead className="font-semibold text-[#555555]">{t("phone")}</TableHead>
-              <TableHead className="font-semibold text-[#555555]">{t("source")}</TableHead>
-              <TableHead className="font-semibold text-[#555555]">{t("assignedTo")}</TableHead>
-              <TableHead className="font-semibold text-[#555555]">{t("created")}</TableHead>
-              <TableHead className="font-semibold text-[#555555]">{t("status")}</TableHead>
-              <TableHead className="font-semibold text-[#555555]">{t("health", "Health")}</TableHead>
-              <TableHead className="font-semibold text-[#555555]">{t("reminder")}</TableHead>
-              <TableHead className="font-semibold text-[#555555]">{t("proposal")}</TableHead>
-              <TableHead className="font-semibold text-[#555555] text-center">{t("actions")}</TableHead>
+              <TableHead className="w-[44px]"></TableHead>
+              <TableHead className="w-[160px] font-semibold text-[#555555]">{t("name")}</TableHead>
+              <TableHead className="w-[200px] font-semibold text-[#555555]">{t("email")}</TableHead>
+              <TableHead className="w-[150px] font-semibold text-[#555555]">{t("phone")}</TableHead>
+              <TableHead className="w-[130px] font-semibold text-[#555555]">{t("source")}</TableHead>
+              <TableHead className="w-[155px] font-semibold text-[#555555]">{t("assignedTo")}</TableHead>
+              <TableHead className="w-[115px] font-semibold text-[#555555]">{t("created")}</TableHead>
+              <TableHead className="w-[195px] font-semibold text-[#555555]">{t("status")}</TableHead>
+              <TableHead className="w-[130px] font-semibold text-[#555555]">{t("health", "Health")}</TableHead>
+              <TableHead className="w-[150px] font-semibold text-[#555555]">{t("reminder")}</TableHead>
+              <TableHead className="w-[155px] font-semibold text-[#555555]">{t("proposal")}</TableHead>
+              <TableHead className="w-[130px] font-semibold text-[#555555] text-center">{t("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -864,17 +864,26 @@ export function LeadTable({
       ) : (
         <>
           <div className="rounded-lg border border-[#E6E6E4] overflow-hidden">
-            <Table>
+            <Table
+              // 12 columns cannot share a laptop viewport, so the table gets a
+              // real minimum width and scrolls horizontally in the wrapper below
+              // instead of squeezing columns until names and sources wrap onto a
+              // second line — which is what made row heights uneven.
+              //
+              // Padding is set here once for every cell so header and body share
+              // the same rhythm and no individual cell can drift.
+              className="min-w-[1720px] [&_th]:px-4 [&_td]:px-4 [&_td]:py-3"
+            >
               <TableHeader>
                 <TableRow className="bg-[#FAFAF8]" style={{ borderBottom: '1px solid #EAEAE8' }}>
-                  <TableHead className="w-[40px]">
+                  <TableHead className="w-[44px]">
                     <Checkbox
                       checked={selectedIds.size === paginatedLeads.length && paginatedLeads.length > 0}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
                   <TableHead 
-                    className="font-semibold text-[#555555] cursor-pointer hover:bg-[#F0F0EE]"
+                    className="w-[160px] font-semibold text-[#555555] cursor-pointer hover:bg-[#F0F0EE]"
                     onClick={() => handleSort("full_name")}
                   >
                     <div className="flex items-center">
@@ -883,7 +892,7 @@ export function LeadTable({
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="font-semibold text-[#555555] cursor-pointer hover:bg-[#F0F0EE]"
+                    className="w-[200px] font-semibold text-[#555555] cursor-pointer hover:bg-[#F0F0EE]"
                     onClick={() => handleSort("email")}
                   >
                     <div className="flex items-center">
@@ -891,9 +900,9 @@ export function LeadTable({
                       {getSortIcon("email")}
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold text-[#555555]">{t("phone")}</TableHead>
+                  <TableHead className="w-[150px] font-semibold text-[#555555]">{t("phone")}</TableHead>
                   <TableHead 
-                    className="font-semibold text-[#555555] cursor-pointer hover:bg-[#F0F0EE]"
+                    className="w-[130px] font-semibold text-[#555555] cursor-pointer hover:bg-[#F0F0EE]"
                     onClick={() => handleSort("source")}
                   >
                     <div className="flex items-center">
@@ -902,7 +911,7 @@ export function LeadTable({
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="font-semibold text-[#555555] cursor-pointer hover:bg-[#F0F0EE]"
+                    className="w-[155px] font-semibold text-[#555555] cursor-pointer hover:bg-[#F0F0EE]"
                     onClick={() => handleSort("assigned_to")}
                   >
                     <div className="flex items-center">
@@ -911,7 +920,7 @@ export function LeadTable({
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="font-semibold text-[#555555] cursor-pointer hover:bg-[#F0F0EE]"
+                    className="w-[115px] font-semibold text-[#555555] cursor-pointer hover:bg-[#F0F0EE]"
                     onClick={() => handleSort("created_at")}
                   >
                     <div className="flex items-center">
@@ -920,7 +929,7 @@ export function LeadTable({
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="font-semibold text-[#555555] cursor-pointer hover:bg-[#F0F0EE]"
+                    className="w-[195px] font-semibold text-[#555555] cursor-pointer hover:bg-[#F0F0EE]"
                     onClick={() => handleSort("status")}
                   >
                     <div className="flex items-center">
@@ -928,10 +937,10 @@ export function LeadTable({
                       {getSortIcon("status")}
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold text-[#555555]">{t("health", "Health")}</TableHead>
-                  <TableHead className="font-semibold text-[#555555]">{t("reminder")}</TableHead>
-                  <TableHead className="font-semibold text-[#555555]">{t("proposal")}</TableHead>
-                  <TableHead className="font-semibold text-[#555555] text-center">{t("actions")}</TableHead>
+                  <TableHead className="w-[130px] font-semibold text-[#555555]">{t("health", "Health")}</TableHead>
+                  <TableHead className="w-[150px] font-semibold text-[#555555]">{t("reminder")}</TableHead>
+                  <TableHead className="w-[155px] font-semibold text-[#555555]">{t("proposal")}</TableHead>
+                  <TableHead className="w-[130px] font-semibold text-[#555555] text-center">{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -943,14 +952,21 @@ export function LeadTable({
                         onCheckedChange={() => toggleSelect(lead.id)}
                       />
                     </TableCell>
-                    <TableCell className="font-medium text-[#222222]">{lead.full_name}</TableCell>
-                    <TableCell className="text-[#555555]">{lead.email}</TableCell>
-                    <TableCell className="text-[#555555]">{lead.phone || "-"}</TableCell>
-                    <TableCell className="text-[#555555]">{lead.source_data?.name || (lead.source ? lead.source.replace(/[_-]/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "-")}</TableCell>
+                    <TableCell className="font-medium text-[#222222]">
+                      <div className="truncate" title={lead.full_name}>{lead.full_name}</div>
+                    </TableCell>
+                    <TableCell className="text-[#555555]">
+                      <div className="truncate" title={lead.email}>{lead.email}</div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-[#555555]">{lead.phone || "-"}</TableCell>
+                    <TableCell className="text-[#555555]">
+                      <div className="truncate">{lead.source_data?.name || (lead.source ? lead.source.replace(/[_-]/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "-")}</div>
+                    </TableCell>
                     <TableCell>
                       {lead.assigned_user?.full_name ? (
                         <Badge
-                          className={`bg-[#E6F0FF] text-[#2563EB] border-0 ${
+                          variant="status"
+                          className={`max-w-full truncate whitespace-nowrap bg-[#E6F0FF] text-[#2563EB] border-0 ${
                             onViewSalesperson && lead.assigned_to
                               ? "cursor-pointer hover:bg-[#DBEAFE] transition-colors"
                               : ""
@@ -1056,6 +1072,7 @@ export function LeadTable({
                           if (state === "partially_paid") {
                             return (
                               <Badge
+                                variant="status"
                                 className="bg-[#FFF4DC] text-[#8B6914] border-0 gap-1"
                                 title={
                                   lead.balance_due
@@ -1070,7 +1087,7 @@ export function LeadTable({
                           }
                           if (state === "paid") {
                             return (
-                              <Badge className="bg-[#E6F7F1] text-[#0C5536] border-0 gap-1">
+                              <Badge variant="status" className="bg-[#E6F7F1] text-[#0C5536] border-0 gap-1">
                                 <CheckCircle2 className="h-3 w-3" />
                                 {t("paid")}
                               </Badge>
