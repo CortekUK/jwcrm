@@ -215,5 +215,23 @@
     "today": "Today",
     "week": "This Week",
     "year": "This Year"
-  }
+  },
+  "outstandingBalances": "Outstanding Balances",
+  "totalOutstanding": "Total outstanding",
+  "outstandingBalancesHint": "Invoices that still have money owed. They stay listed until the balance is cleared.",
+  "noOutstandingBalances": "Nothing outstanding",
+  "noOutstandingBalancesHint": "Every issued invoice has been paid in full.",
+  "outstandingBalancesFooter": "Totals include VAT, matching the amount shown on the client's invoice.",
+  "partiallyPaid": "Part paid",
+  "balanceDue": "Outstanding",
+  "outstandingDigestSettings": "Outstanding Balance Digest",
+  "outstandingDigestSettingsHint": "A weekly summary of invoices with money still owed, sent every Monday. It goes to your team only — clients never receive it.",
+  "digestRecipientEmail": "Send the digest to",
+  "digestRecipientHint": "Leave blank to use the default address configured on the server.",
+  "digestRecipientName": "Recipient name",
+  "digestEnabled": "Send the weekly digest",
+  "digestEnabledHint": "Turn off to stop the weekly email. The dashboard list stays either way.",
+  "digestRecipientSaved": "The weekly digest will go to this address.",
+  "settingsSaved": "Settings saved",
+  "invalidEmail": "Please enter a valid email address."
 }

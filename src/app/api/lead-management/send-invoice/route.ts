@@ -6,6 +6,7 @@ import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 import { buildInvoiceEmailHTML } from "@/lib/email/invoiceEmailTemplate";
 import { normalizeLineItems, lineItemsSubtotal } from "@/lib/pdf/invoiceLineItems";
 import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
+import { companyDetails } from "@/config/company";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,6 +38,13 @@ export async function POST(request: NextRequest) {
     // sum; falls back to the flat amount when no items are supplied.
     const items = normalizeLineItems(line_items, amount);
     const subtotalAmount = lineItemsSubtotal(items);
+
+    // What the client actually owes, VAT included. The invoice PDF and the
+    // balance tracking both work in this figure, so the Stripe charge must
+    // too — charging the bare subtotal would collect the fees but silently
+    // drop the VAT, leaving the invoice permanently short.
+    const totalAmountWithVat =
+      subtotalAmount + subtotalAmount * (companyDetails.vatRate / 100);
 
     // 1. Get lead details
     const { data: lead, error: leadError } = await supabaseAdmin
@@ -88,7 +96,7 @@ export async function POST(request: NextRequest) {
               name: "Just Wills - Legal Services",
               description: `Invoice ${proposal.invoice_number} for ${effectiveName}`,
             },
-            unit_amount: Math.round(subtotalAmount * 100),
+            unit_amount: Math.round(totalAmountWithVat * 100),
           },
           quantity: 1,
         },

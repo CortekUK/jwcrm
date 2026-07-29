@@ -48,7 +48,35 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // 1. Update proposal status to 'paid'
+      // 1. Record the payment itself.
+      //
+      // The balance shown in the CRM is derived from proposal_payments, so a
+      // card payment MUST land there — otherwise the invoice reads "paid"
+      // while the balance line still shows the full amount outstanding.
+      // session.amount_total is authoritative: it is what Stripe actually
+      // charged, so a partial or adjusted payment is recorded accurately.
+      const amountPaid = (session.amount_total ?? 0) / 100;
+      if (amountPaid > 0) {
+        const { error: paymentInsertError } = await supabaseAdmin
+          .from('proposal_payments')
+          .insert({
+            proposal_id: proposalId,
+            amount: amountPaid,
+            method: 'stripe',
+            notes: 'Paid online via payment link',
+            // Stripe retries webhooks, so the session id keeps this insert
+            // idempotent (unique index on external_reference).
+            external_reference: session.id,
+          });
+
+        // 23505 = duplicate key: this event was already processed. Not an error.
+        if (paymentInsertError && paymentInsertError.code !== '23505') {
+          console.error('Error recording Stripe payment:', paymentInsertError);
+          throw paymentInsertError;
+        }
+      }
+
+      // 2. Update proposal status to 'paid'
       const { error: proposalError } = await supabaseAdmin
         .from('proposals')
         .update({
@@ -64,7 +92,7 @@ export async function POST(request: NextRequest) {
         throw proposalError;
       }
 
-      // 2. Get the lead from the proposal
+      // 3. Get the lead from the proposal
       const { data: proposal, error: fetchError } = await supabaseAdmin
         .from('proposals')
         .select('lead_id')
@@ -76,7 +104,7 @@ export async function POST(request: NextRequest) {
         throw fetchError;
       }
 
-      // 3. Get the proposal amount for tracking
+      // 4. Get the proposal amount for tracking
       const { data: proposalData, error: proposalDataError } = await supabaseAdmin
         .from('proposals')
         .select('amount, currency')
@@ -87,7 +115,7 @@ export async function POST(request: NextRequest) {
         console.error('Error fetching proposal data:', proposalDataError);
       }
 
-      // 4. Update lead status to 'won' and set payment fields
+      // 5. Update lead status to 'won' and set payment fields
       const { error: leadError } = await supabaseAdmin
         .from('leads')
         .update({
@@ -105,7 +133,7 @@ export async function POST(request: NextRequest) {
         throw leadError;
       }
 
-      // 4. Create client user in Supabase Auth
+      // 6. Create client user in Supabase Auth
       const password = generatePassword();
 
       const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -127,7 +155,7 @@ export async function POST(request: NextRequest) {
           throw authError;
         }
       } else if (authUser?.user) {
-        // 5. Create profile for the new user
+        // 7. Create profile for the new user
         const { error: profileError } = await supabaseAdmin
           .from('profiles')
           .upsert({

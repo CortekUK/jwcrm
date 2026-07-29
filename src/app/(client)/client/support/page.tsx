@@ -285,8 +285,11 @@ export default function ClientSupport() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-2">
+              {/* Labelled "Your ..." so it's clear these are the client's own
+                  details, not a recipient — the message always goes to the
+                  team / their account manager. */}
               <Label htmlFor="name" className="text-[13px] font-medium text-[#333333]">
-                {t('portal:fullName')} *
+                {t('portal:yourFullName', 'Your Full Name')} *
               </Label>
               <Input
                 id="name"
@@ -301,7 +304,7 @@ export default function ClientSupport() {
 
             <div className="space-y-2">
               <Label htmlFor="email" className="text-[13px] font-medium text-[#333333]">
-                {t('portal:emailAddress')} *
+                {t('portal:yourEmailAddress', 'Your Email Address')} *
               </Label>
               <Input
                 id="email"
@@ -310,6 +313,9 @@ export default function ClientSupport() {
                 className="h-10 border-[#E6E6E4] focus:border-[#0C5536] focus:ring-[#0C5536] rounded-md"
                 placeholder={t('portal:emailPlaceholder')}
               />
+              <p className="text-[11px] text-[#6B6B6B]">
+                {t('portal:yourEmailHint', "We'll reply to you at this address.")}
+              </p>
               {errors.email && (
                 <p className="text-[12px] text-destructive">{errors.email.message}</p>
               )}

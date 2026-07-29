@@ -30,6 +30,7 @@ import {
   KPICardAction,
 } from "@/components/finance/FinanceStatsCards";
 import { InvoiceTable } from "@/components/finance/InvoiceTable";
+import { OutstandingBalancesCard } from "@/components/finance/OutstandingBalancesCard";
 import { TransactionTable } from "@/components/finance/TransactionTable";
 import { AddTransactionDialog } from "@/components/finance/AddTransactionDialog";
 import { ViewInvoiceDialog } from "@/components/finance/ViewInvoiceDialog";
@@ -332,6 +333,11 @@ export default function FinanceDashboard() {
         {/* Invoices Tab (heads only) */}
         {isHead && (
           <TabsContent value="invoices" className="space-y-4">
+            {/* Who still owes money — shown above the full invoice list so a
+                part-paid invoice can't go unnoticed between the deposit and
+                the court date. */}
+            <OutstandingBalancesCard />
+
             <Card className="border-[#E6E6E4]">
               <CardHeader className="pb-4">
                 <div className="flex items-center gap-2">

@@ -98,7 +98,12 @@ export async function POST(
                 name: `${companyDetails.legalName} - Legal Services`,
                 description: `Invoice ${proposal.invoice_number} for ${lead.full_name}`,
               },
-              unit_amount: Math.round(amount * 100),
+              // VAT included — must match the invoice PDF and the balance
+              // tracking, or the payment link collects the fees but drops
+              // the VAT and the invoice can never be settled in full.
+              unit_amount: Math.round(
+                (amount + amount * (companyDetails.vatRate / 100)) * 100
+              ),
             },
             quantity: 1,
           },

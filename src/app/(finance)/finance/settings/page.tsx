@@ -1,6 +1,7 @@
 "use client";
 
 import { DashboardHome } from "@/components/dashboard/DashboardHome";
+import { OutstandingDigestSettingsCard } from "@/components/finance/OutstandingDigestSettingsCard";
 import { useTranslation } from "react-i18next";
 import { Settings } from "lucide-react";
 
@@ -24,7 +25,8 @@ export default function FinanceSettings() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <OutstandingDigestSettingsCard />
         <DashboardHome dashboardType="finance" />
       </div>
 

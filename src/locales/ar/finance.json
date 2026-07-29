@@ -215,5 +215,23 @@
     "today": "اليوم",
     "week": "هذا الأسبوع",
     "year": "هذه السنة"
-  }
+  },
+  "outstandingBalances": "الأرصدة المستحقة",
+  "totalOutstanding": "إجمالي المستحق",
+  "outstandingBalancesHint": "فواتير لا تزال بها مبالغ مستحقة. تبقى مدرجة حتى يتم سداد الرصيد.",
+  "noOutstandingBalances": "لا توجد مبالغ مستحقة",
+  "noOutstandingBalancesHint": "تم سداد جميع الفواتير الصادرة بالكامل.",
+  "outstandingBalancesFooter": "تشمل الإجماليات ضريبة القيمة المضافة، مطابقة للمبلغ الظاهر في فاتورة العميل.",
+  "partiallyPaid": "مدفوعة جزئياً",
+  "balanceDue": "المستحق",
+  "outstandingDigestSettings": "ملخص الأرصدة المستحقة",
+  "outstandingDigestSettingsHint": "ملخص أسبوعي بالفواتير التي لا تزال بها مبالغ مستحقة، يُرسل كل يوم اثنين. يصل إلى فريقك فقط — لا يستلمه العملاء.",
+  "digestRecipientEmail": "إرسال الملخص إلى",
+  "digestRecipientHint": "اتركه فارغاً لاستخدام العنوان الافتراضي المُعد على الخادم.",
+  "digestRecipientName": "اسم المستلم",
+  "digestEnabled": "إرسال الملخص الأسبوعي",
+  "digestEnabledHint": "أوقفه لإيقاف البريد الأسبوعي. تبقى القائمة في لوحة التحكم في الحالتين.",
+  "digestRecipientSaved": "سيتم إرسال الملخص الأسبوعي إلى هذا العنوان.",
+  "settingsSaved": "تم حفظ الإعدادات",
+  "invalidEmail": "يرجى إدخال عنوان بريد إلكتروني صالح."
 }
