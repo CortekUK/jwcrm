@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,6 +101,11 @@ const AVAILABLE_THRESHOLDS = [
 export function NotificationSettings() {
   const { t } = useTranslation(["hr", "common"]);
   const { toast } = useToast();
+  // This component is rendered from BOTH /hr/settings and /admin/hr/settings.
+  // A hardcoded /hr link drops an admin into the HR portal, whose layout has no
+  // role switcher — leaving them stranded with no way back.
+  const pathname = usePathname();
+  const basePath = pathname?.startsWith("/admin") ? "/admin/hr" : "/hr";
 
   // Document notification state
   const [docSettings, setDocSettings] = useState<DocumentNotificationSettings>(defaultDocSettings);
@@ -188,10 +194,17 @@ export function NotificationSettings() {
   const handleSaveDocSettings = async () => {
     setIsSavingDoc(true);
     try {
+      // upsert for the same reason as the threshold save below: an UPDATE that
+      // matches no row succeeds silently and saves nothing.
       const { error } = await supabase
         .from("system_settings")
-        .update({ setting_value: docSettings })
-        .eq("setting_key", "hr_document_notifications");
+        .upsert(
+          {
+            setting_key: "hr_document_notifications",
+            setting_value: docSettings,
+          },
+          { onConflict: "setting_key" }
+        );
 
       if (error) throw error;
 
@@ -214,10 +227,18 @@ export function NotificationSettings() {
   const handleSaveThresholdSettings = async () => {
     setIsSavingThreshold(true);
     try {
+      // upsert, not update: `hr_document_threshold_alerts` had no row at all,
+      // and an UPDATE matching zero rows returns 204 No Content — which the
+      // client reports as success. Every save silently did nothing.
       const { error: updateError } = await supabase
         .from("system_settings")
-        .update({ setting_value: thresholdSettings })
-        .eq("setting_key", "hr_document_threshold_alerts");
+        .upsert(
+          {
+            setting_key: "hr_document_threshold_alerts",
+            setting_value: thresholdSettings,
+          },
+          { onConflict: "setting_key" }
+        );
 
       if (updateError) throw updateError;
 
@@ -574,7 +595,7 @@ export function NotificationSettings() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Link href="/hr/settings/email-logs">
+              <Link href={`${basePath}/settings/email-logs`}>
                 <Button
                   variant="outline"
                   size="sm"

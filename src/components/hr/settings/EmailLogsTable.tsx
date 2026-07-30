@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Fragment, useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,11 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   Mail,
   CheckCircle,
@@ -592,21 +587,19 @@ export function EmailLogsTable() {
                   </TableHeader>
                   <TableBody>
                     {logs.map((log) => (
-                      <Collapsible key={log.id} open={expandedRows.has(log.id)}>
+                      <Fragment key={log.id}>
                         <TableRow 
                           className="hover:bg-[#FAFAF8] cursor-pointer"
                           onClick={() => toggleRow(log.id)}
                         >
                           <TableCell className="w-8">
-                            <CollapsibleTrigger asChild>
-                              <button className="p-1">
+                            <button className="p-1" type="button">
                                 {expandedRows.has(log.id) ? (
                                   <ChevronDown className="h-4 w-4 text-[#6B6B6B]" />
                                 ) : (
                                   <ChevronRight className="h-4 w-4 text-[#6B6B6B]" />
                                 )}
-                              </button>
-                            </CollapsibleTrigger>
+                            </button>
                           </TableCell>
                           <TableCell className="text-sm text-[#555555]">
                             {log.sent_at ? format(new Date(log.sent_at), "MMM d, yyyy HH:mm") : "-"}
@@ -618,7 +611,7 @@ export function EmailLogsTable() {
                           </TableCell>
                           <TableCell>{getStatusBadge(log.status)}</TableCell>
                         </TableRow>
-                        <CollapsibleContent asChild>
+                        {expandedRows.has(log.id) && (
                           <TableRow className="bg-[#FAFAF8]">
                             <TableCell colSpan={6} className="p-4">
                               <div className="space-y-3 text-sm">
@@ -665,8 +658,8 @@ export function EmailLogsTable() {
                               </div>
                             </TableCell>
                           </TableRow>
-                        </CollapsibleContent>
-                      </Collapsible>
+                        )}
+                      </Fragment>
                     ))}
                   </TableBody>
                 </Table>
