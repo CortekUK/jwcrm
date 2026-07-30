@@ -46,6 +46,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { format, isPast, parseISO, differenceInDays } from "date-fns";
+import { useHrBasePath } from "@/hooks/useHrBasePath";
 
 type MonthlyReview = {
   id: string;
@@ -99,6 +100,7 @@ export function MonthlyReviewList({
   quarter,
   year,
 }: MonthlyReviewListProps) {
+  const hrBase = useHrBasePath();
   const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
   const router = useRouter();
@@ -471,7 +473,7 @@ export function MonthlyReviewList({
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align={isRtl ? "start" : "end"}>
                             <DropdownMenuItem
-                              onClick={() => router.push(`/hr/reviews/monthly/${review.id}`)}
+                              onClick={() => router.push(`${hrBase}/reviews/monthly/${review.id}`)}
                             >
                               <Eye className="h-4 w-4 mr-2" />
                               {t("common:view")}
@@ -479,7 +481,7 @@ export function MonthlyReviewList({
                             
                             {review.status === "draft" && (
                               <DropdownMenuItem
-                                onClick={() => router.push(`/hr/reviews/monthly/${review.id}/edit`)}
+                                onClick={() => router.push(`${hrBase}/reviews/monthly/${review.id}/edit`)}
                               >
                                 <Edit className="h-4 w-4 mr-2" />
                                 {t("common:edit")}

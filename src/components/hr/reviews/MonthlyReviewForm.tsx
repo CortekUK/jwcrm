@@ -35,6 +35,7 @@ import {
   TrendingUp,
   BarChart3
 } from "lucide-react";
+import { useHrBasePath } from "@/hooks/useHrBasePath";
 
 type Employee = {
   id: string;
@@ -106,6 +107,7 @@ export function MonthlyReviewForm({
   initialYear,
   onSuccess,
 }: MonthlyReviewFormProps) {
+  const hrBase = useHrBasePath();
   const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
   const { toast } = useToast();
@@ -344,7 +346,7 @@ export function MonthlyReviewForm({
         className: "bg-[hsl(var(--jw-primary-green))] text-white",
       });
       
-      router.push("/hr/reviews/monthly");
+      router.push(`${hrBase}/reviews/monthly`);
     } catch (error) {
       console.error("Error submitting review:", error);
       toast({

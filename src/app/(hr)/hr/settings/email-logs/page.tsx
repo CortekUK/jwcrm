@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import { usePathname } from "next/navigation";
 import { Mail, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -9,6 +10,11 @@ import { EmailLogsTable } from "@/components/hr/settings/EmailLogsTable";
 export default function EmailLogsPage() {
   const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
+  // This page is reached from BOTH /hr/settings and /admin/hr/settings. A
+  // hardcoded /hr back-link throws an admin into the HR portal, whose layout
+  // has no role switcher, stranding them there.
+  const pathname = usePathname();
+  const settingsHref = pathname?.startsWith("/admin") ? "/admin/hr/settings" : "/hr/settings";
 
   return (
     <div className="space-y-6 pb-12">
@@ -17,7 +23,7 @@ export default function EmailLogsPage() {
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <Link href="/hr/settings">
+              <Link href={settingsHref}>
                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[rgba(198,160,59,0.15)]">
                   <ArrowLeft className={`h-5 w-5 text-[#6B6B6B] ${isRtl ? "rotate-180" : ""}`} />
                 </Button>

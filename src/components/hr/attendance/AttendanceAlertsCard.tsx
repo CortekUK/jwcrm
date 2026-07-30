@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, getDay } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useHrBasePath } from "@/hooks/useHrBasePath";
 
 interface AttendanceAlert {
   id: string;
@@ -40,6 +41,7 @@ interface AttendanceAlert {
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export function AttendanceAlertsCard() {
+  const hrBase = useHrBasePath();
   const { t, i18n } = useTranslation(["hr"]);
   const isRtl = i18n.language === "ar";
   const router = useRouter();
@@ -400,7 +402,7 @@ export function AttendanceAlertsCard() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => router.push(`/hr/attendance/employee/${alert.id}`)}
+                  onClick={() => router.push(`${hrBase}/attendance/employee/${alert.id}`)}
                   className={cn(
                     "text-xs",
                     alert.severity === "critical"
@@ -415,7 +417,7 @@ export function AttendanceAlertsCard() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => router.push(`/hr/attendance/employee/${alert.id}?action=warn`)}
+                    onClick={() => router.push(`${hrBase}/attendance/employee/${alert.id}?action=warn`)}
                     className="text-xs border-red-300 text-red-700 hover:bg-red-100"
                   >
                     <Mail className={cn("h-3 w-3", isRtl ? "ml-1" : "mr-1")} />
@@ -431,7 +433,7 @@ export function AttendanceAlertsCard() {
         <Button
           variant="ghost"
           className="w-full text-[#0C5536] hover:text-[hsl(var(--jw-hover-green))] hover:bg-[rgba(198,160,59,0.1)]"
-          onClick={() => router.push("/hr/attendance")}
+          onClick={() => router.push(`${hrBase}/attendance`)}
         >
           {t("hr:attendanceAlerts.viewAllAttendance")}
           <ChevronRight className={cn("h-4 w-4", isRtl ? "mr-1 rotate-180" : "ml-1")} />

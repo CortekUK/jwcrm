@@ -59,6 +59,7 @@ import {
   X,
 } from "lucide-react";
 import { format, isPast, parseISO, differenceInDays } from "date-fns";
+import { useHrBasePath } from "@/hooks/useHrBasePath";
 
 type QuarterlyReview = {
   id: string;
@@ -117,6 +118,7 @@ export function QuarterlyReviewList({
   employeeId,
   onDownloadPDF,
 }: QuarterlyReviewListProps) {
+  const hrBase = useHrBasePath();
   const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
   const router = useRouter();
@@ -634,7 +636,7 @@ export function QuarterlyReviewList({
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align={isRtl ? "start" : "end"}>
                             <DropdownMenuItem
-                              onClick={() => router.push(`/hr/reviews/${review.id}`)}
+                              onClick={() => router.push(`${hrBase}/reviews/${review.id}`)}
                             >
                               <Eye className="h-4 w-4 mr-2" />
                               {t("common:view")}
@@ -642,7 +644,7 @@ export function QuarterlyReviewList({
                             
                             {review.status === "draft" && (
                               <DropdownMenuItem
-                                onClick={() => router.push(`/hr/reviews/${review.id}/edit`)}
+                                onClick={() => router.push(`${hrBase}/reviews/${review.id}/edit`)}
                               >
                                 <Edit className="h-4 w-4 mr-2" />
                                 {t("common:edit")}

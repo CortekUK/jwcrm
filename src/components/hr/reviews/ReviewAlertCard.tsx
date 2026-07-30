@@ -17,6 +17,7 @@ import {
   CalendarClock,
 } from "lucide-react";
 import { format, parseISO, isPast, differenceInDays, addDays } from "date-fns";
+import { useHrBasePath } from "@/hooks/useHrBasePath";
 
 type ReviewAlert = {
   id: string;
@@ -31,6 +32,7 @@ type ReviewAlert = {
 };
 
 export function ReviewAlertCard() {
+  const hrBase = useHrBasePath();
   const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
   const router = useRouter();
@@ -195,7 +197,7 @@ export function ReviewAlertCard() {
           <Button
             variant="outline"
             className="w-full border-[hsl(var(--jw-primary-green))] text-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-primary-green))]/10"
-            onClick={() => router.push("/hr/reviews")}
+            onClick={() => router.push(`${hrBase}/reviews`)}
           >
             {t("hr:reviews.viewAllReviews")}
             <ChevronRight className={`h-4 w-4 ${isRtl ? "mr-2 rotate-180" : "ml-2"}`} />
@@ -255,7 +257,7 @@ export function ReviewAlertCard() {
                   ? "border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                   : "border-[#C6A03B]/30 bg-[#FFF9E6]/50 dark:bg-[#8B6914]/10 hover:bg-[#FFF9E6] dark:hover:bg-[#8B6914]/20"
               }`}
-              onClick={() => router.push(`/hr/reviews/${alert.id}`)}
+              onClick={() => router.push(`${hrBase}/reviews/${alert.id}`)}
             >
               <div className={`flex items-start gap-3 ${isRtl ? "flex-row-reverse" : ""}`}>
                 {alert.type === "overdue" && (
@@ -306,7 +308,7 @@ export function ReviewAlertCard() {
         {/* View All Button */}
         <Button
           className="w-full bg-[hsl(var(--jw-primary-green))] hover:bg-[hsl(var(--jw-hover-green))] text-white"
-          onClick={() => router.push("/hr/reviews")}
+          onClick={() => router.push(`${hrBase}/reviews`)}
         >
           {t("hr:reviews.viewAllReviews")}
           <ChevronRight className={`h-4 w-4 ${isRtl ? "mr-2 rotate-180" : "ml-2"}`} />

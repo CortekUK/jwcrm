@@ -46,6 +46,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useHrBasePath } from "@/hooks/useHrBasePath";
 
 type Employee = {
   id: string;
@@ -172,6 +173,7 @@ export function QuarterlyReviewForm({
   initialYear,
   onSuccess,
 }: QuarterlyReviewFormProps) {
+  const hrBase = useHrBasePath();
   const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
   const { toast } = useToast();
@@ -518,7 +520,7 @@ export function QuarterlyReviewForm({
         className: "bg-[hsl(var(--jw-primary-green))] text-white",
       });
       
-      router.push("/hr/reviews");
+      router.push(`${hrBase}/reviews`);
     } catch (error) {
       console.error("Error submitting review:", error);
       toast({

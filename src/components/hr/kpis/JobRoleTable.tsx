@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Edit, Trash2, Briefcase, AlertTriangle, Loader2, Target, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useHrBasePath } from "@/hooks/useHrBasePath";
 
 type JobRole = {
   id: string;
@@ -52,6 +53,7 @@ export function JobRoleTable({
   onEdit,
   onRefresh,
 }: JobRoleTableProps) {
+  const hrBase = useHrBasePath();
   const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
   const router = useRouter();
@@ -179,7 +181,7 @@ export function JobRoleTable({
                   </TableCell>
                   <TableCell className="text-center">
                     <button
-                      onClick={() => router.push(`/hr/kpis?role=${role.id}`)}
+                      onClick={() => router.push(`${hrBase}/kpis?role=${role.id}`)}
                       className={`inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-sm font-medium transition-colors hover:opacity-80 ${
                         role.kpi_count > 0
                           ? "bg-[#FFF9E6] text-[#C6A03B] cursor-pointer"
@@ -195,7 +197,7 @@ export function JobRoleTable({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push(`/hr/kpis?role=${role.id}`)}
+                        onClick={() => router.push(`${hrBase}/kpis?role=${role.id}`)}
                         className="text-[#C6A03B] hover:text-[#8B6914] hover:bg-[#FFF9E6]"
                         title={t("hr:viewKPIs", "View KPIs")}
                       >
@@ -204,7 +206,7 @@ export function JobRoleTable({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push(`/hr/kpis/new?job_role_id=${role.id}`)}
+                        onClick={() => router.push(`${hrBase}/kpis/new?job_role_id=${role.id}`)}
                         className="text-[hsl(var(--jw-primary-green))] hover:text-[hsl(var(--jw-hover-green))] hover:bg-[#E6F7F1]"
                         title={t("hr:addKPI", "Add KPI")}
                       >

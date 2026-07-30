@@ -520,7 +520,7 @@ export function ComplianceDashboard() {
                     <TableRow 
                       key={review.id} 
                       className="border-[#E6E6E4] dark:border-gray-700 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/10"
-                      onClick={() => router.push(`/hr/reviews/${review.id}`)}
+                      onClick={() => router.push(`${reviewsBasePath}/reviews/${review.id}`)}
                     >
                       <TableCell className={isRtl ? "text-right" : ""}>
                         {review.employee?.full_name}
