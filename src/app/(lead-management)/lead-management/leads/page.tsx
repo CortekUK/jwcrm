@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LeadTable, Lead, CommunicationMethod } from "@/components/lead-management/LeadTable";
 import { LeadPipelineBoard } from "@/components/lead-management/LeadPipelineBoard";
 import { CreateLeadDialog } from "@/components/lead-management/CreateLeadDialog";
@@ -36,9 +36,10 @@ import {
 
 type ViewMode = "table" | "kanban";
 
-export default function LeadsPage() {
+function LeadsPageContent() {
   const { t } = useTranslation("leadManagement");
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +64,24 @@ export default function LeadsPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedMethodId, setSelectedMethodId] = useState<string>("");
   const [communicationMethods, setCommunicationMethods] = useState<CommunicationMethod[]>([]);
+
+  // The dashboard links here with `?status=…` and `?action=new`. Those used to
+  // be dropped on the floor, so a "New Lead" quick action just landed on an
+  // unfiltered list. Apply them once, on arrival.
+  const appliedParamsRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key = searchParams?.toString() ?? "";
+    if (appliedParamsRef.current === key) return;
+    appliedParamsRef.current = key;
+
+    const statusParam = searchParams?.get("status");
+    if (statusParam) {
+      setStatusFilter(statusParam);
+    }
+    if (searchParams?.get("action") === "new") {
+      setCreateDialogOpen(true);
+    }
+  }, [searchParams]);
 
   // Load view mode from localStorage
   useEffect(() => {
@@ -96,7 +115,11 @@ export default function LeadsPage() {
         `)
         .order("created_at", { ascending: false });
 
-      if (statusFilter !== "all") {
+      if (statusFilter === "active") {
+        // "Active pipeline" is everything still in play — the same definition
+        // the dashboard stat card counts with.
+        query = query.not("status", "in", "(won,lost)");
+      } else if (statusFilter !== "all") {
         query = query.eq("status", statusFilter);
       }
 
@@ -254,6 +277,7 @@ export default function LeadsPage() {
       company_name?: string;
       lead_type?: "individual" | "corporate";
       source?: string;
+      source_id?: string;
       notes?: string;
       status: LeadStatus;
     }
@@ -276,6 +300,9 @@ export default function LeadsPage() {
           company_name: data.company_name || null,
           lead_type: data.lead_type === "corporate" ? "corporate" : "individual",
           source: data.source || null,
+          // Was silently dropped: EditLeadDialog collects the Source dropdown
+          // and the PATCH route accepts source_id, but this body never sent it.
+          source_id: data.source_id || null,
           notes: data.notes || null,
           status: data.status,
         }),
@@ -385,6 +412,8 @@ export default function LeadsPage() {
         not_started: t("notStarted"),
         contacted: t("contacted"),
         consultation: t("consultation"),
+        consultation_completed: t("consultationCompleted", "Consultation Completed"),
+        unreachable: t("unreachable"),
         meeting: t("meeting"),
         hold: t("hold"),
         qualified: t("qualified"),
@@ -603,5 +632,13 @@ export default function LeadsPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LeadsPage() {
+  return (
+    <Suspense fallback={null}>
+      <LeadsPageContent />
+    </Suspense>
   );
 }

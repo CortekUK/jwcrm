@@ -77,6 +77,7 @@ const PIPELINE_COLUMNS: { status: LeadStatus; label: string; color: string; bgCo
   { status: "not_started", label: "Not Started", color: "#6B6B6B", bgColor: "#F5F5F5", borderColor: "#E6E6E4" },
   { status: "contacted", label: "Contacted", color: "#0C5536", bgColor: "#E6F7F1", borderColor: "#0C5536" },
   { status: "consultation", label: "Consultation", color: "#0369A1", bgColor: "#E0F2FE", borderColor: "#0369A1" },
+  { status: "consultation_completed", label: "Consultation Completed", color: "#0E7490", bgColor: "#CFFAFE", borderColor: "#0E7490" },
   { status: "meeting", label: "Meeting", color: "#2563EB", bgColor: "#E6F0FF", borderColor: "#2563EB" },
   { status: "qualified", label: "Qualified", color: "#7C3AED", bgColor: "#F3E8FF", borderColor: "#7C3AED" },
   { status: "negotiation", label: "Negotiation", color: "#4F46E5", bgColor: "#E6E6FF", borderColor: "#4F46E5" },
@@ -110,6 +111,7 @@ export function LeadPipelineBoard({
       not_started: [],
       contacted: [],
       consultation: [],
+      consultation_completed: [],
       meeting: [],
       qualified: [],
       negotiation: [],
@@ -117,6 +119,7 @@ export function LeadPipelineBoard({
       won: [],
       lost: [],
       hold: [],
+      unreachable: [],
     };
 
     leads.forEach((lead) => {

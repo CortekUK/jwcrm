@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,12 @@ export default function DepartmentsPage() {
   const { t } = useTranslation(["hr", "toast"]);
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
   const { canPerform } = usePermissions();
+  // This page is also rendered by the admin wrapper at
+  // /admin/hr/departments. Hardcoding /hr/... sent admins into the (hr) route
+  // group, whose ProtectedRoute bounced them straight back out.
+  const basePath = pathname?.startsWith("/admin") ? "/admin/hr" : "/hr";
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [newDeptName, setNewDeptName] = useState("");
@@ -388,7 +393,7 @@ export default function DepartmentsPage() {
                 {departmentEmployees.map((employee) => (
                   <div
                     key={employee.id}
-                    onClick={() => router.push(`/hr/employees/${employee.id}`)}
+                    onClick={() => router.push(`${basePath}/employees/${employee.id}`)}
                     className="flex items-center justify-between p-3 bg-[#FAFAF8] rounded-lg border border-[#E6E6E4] hover:border-[#C6A03B] hover:bg-[#F5F5F3] transition-colors cursor-pointer group"
                   >
                     <div className="flex-1 min-w-0">

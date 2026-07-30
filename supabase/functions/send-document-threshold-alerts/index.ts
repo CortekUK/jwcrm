@@ -9,6 +9,59 @@ const corsHeaders = {
 // Default thresholds in days
 const DEFAULT_THRESHOLDS = [90, 60, 30, 14, 7];
 
+// The `send-document-threshold-alerts` cron ticks every 15 minutes (see
+// supabase/migrations/20260802000002_setup_document_threshold_alerts_cron.sql).
+// Each run is a no-op unless the wall clock in the configured timezone lands in
+// the CRON_TICK_MINUTES-wide window that opens at the configured send time, so
+// the Settings page — not the cron expression — decides when the alert goes
+// out. Same shape as the working-hours gate in send-lead-notification-digest.
+const CRON_TICK_MINUTES = 15;
+const DEFAULT_SEND_TIME = '08:00';
+const DEFAULT_TIMEZONE = 'Asia/Dubai';
+
+function parseHhMm(value: string | undefined, fallback: number): number {
+  const m = /^(\d{1,2}):(\d{2})$/.exec((value || '').trim());
+  if (!m) return fallback;
+  const hours = Number(m[1]);
+  const minutes = Number(m[2]);
+  if (hours > 23 || minutes > 59) return fallback;
+  return hours * 60 + minutes;
+}
+
+function nowMinutesInTz(timeZone: string): number {
+  let parts;
+  try {
+    parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date());
+  } catch {
+    // An unknown timezone string must not wedge the job forever — fall back to
+    // the default rather than throwing.
+    console.warn(`Unknown timezone "${timeZone}", falling back to ${DEFAULT_TIMEZONE}`);
+    parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: DEFAULT_TIMEZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date());
+  }
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
+  return (hour % 24) * 60 + minute;
+}
+
+// True on exactly one cron tick per day: the one inside
+// [send_time, send_time + 15min) in the configured timezone.
+function isWithinSendWindow(sendTime: string | undefined, timezone: string | undefined): boolean {
+  const target = parseHhMm(sendTime, parseHhMm(DEFAULT_SEND_TIME, 8 * 60));
+  const now = nowMinutesInTz(timezone || DEFAULT_TIMEZONE);
+  const delta = (now - target + 24 * 60) % (24 * 60);
+  return delta < CRON_TICK_MINUTES;
+}
+
 interface ThresholdSettings {
   enabled: boolean;
   thresholds: number[];
@@ -192,6 +245,18 @@ Deno.serve(async (req) => {
       console.log('Document threshold alerts are disabled');
       return new Response(
         JSON.stringify({ success: true, message: 'Threshold alerts disabled' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Time gate. `forceRun` is what the "Test Notification" button on the HR
+    // Settings page sends, so a manual test must never be blocked by it.
+    if (!forceRun && !isWithinSendWindow(settings.send_time, settings.timezone)) {
+      console.log(
+        `Outside configured send window (${settings.send_time || DEFAULT_SEND_TIME} ${settings.timezone || DEFAULT_TIMEZONE})`
+      );
+      return new Response(
+        JSON.stringify({ success: true, skipped: 'outside configured send window' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

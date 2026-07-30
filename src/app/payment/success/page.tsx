@@ -2,21 +2,55 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle, Loader2, Mail } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader2, Mail } from "lucide-react";
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const [isVerifying, setIsVerifying] = useState(true);
   const [showContent, setShowContent] = useState(false);
+  // null while unknown; true only once Stripe says the session is paid.
+  const [isPaid, setIsPaid] = useState<boolean | null>(null);
+
+  const sessionId = searchParams?.get("session_id") ?? null;
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsVerifying(false);
-      setTimeout(() => setShowContent(true), 100);
-    }, 2000);
+    let cancelled = false;
 
-    return () => clearTimeout(timer);
-  }, []);
+    const reveal = (paid: boolean) => {
+      if (cancelled) return;
+      setIsPaid(paid);
+      setIsVerifying(false);
+      setTimeout(() => {
+        if (!cancelled) setShowContent(true);
+      }, 100);
+    };
+
+    // No session id means we have nothing to verify against — never claim
+    // success on the strength of the URL alone.
+    if (!sessionId) {
+      reveal(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    (async () => {
+      try {
+        const response = await fetch(
+          `/api/stripe/verify-session?session_id=${encodeURIComponent(sessionId)}`
+        );
+        const payload = await response.json().catch(() => ({}));
+        reveal(response.ok && payload?.paid === true);
+      } catch (error) {
+        console.error("Error confirming payment:", error);
+        reveal(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
 
   if (isVerifying) {
     return (
@@ -25,6 +59,38 @@ function PaymentSuccessContent() {
           <div className="w-16 h-16 mx-auto rounded-full border-4 border-[#0C5536]/20 border-t-[#0C5536] animate-spin" />
         </div>
         <p className="text-gray-500 mt-6 animate-pulse">Confirming payment...</p>
+      </div>
+    );
+  }
+
+  if (!isPaid) {
+    return (
+      <div className={`text-center transition-all duration-700 ${showContent ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="relative mb-8">
+          <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-200">
+            <AlertCircle className="h-10 w-10 text-white" strokeWidth={2.5} />
+          </div>
+        </div>
+
+        <h1 className="text-3xl font-bold text-gray-900 mb-3">
+          We couldn&apos;t confirm this payment
+        </h1>
+
+        <p className="text-gray-500 text-lg mb-10">
+          {sessionId
+            ? "Stripe has not confirmed this checkout session as paid. If you were charged, it may still be processing."
+            : "This page was opened without a checkout reference, so there is nothing to confirm."}
+        </p>
+
+        <div className="inline-flex items-center gap-3 bg-amber-500/5 rounded-full px-6 py-3">
+          <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+            <Mail className="h-5 w-5 text-amber-700" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-medium text-gray-900">Need a hand?</p>
+            <p className="text-xs text-gray-500">Contact support before paying again</p>
+          </div>
+        </div>
       </div>
     );
   }

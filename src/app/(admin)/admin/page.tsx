@@ -148,8 +148,31 @@ function AdminDashboard() {
           documentsCounts[doc.user_id] = (documentsCounts[doc.user_id] || 0) + 1;
         });
 
+        // The deactivation flag lives in auth user_metadata.is_active, which no
+        // `profiles` query can reach — hence the dedicated admin route. If it
+        // fails we leave the state unknown rather than claiming everyone is
+        // active, which is what the hardcoded badge used to do.
+        let activationStates: Record<string, boolean> | null = null;
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            const statusResponse = await fetch('/api/admin/user-status', {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            if (statusResponse.ok) {
+              const payload = await statusResponse.json();
+              activationStates = payload.data || {};
+            } else {
+              console.error('Failed to fetch user activation states:', statusResponse.status);
+            }
+          }
+        } catch (statusError) {
+          console.error('Failed to fetch user activation states:', statusError);
+        }
+
         const enrichedUsers = usersWithDetails.map(user => ({
           ...user,
+          is_active: activationStates ? activationStates[user.user_id] ?? true : null,
           willsCount: willCounts[user.user_id] || 0,
           reviewsCount: reviewsCounts[user.user_id] || 0,
           approvedCount: approvedCounts[user.user_id] || 0,
@@ -270,7 +293,27 @@ function AdminDashboard() {
       .slice(0, 2);
   };
 
-  const getStatusBadge = () => {
+  const getStatusBadge = (isActive: boolean | null | undefined) => {
+    if (isActive === null || isActive === undefined) {
+      return (
+        <Badge
+          className="bg-[rgba(0,0,0,0.04)] text-[#777777] border border-[#E6E6E4] rounded-md font-medium hover:bg-[rgba(0,0,0,0.06)] transition-colors"
+        >
+          {t('admin:unknown', 'Unknown')}
+        </Badge>
+      );
+    }
+
+    if (!isActive) {
+      return (
+        <Badge
+          className="bg-[rgba(192,57,43,0.08)] text-[#C0392B] border border-[#C0392B] rounded-md font-medium hover:bg-[rgba(192,57,43,0.12)] transition-colors"
+        >
+          {t('admin:deactivated', 'Deactivated')}
+        </Badge>
+      );
+    }
+
     return (
       <Badge
         className="bg-[rgba(12,85,54,0.08)] text-[#0C5536] border border-[#C6A03B] rounded-md font-medium hover:bg-[rgba(12,85,54,0.12)] transition-colors"
@@ -536,7 +579,7 @@ function AdminDashboard() {
                           </div>
                         </TableCell>
                         <TableCell style={{ borderRight: '1px solid #EAEAE8' }}>
-                          {getStatusBadge()}
+                          {getStatusBadge((user as { is_active?: boolean | null }).is_active)}
                         </TableCell>
                         <TableCell style={{ borderRight: '1px solid #EAEAE8' }}>
                           {(user.reviewsCount || 0) > 0 || (user.approvedCount || 0) > 0 ? (

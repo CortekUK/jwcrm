@@ -107,6 +107,18 @@ function toSlug(name: string): string {
     .replace(/^_|_$/g, "");
 }
 
+/**
+ * Keep `balance_field_prefix` in sync with the slug.
+ *
+ * Balances are now stored per leave type slug in `employee_leave_balances`, so
+ * this column is no longer used to build a column name. It is still maintained
+ * because the legacy `leave_balances` columns (annual_*, sick_*) remain as a
+ * fallback and other tooling reads the prefix.
+ */
+function toBalancePrefix(slug: string): string {
+  return slug.replace(/-/g, "_");
+}
+
 /** Find the matching COLOR_PRESETS index for a given color_class, defaulting to 0. */
 function findColorPresetIndex(colorClass: string): number {
   const idx = COLOR_PRESETS.findIndex((p) => p.color_class === colorClass);
@@ -211,7 +223,10 @@ export function LeaveTypesSettings() {
 
     try {
       if (editingType) {
-        // Update existing
+        // Update existing.
+        // balance_field_prefix MUST be written here too: without it, turning
+        // "Tracks Balance" on for a type created with it off left the prefix
+        // NULL, so the badge said "Yes" while nothing was ever deducted.
         const { error } = await supabase
           .from("leave_types")
           .update({
@@ -220,6 +235,9 @@ export function LeaveTypesSettings() {
             color_class: preset.color_class,
             bg_color_class: preset.bg_color_class,
             tracks_balance: form.tracks_balance,
+            balance_field_prefix: form.tracks_balance
+              ? toBalancePrefix(editingType.slug)
+              : null,
             updated_at: new Date().toISOString(),
           })
           .eq("id", editingType.id);
@@ -238,7 +256,7 @@ export function LeaveTypesSettings() {
         );
 
         const balancePrefix = form.tracks_balance
-          ? form.slug.replace(/-/g, "_")
+          ? toBalancePrefix(form.slug)
           : null;
 
         const { error } = await supabase.from("leave_types").insert({
@@ -725,6 +743,14 @@ export function LeaveTypesSettings() {
                 }
               />
             </div>
+            {form.tracks_balance && (
+              <p className="text-xs text-[#6B6B6B] -mt-3">
+                {t(
+                  "hr:tracksBalanceEntitlementHint",
+                  "Set each employee's entitlement for this type under Leave → Balances → Edit.",
+                )}
+              </p>
+            )}
           </div>
 
           <DialogFooter>

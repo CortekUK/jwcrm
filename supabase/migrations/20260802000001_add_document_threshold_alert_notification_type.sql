@@ -1,0 +1,38 @@
+-- Migration: Add `document_threshold_alert` to the notification_type enum.
+--
+-- WHY THIS EXISTS
+-- ---------------
+-- `supabase/functions/send-document-threshold-alerts/index.ts` has always
+-- written `notification_type: 'document_threshold_alert'` into
+-- `email_notification_logs`, but that value was never added to the enum, so
+-- every insert was rejected by Postgres. The intended fix,
+-- `20260127000002_add_document_threshold_alerts.sql`, is a no-op: its DO block
+-- ends in `NULL;` under the comment "No constraint modification needed as it's
+-- a TEXT column" — a wrong premise. `email_notification_logs.notification_type`
+-- is of enum type `notification_type` (see
+-- 20260104000002_create_email_notification_logs_table.sql), not TEXT.
+--
+-- Consequences of the missing value, all fixed by this migration:
+--   * the "Threshold Alert History" card in
+--     src/components/hr/settings/NotificationSettings.tsx was permanently empty
+--     (its `.eq("notification_type", "document_threshold_alert")` filter errors
+--     out against an enum that lacks the value),
+--   * the "Threshold Alert" option in
+--     src/components/hr/settings/EmailLogsTable.tsx never matched a row.
+--
+-- !!! APPLY THIS MIGRATION STANDALONE — DO NOT WRAP IT IN A TRANSACTION !!!
+-- ------------------------------------------------------------------------
+-- `ALTER TYPE ... ADD VALUE` cannot be executed inside a transaction block, and
+-- a value added in a transaction cannot be referenced until that transaction
+-- commits. This project has hit exactly that failure before, which is why this
+-- file deliberately contains ONE bare statement and nothing else: no DO block
+-- (a DO block is itself a transaction), no inserts, no follow-up DDL that would
+-- reference the new value. Anything that needs to USE
+-- 'document_threshold_alert' must live in a later migration, i.e. a later
+-- transaction. Run it on its own, e.g.:
+--
+--   psql "$DATABASE_URL" -f 20260802000001_add_document_threshold_alert_notification_type.sql
+--
+-- `IF NOT EXISTS` makes it safe to re-run.
+
+ALTER TYPE notification_type ADD VALUE IF NOT EXISTS 'document_threshold_alert';

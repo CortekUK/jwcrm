@@ -23,13 +23,24 @@ import {
   XCircle,
   Clock,
   FileText,
+  // Used by the Annual Leave and Sick Leave balance cards below. Their absence
+  // threw a ReferenceError at render, so this page never painted — and
+  // next.config.ts sets typescript.ignoreBuildErrors, so the build shipped it.
+  Plane,
+  Thermometer,
 } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
 import { useLeaveTypes } from "@/hooks/useLeaveTypes";
+import { openLeaveCertificate } from "@/lib/hr/leaveAttachmentClient";
 import { getLeaveTypeIcon } from "@/lib/leave-type-icons";
+import {
+  fetchEmployeeLeaveBalances,
+  balanceFor,
+  type LeaveBalanceMap,
+} from "@/lib/hr/leaveBalances";
 
 type LeaveRequestStatus = Database["public"]["Enums"]["leave_request_status"];
 
@@ -91,6 +102,8 @@ export default function EmployeeLeaveHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [balance, setBalance] = useState<LeaveBalance | null>(null);
+  /** Every leave type balance for the selected year, keyed by slug. */
+  const [balancesBySlug, setBalancesBySlug] = useState<LeaveBalanceMap>({});
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [attendanceLeaves, setAttendanceLeaves] = useState<AttendanceLeave[]>([]);
 
@@ -127,32 +140,25 @@ export default function EmployeeLeaveHistoryPage() {
         });
       }
 
-      // Fetch leave balance for selected year
-      const { data: balanceData } = await supabase
-        .from("leave_balances")
-        .select("*")
-        .eq("employee_id", employeeId)
-        .eq("year", selectedYear)
-        .single();
+      // Fetch leave balances for the selected year via the shared helper. It
+      // reads the per-leave-type table and falls back to the legacy
+      // annual_*/sick_* columns when that table is not present.
+      const { balances: balanceMap } = await fetchEmployeeLeaveBalances(
+        employeeId,
+        selectedYear,
+      );
 
-      if (balanceData) {
-        setBalance({
-          annual_entitled: balanceData.annual_entitled || 30,
-          annual_used: balanceData.annual_used || 0,
-          annual_pending: balanceData.annual_pending || 0,
-          sick_entitled: balanceData.sick_entitled || 90,
-          sick_used: balanceData.sick_used || 0,
-        });
-      } else {
-        // Default balance
-        setBalance({
-          annual_entitled: 30,
-          annual_used: 0,
-          annual_pending: 0,
-          sick_entitled: 90,
-          sick_used: 0,
-        });
-      }
+      setBalancesBySlug(balanceMap);
+
+      const annual = balanceFor(balanceMap, "annual");
+      const sick = balanceFor(balanceMap, "sick");
+      setBalance({
+        annual_entitled: annual.entitled,
+        annual_used: annual.used,
+        annual_pending: annual.pending,
+        sick_entitled: sick.entitled,
+        sick_used: sick.used,
+      });
 
       // Fetch leave requests
       const { data: requestsData } = await supabase
@@ -303,6 +309,13 @@ export default function EmployeeLeaveHistoryPage() {
     ? Math.round((balance.sick_used / balance.sick_entitled) * 100)
     : 0;
 
+  // Balance cards for any OTHER leave type that tracks a balance. Before the
+  // employee_leave_balances table existed these could not be stored at all, so
+  // there was nothing to show.
+  const customTrackedBalances = leaveTypesList
+    .filter((lt) => lt.tracks_balance && lt.slug !== "annual" && lt.slug !== "sick")
+    .map((lt) => ({ leaveType: lt, bal: balanceFor(balancesBySlug, lt.slug) }));
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -417,6 +430,54 @@ export default function EmployeeLeaveHistoryPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Custom balance-tracking leave types */}
+        {customTrackedBalances.map(({ leaveType, bal }) => {
+          const TypeIcon = getLeaveTypeIcon(leaveType.icon_name);
+          const remaining = bal.entitled - bal.used - bal.pending;
+          const usedPercent = bal.entitled
+            ? Math.round((bal.used / bal.entitled) * 100)
+            : 0;
+
+          return (
+            <Card key={leaveType.slug} className="border-[#E6E6E4]">
+              <CardHeader className="pb-2">
+                <CardTitle
+                  className="text-xl font-semibold text-[#0C5536] flex items-center gap-2"
+                  style={{ fontFamily: "Playfair Display, serif" }}
+                >
+                  <TypeIcon className={`h-5 w-5 ${leaveType.color_class}`} />
+                  {leaveType.name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Entitled</span>
+                  <span className="font-medium">{bal.entitled} days</span>
+                </div>
+                <Progress value={usedPercent} className="h-2" />
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">{bal.used}</p>
+                    <p className="text-xs text-gray-500">Used</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-yellow-600">{bal.pending}</p>
+                    <p className="text-xs text-gray-500">Pending</p>
+                  </div>
+                  <div>
+                    <p
+                      className={`text-2xl font-bold ${remaining <= 5 ? "text-red-600" : "text-blue-600"}`}
+                    >
+                      {remaining}
+                    </p>
+                    <p className="text-xs text-gray-500">Remaining</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Leave History */}
@@ -531,11 +592,15 @@ export default function EmployeeLeaveHistoryPage() {
                               variant="link"
                               size="sm"
                               className="text-xs text-blue-600 p-0 h-auto mt-1"
-                              onClick={() => {
-                                toast({
-                                  title: "Attachment",
-                                  description: "Opening medical certificate...",
-                                });
+                              onClick={async () => {
+                                const problem = await openLeaveCertificate(request.id);
+                                if (problem) {
+                                  toast({
+                                    title: "Could not open certificate",
+                                    description: problem,
+                                    variant: "destructive",
+                                  });
+                                }
                               }}
                             >
                               <FileText className="h-3 w-3 mr-1" />

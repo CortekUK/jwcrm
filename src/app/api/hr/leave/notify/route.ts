@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
+import {
+  insertEmailNotificationLog,
+  testModeRedirectMetadata,
+} from '@/lib/hr/email-notification-log';
 
 interface LeaveNotificationRequest {
   employeeName: string;
@@ -192,9 +196,12 @@ export async function POST(request: NextRequest) {
 
     // Log to email_notification_logs table
     try {
-      await supabase.from('email_notification_logs').insert({
+      await insertEmailNotificationLog(supabase, {
         notification_type: status === 'approved' ? 'leave_approval' : 'leave_denial',
-        recipient_email: employeeEmail,
+        // Record where the email ACTUALLY went. This used to log the employee's
+        // address even though test mode always delivers to the admin, so the
+        // audit trail claimed a delivery that never happened.
+        recipient_email: adminEmail,
         subject: `Leave Request ${statusText} - ${leaveTypeDisplay}`,
         documents_included: [{
           employee_name: employeeName,
@@ -203,6 +210,7 @@ export async function POST(request: NextRequest) {
           end_date: endDate,
           total_days: totalDays,
         }],
+        metadata: testModeRedirectMetadata(employeeEmail, adminEmail),
         status: 'sent',
         resend_email_id: emailResult.data?.id,
         sent_at: new Date().toISOString(),

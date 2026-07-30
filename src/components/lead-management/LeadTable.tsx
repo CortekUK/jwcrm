@@ -261,6 +261,9 @@ export function LeadTable({
 
   const filterStatusOptions = [
     { value: "all", label: t("allStatuses") },
+    // Pseudo-status used by the dashboard's "Active Pipeline" links
+    // (everything that is neither won nor lost).
+    { value: "active", label: t("activePipeline", "Active Pipeline") },
     ...statusOptions,
   ];
 

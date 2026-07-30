@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,8 @@ import {
   ArrowUp,
   ArrowDown,
   Download,
+  FileText,
+  Paperclip,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -51,6 +53,31 @@ import { Database } from "@/integrations/supabase/types";
 import { ExportLeaveModal } from "@/components/hr/leave/ExportLeaveModal";
 import { useLeaveTypes } from "@/hooks/useLeaveTypes";
 import { getLeaveTypeIcon } from "@/lib/leave-type-icons";
+import {
+  openLeaveCertificate,
+  uploadLeaveCertificate,
+} from "@/lib/hr/leaveAttachmentClient";
+import {
+  LEAVE_ATTACHMENT_ACCEPT,
+  validateLeaveAttachment,
+} from "@/lib/hr/leaveAttachments";
+import {
+  applyLeaveBalanceChange,
+  fetchEmployeeLeaveBalances,
+} from "@/lib/hr/leaveBalances";
+import {
+  APPROVER_ROLE_LABELS,
+  ApprovalActorContext,
+  ApproverRole,
+  EMPTY_ACTOR_CONTEXT,
+  LeaveApprovalRule,
+  authorizeStep,
+  buildApprovalActorContext,
+  chainForRule,
+  fetchActiveApprovalRules,
+  initializeApprovalWorkflow,
+  recordApprovalDecision,
+} from "@/lib/hr/leaveApproval";
 
 type LeaveRequestStatus = Database["public"]["Enums"]["leave_request_status"];
 
@@ -66,6 +93,13 @@ interface LeaveRequest {
   status: LeaveRequestStatus;
   created_at: string;
   leave_balance?: number;
+  // Multi-step approval. NULL rule id = created before multi-step approval
+  // existed, so it is treated as a single step and behaves exactly as before.
+  approval_rule_id: string | null;
+  current_approval_step: number;
+  total_approval_steps: number;
+  /** Storage path of the medical/leave certificate, if one was attached. */
+  attachment_path: string | null;
 }
 
 interface Employee {
@@ -205,6 +239,17 @@ export default function LeavePage() {
   // Export modal
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
+  // Leave certificates. One hidden file input is shared by every row; the row
+  // that opened it is remembered in certificateTargetId.
+  const certificateInputRef = useRef<HTMLInputElement>(null);
+  const [certificateTargetId, setCertificateTargetId] = useState<string | null>(null);
+  const [uploadingCertificateId, setUploadingCertificateId] = useState<string | null>(null);
+
+  // Multi-step approval: the active rules and everything needed to decide
+  // whether the signed-in user may act at a request's current step.
+  const [approvalRules, setApprovalRules] = useState<LeaveApprovalRule[]>([]);
+  const [actorContext, setActorContext] = useState<ApprovalActorContext>(EMPTY_ACTOR_CONTEXT);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -228,9 +273,21 @@ export default function LeavePage() {
         reason: req.reason,
         status: req.status,
         created_at: req.created_at,
+        approval_rule_id: req.approval_rule_id ?? null,
+        current_approval_step: req.current_approval_step || 1,
+        total_approval_steps: req.total_approval_steps || 1,
+        attachment_path: req.attachment_path ?? null,
       }));
 
       setRequests(formattedRequests);
+
+      // Approval chain configuration + who the current user may act as.
+      const [rules, ctx] = await Promise.all([
+        fetchActiveApprovalRules(),
+        buildApprovalActorContext(),
+      ]);
+      setApprovalRules(rules);
+      setActorContext(ctx);
 
       // Fetch employees for new request form
       const { data: employeesData } = await supabase
@@ -306,6 +363,42 @@ export default function LeavePage() {
   // Get pending count for badge
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
+  // Which approver role is a request waiting on, and may the signed-in user act
+  // at that step (in their own right, or as somebody's active delegate)?
+  // Requests with no persisted rule predate multi-step approval and stay
+  // single-step, so nothing already in flight changes behaviour.
+  const getApprovalInfo = (request: LeaveRequest) => {
+    const rule = request.approval_rule_id
+      ? approvalRules.find((r) => r.id === request.approval_rule_id) ?? null
+      : null;
+    const chain = request.approval_rule_id ? chainForRule(rule) : [];
+    const effectiveChain: ApproverRole[] = chain.length > 0 ? chain : ["hr"];
+    const totalSteps = request.approval_rule_id
+      ? Math.max(1, request.total_approval_steps || effectiveChain.length)
+      : 1;
+    const currentStep = Math.min(Math.max(1, request.current_approval_step), totalSteps);
+    const currentRole: ApproverRole = effectiveChain[currentStep - 1] ?? "hr";
+
+    const auth = authorizeStep(actorContext, {
+      role: currentRole,
+      employeeId: request.employee_id,
+      leaveType: request.leave_type,
+      totalDays: request.total_days,
+    });
+
+    const roleLabel = t(`leavePage.approver_${currentRole}`, APPROVER_ROLE_LABELS[currentRole]);
+    const label =
+      totalSteps > 1
+        ? t("leavePage.awaitingStep", "Awaiting {{role}} — step {{step}} of {{total}}", {
+            role: roleLabel,
+            step: currentStep,
+            total: totalSteps,
+          })
+        : t("leavePage.awaitingRole", "Awaiting {{role}}", { role: roleLabel });
+
+    return { currentRole, currentStep, totalSteps, auth, label, chain: effectiveChain };
+  };
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -347,56 +440,83 @@ export default function LeavePage() {
     }));
   };
 
-  // Execute the actual approval (called after conflict check)
+  // Execute the actual approval (called after conflict check).
+  //
+  // Multi-step: this records the caller's sign-off at the request's CURRENT
+  // step. Everything below the `isFinal` guard — the balance deduction, the
+  // attendance marking and the "approved" email — runs ONLY when that sign-off
+  // was the last one required. An intermediate approval just advances the chain
+  // and leaves the request pending.
   const executeApproval = async (request: LeaveRequest) => {
     try {
       const { data: userData } = await supabase.auth.getUser();
 
-      // Update request status
-      const { error: updateError } = await supabase
-        .from("leave_requests")
-        .update({
-          status: "approved",
-          approved_by: userData.user?.id,
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", request.id);
+      const decision = await recordApprovalDecision({
+        request,
+        action: "approved",
+        preloadedRules: approvalRules,
+      });
 
-      if (updateError) throw updateError;
+      if (decision.error) {
+        toast({
+          title: t("common.error"),
+          description: decision.error.message,
+          variant: "destructive",
+        });
+        fetchData();
+        return;
+      }
 
-      // Update leave balance
+      if (!decision.isFinal) {
+        const nextRole = decision.state?.chain[decision.nextStep - 1] ?? "hr";
+        const nextLabel = t(`leavePage.approver_${nextRole}`, APPROVER_ROLE_LABELS[nextRole]);
+        toast({
+          title: t("leavePage.stepApproved", "Approval recorded"),
+          description: t(
+            "leavePage.stepApprovedDesc",
+            "Sent to {{role}} for step {{step}} of {{total}}.",
+            {
+              role: nextLabel,
+              step: decision.nextStep,
+              total: decision.state?.totalSteps ?? request.total_approval_steps,
+            },
+          ),
+        });
+        fetchData();
+        return;
+      }
+
+      // ---- Final approval only, from here down ----
+
+      // Update leave balance.
+      // Keyed by leave type SLUG via employee_leave_balances, so any leave type
+      // can track a balance — not just the ones with hard-coded columns. The
+      // helper dual-writes the legacy annual_*/sick_* columns.
       const year = new Date().getFullYear();
       const ltConfig = getBySlug(request.leave_type);
-      const balanceField = ltConfig?.tracks_balance && ltConfig?.balance_field_prefix
-        ? `${ltConfig.balance_field_prefix}_used` : null;
 
-      if (balanceField) {
-        // Get or create leave balance
-        const { data: balanceData } = await supabase
-          .from("leave_balances")
-          .select("*")
-          .eq("employee_id", request.employee_id)
-          .eq("year", year)
-          .single();
+      if (ltConfig?.tracks_balance) {
+        const { error: balanceError } = await applyLeaveBalanceChange({
+          employeeId: request.employee_id,
+          year,
+          slug: request.leave_type,
+          usedDelta: request.total_days,
+          // Release the reservation this request was holding.
+          pendingDelta: -request.total_days,
+        });
 
-        if (balanceData) {
-          // Update existing balance
-          await supabase
-            .from("leave_balances")
-            .update({
-              [balanceField]: (balanceData[balanceField] || 0) + request.total_days,
-              annual_pending:
-                request.leave_type === "annual"
-                  ? Math.max(0, (balanceData.annual_pending || 0) - request.total_days)
-                  : balanceData.annual_pending,
-            })
-            .eq("id", balanceData.id);
-        } else {
-          // Create new balance
-          await supabase.from("leave_balances").insert({
-            employee_id: request.employee_id,
-            year,
-            [balanceField]: request.total_days,
+        // Previously this failure was swallowed entirely. It is not a reason to
+        // un-approve the request, but HR must be told the balance is stale.
+        if (balanceError) {
+          console.error("Error updating leave balance:", balanceError);
+          toast({
+            title: t("common.error"),
+            description: t(
+              "leavePage.balanceUpdateFailed",
+              "Leave approved, but the balance could not be updated: {{message}}",
+              { message: balanceError.message },
+            ),
+            variant: "destructive",
           });
         }
       }
@@ -440,16 +560,18 @@ export default function LeavePage() {
         .eq("id", userData.user?.id || "")
         .single();
 
-      // Calculate remaining balance
-      const { data: updatedBalance } = await supabase
-        .from("leave_balances")
-        .select("annual_entitled, annual_used, annual_pending")
-        .eq("employee_id", request.employee_id)
-        .eq("year", year)
-        .single();
+      // Calculate remaining balance.
+      // Note: this has always reported ANNUAL remaining regardless of the leave
+      // type being approved. Left as-is deliberately so approval emails do not
+      // change; only the data source moved to the shared helper.
+      const { balances: updatedBalances } = await fetchEmployeeLeaveBalances(
+        request.employee_id,
+        year,
+      );
+      const updatedAnnual = updatedBalances.annual;
 
-      const remaining = updatedBalance
-        ? updatedBalance.annual_entitled - updatedBalance.annual_used - updatedBalance.annual_pending
+      const remaining = updatedAnnual
+        ? updatedAnnual.entitled - updatedAnnual.used - updatedAnnual.pending
         : undefined;
 
       sendLeaveNotification({
@@ -470,6 +592,66 @@ export default function LeavePage() {
       toast({
         title: t("common.error"),
         description: t("leavePage.failedToApprove"),
+        variant: "destructive",
+      });
+    }
+  };
+
+  // --- Leave certificates -------------------------------------------------
+  // Attaching goes through /api/hr/leave/attachment (service role + HR check);
+  // the private bucket is never touched from the browser.
+
+  const handlePickCertificate = (requestId: string) => {
+    setCertificateTargetId(requestId);
+    certificateInputRef.current?.click();
+  };
+
+  const handleCertificateSelected = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    const requestId = certificateTargetId;
+    // Reset so re-picking the same file still fires onChange.
+    event.target.value = "";
+    setCertificateTargetId(null);
+    if (!file || !requestId) return;
+
+    const problem = validateLeaveAttachment(file);
+    if (problem) {
+      toast({
+        title: t("common.error"),
+        description: problem,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingCertificateId(requestId);
+    const failure = await uploadLeaveCertificate(requestId, file);
+    setUploadingCertificateId(null);
+
+    if (failure) {
+      toast({
+        title: t("common.error"),
+        description: failure,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: t("common.success", "Success"),
+      description: t("leavePage.certificateAttached", "Certificate attached."),
+    });
+    fetchData();
+  };
+
+  const handleViewCertificate = async (requestId: string) => {
+    const failure = await openLeaveCertificate(requestId);
+    if (failure) {
+      toast({
+        title: t("common.error"),
+        description: failure,
         variant: "destructive",
       });
     }
@@ -522,35 +704,48 @@ export default function LeavePage() {
     try {
       const { data: userData } = await supabase.auth.getUser();
 
-      const { error } = await supabase
-        .from("leave_requests")
-        .update({
-          status: "denied",
-          denial_reason: denialReason,
-          approved_by: userData.user?.id,
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", selectedRequest.id);
+      // A denial at ANY step denies the whole request immediately — the engine
+      // still verifies the caller may act at the current step, and records the
+      // denial (with its reason) on the audit trail.
+      const decision = await recordApprovalDecision({
+        request: selectedRequest,
+        action: "denied",
+        comment: denialReason,
+        preloadedRules: approvalRules,
+      });
 
-      if (error) throw error;
+      if (decision.error) {
+        toast({
+          title: t("common.error"),
+          description: decision.error.message,
+          variant: "destructive",
+        });
+        fetchData();
+        return;
+      }
 
-      // Reduce pending balance if it was annual leave
-      if (selectedRequest.leave_type === "annual") {
-        const year = new Date().getFullYear();
-        const { data: balanceData } = await supabase
-          .from("leave_balances")
-          .select("*")
-          .eq("employee_id", selectedRequest.employee_id)
-          .eq("year", year)
-          .single();
+      // Release the pending reservation for any balance-tracking leave type.
+      // (Previously annual-only, because annual_pending was the only column.)
+      const denyConfig = getBySlug(selectedRequest.leave_type);
+      if (denyConfig?.tracks_balance) {
+        const { error: balanceError } = await applyLeaveBalanceChange({
+          employeeId: selectedRequest.employee_id,
+          year: new Date().getFullYear(),
+          slug: selectedRequest.leave_type,
+          pendingDelta: -selectedRequest.total_days,
+        });
 
-        if (balanceData) {
-          await supabase
-            .from("leave_balances")
-            .update({
-              annual_pending: Math.max(0, (balanceData.annual_pending || 0) - selectedRequest.total_days),
-            })
-            .eq("id", balanceData.id);
+        if (balanceError) {
+          console.error("Error releasing pending leave balance:", balanceError);
+          toast({
+            title: t("common.error"),
+            description: t(
+              "leavePage.balanceUpdateFailed",
+              "Leave denied, but the balance could not be updated: {{message}}",
+              { message: balanceError.message },
+            ),
+            variant: "destructive",
+          });
         }
       }
 
@@ -620,40 +815,59 @@ export default function LeavePage() {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("leave_requests").insert({
-        employee_id: selectedEmployee,
-        leave_type: leaveType,
-        start_date: startDate,
-        end_date: endDate,
-        total_days: workingDays,
-        reason: reason || null,
-        status: "pending",
-      });
+      const { data: created, error } = await supabase
+        .from("leave_requests")
+        .insert({
+          employee_id: selectedEmployee,
+          leave_type: leaveType,
+          start_date: startDate,
+          end_date: endDate,
+          total_days: workingDays,
+          reason: reason || null,
+          status: "pending",
+        })
+        .select("id")
+        .single();
 
       if (error) throw error;
 
-      // Update pending balance for annual leave
-      if (leaveType === "annual") {
-        const year = new Date().getFullYear();
-        const { data: balanceData } = await supabase
-          .from("leave_balances")
-          .select("*")
-          .eq("employee_id", selectedEmployee)
-          .eq("year", year)
-          .single();
+      // Resolve and persist the approval chain for this request. Until the
+      // set_leave_approval_plan trigger (migration 20260731000006) is applied,
+      // this is what writes approval_rule_id / total_approval_steps; once it is,
+      // this becomes a no-op because the plan is already there.
+      if (created?.id) {
+        const { error: planError } = await initializeApprovalWorkflow(
+          created.id,
+          leaveType,
+          workingDays,
+          approvalRules,
+        );
+        if (planError) {
+          console.error("Error resolving approval chain:", planError);
+        }
+      }
 
-        if (balanceData) {
-          await supabase
-            .from("leave_balances")
-            .update({
-              annual_pending: (balanceData.annual_pending || 0) + workingDays,
-            })
-            .eq("id", balanceData.id);
-        } else {
-          await supabase.from("leave_balances").insert({
-            employee_id: selectedEmployee,
-            year,
-            annual_pending: workingDays,
+      // Reserve the days as pending for any balance-tracking leave type.
+      // (Previously annual-only, because annual_pending was the only column.)
+      const submitConfig = getBySlug(leaveType);
+      if (submitConfig?.tracks_balance) {
+        const { error: balanceError } = await applyLeaveBalanceChange({
+          employeeId: selectedEmployee,
+          year: new Date().getFullYear(),
+          slug: leaveType,
+          pendingDelta: workingDays,
+        });
+
+        if (balanceError) {
+          console.error("Error reserving pending leave balance:", balanceError);
+          toast({
+            title: t("common.error"),
+            description: t(
+              "leavePage.balanceUpdateFailed",
+              "Request created, but the balance could not be updated: {{message}}",
+              { message: balanceError.message },
+            ),
+            variant: "destructive",
           });
         }
       }
@@ -922,6 +1136,7 @@ export default function LeavePage() {
                 const config = getConfig(request.leave_type);
                 const Icon = config.icon;
                 const daysAgo = differenceInDays(new Date(), new Date(request.created_at));
+                const approval = request.status === "pending" ? getApprovalInfo(request) : null;
 
                 return (
                   <div
@@ -960,6 +1175,17 @@ export default function LeavePage() {
                               {t("leavePage.statusPending", "Pending")}
                             </Badge>
                           )}
+                          {/* Which approver the request is waiting on */}
+                          {approval && (
+                            <Badge variant="outline" className="text-[#555555] border-[#E6E6E4]">
+                              {approval.label}
+                            </Badge>
+                          )}
+                          {approval?.auth.delegateFor && (
+                            <Badge variant="outline" className="text-[#555555] border-[#E6E6E4]">
+                              {t("leavePage.actingAsDelegate", "Acting as delegate")}
+                            </Badge>
+                          )}
                         </div>
                         <div className="text-sm text-[#6B6B6B] space-y-1 ltr:ml-11 rtl:mr-11">
                           <div>
@@ -978,13 +1204,48 @@ export default function LeavePage() {
                           <p className="text-xs text-[#999999]">
                             {daysAgo === 0 ? t("leavePage.submittedToday") : daysAgo === 1 ? t("leavePage.submittedYesterday") : t("leavePage.submittedDaysAgo", { days: daysAgo })}
                           </p>
+                          {/* Leave certificate: open the attached one, or attach
+                              a certificate that was handed in on paper. */}
+                          <div className="flex items-center gap-3 pt-0.5">
+                            {request.attachment_path && (
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="h-auto p-0 text-xs text-[#0C5536]"
+                                onClick={() => handleViewCertificate(request.id)}
+                              >
+                                <FileText className="h-3 w-3 ltr:mr-1 rtl:ml-1" />
+                                {t("leavePage.viewCertificate", "View Certificate")}
+                              </Button>
+                            )}
+                            <Button
+                              variant="link"
+                              size="sm"
+                              disabled={uploadingCertificateId === request.id}
+                              className="h-auto p-0 text-xs text-[#555555]"
+                              onClick={() => handlePickCertificate(request.id)}
+                            >
+                              {uploadingCertificateId === request.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin ltr:mr-1 rtl:ml-1" />
+                              ) : (
+                                <Paperclip className="h-3 w-3 ltr:mr-1 rtl:ml-1" />
+                              )}
+                              {request.attachment_path
+                                ? t("leavePage.replaceCertificate", "Replace Certificate")
+                                : t("leavePage.attachCertificate", "Attach Certificate")}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                       {request.status === "pending" && (
-                        <div className="flex items-center gap-2 ltr:ml-11 rtl:mr-11 md:ml-0 md:mr-0">
+                        <div
+                          className="flex items-center gap-2 ltr:ml-11 rtl:mr-11 md:ml-0 md:mr-0"
+                          title={approval && !approval.auth.allowed ? approval.auth.reason : undefined}
+                        >
                           <Button
                             variant="outline"
                             size="sm"
+                            disabled={!approval?.auth.allowed}
                             className="text-[#C0392B] border-[#C0392B]/30 hover:bg-[#C0392B]/10"
                             onClick={() => {
                               setSelectedRequest(request);
@@ -996,6 +1257,7 @@ export default function LeavePage() {
                           </Button>
                           <Button
                             size="sm"
+                            disabled={!approval?.auth.allowed}
                             className="bg-[#0C5536] hover:bg-[#094228] text-white"
                             onClick={() => handleApprove(request)}
                           >
@@ -1012,6 +1274,15 @@ export default function LeavePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Shared hidden picker for leave certificates */}
+      <input
+        ref={certificateInputRef}
+        type="file"
+        accept={LEAVE_ATTACHMENT_ACCEPT}
+        className="hidden"
+        onChange={handleCertificateSelected}
+      />
 
       {/* New Request Dialog */}
       <Dialog open={newRequestOpen} onOpenChange={setNewRequestOpen}>

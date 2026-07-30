@@ -22,6 +22,14 @@ import { getLeaveTypeIcon } from "@/lib/leave-type-icons";
 import { format, differenceInDays, differenceInHours } from "date-fns";
 import { usePathname, useRouter } from "next/navigation";
 
+import {
+  APPROVER_ROLE_LABELS,
+  ApproverRole,
+  LeaveApprovalRule,
+  chainForRule,
+  matchApprovalRule,
+} from "@/lib/hr/leaveApproval";
+
 interface PendingRequest {
   id: string;
   employee_id: string;
@@ -32,21 +40,13 @@ interface PendingRequest {
   total_days: number;
   reason: string | null;
   created_at: string;
+  approval_rule_id: string | null;
   current_approval_step: number;
   total_approval_steps: number;
   escalation_count: number;
 }
 
-interface ApprovalRule {
-  id: string;
-  leave_type: string | null;
-  min_days: number;
-  max_days: number | null;
-  escalation_days: number;
-  requires_manager_approval: boolean;
-  requires_hr_approval: boolean;
-  requires_director_approval: boolean;
-}
+type ApprovalRule = LeaveApprovalRule;
 
 export function PendingApprovalsWidget() {
   const { t } = useTranslation(["hr", "common"]);
@@ -88,6 +88,7 @@ export function PendingApprovalsWidget() {
         total_days: req.total_days,
         reason: req.reason,
         created_at: req.created_at,
+        approval_rule_id: req.approval_rule_id ?? null,
         current_approval_step: req.current_approval_step || 1,
         total_approval_steps: req.total_approval_steps || 1,
         escalation_count: req.escalation_count || 0,
@@ -102,7 +103,10 @@ export function PendingApprovalsWidget() {
         .eq("is_active", true)
         .order("priority", { ascending: true });
 
-      setRules(rulesData || []);
+      // `leave_approval_rules` is absent from the generated Supabase types
+      // (src/integrations/supabase/types.ts predates it), so the row shape has
+      // to be asserted here.
+      setRules((rulesData || []) as unknown as ApprovalRule[]);
     } catch (error) {
       console.error("Error fetching pending approvals:", error);
     } finally {
@@ -110,13 +114,17 @@ export function PendingApprovalsWidget() {
     }
   };
 
+  // Prefer the rule persisted on the request. Falling back to live matching is
+  // only for requests created before the plan was written; that fallback now
+  // uses the shared matcher, which — unlike the old inline `.find()` — ranks a
+  // leave-type-specific rule ahead of a generic one and then by priority,
+  // exactly like the SQL function get_applicable_approval_rule.
   const getApplicableRule = (request: PendingRequest): ApprovalRule | undefined => {
-    return rules.find((rule) => {
-      const typeMatch = rule.leave_type === null || rule.leave_type === request.leave_type;
-      const minMatch = request.total_days >= rule.min_days;
-      const maxMatch = rule.max_days === null || request.total_days <= rule.max_days;
-      return typeMatch && minMatch && maxMatch;
-    });
+    if (request.approval_rule_id) {
+      const persisted = rules.find((r) => r.id === request.approval_rule_id);
+      if (persisted) return persisted;
+    }
+    return matchApprovalRule(rules, request.leave_type, request.total_days) ?? undefined;
   };
 
   const getUrgencyInfo = (request: PendingRequest) => {
@@ -166,15 +174,26 @@ export function PendingApprovalsWidget() {
     }
   };
 
-  const getApprovalStepLabel = (step: number, rule?: ApprovalRule) => {
-    if (!rule) return t("hr:hrApproval", "HR Approval");
-    
-    const steps: string[] = [];
-    if (rule.requires_manager_approval) steps.push(t("hr:manager", "Manager"));
-    if (rule.requires_hr_approval) steps.push(t("hr:hr", "HR"));
-    if (rule.requires_director_approval) steps.push(t("hr:director", "Director"));
-    
-    return steps[step - 1] || t("hr:hrApproval", "HR Approval");
+  // "Awaiting HR — step 2 of 3". Requests with no persisted rule predate
+  // multi-step approval and are shown as a single step.
+  const getApprovalStepLabel = (request: PendingRequest, rule?: ApprovalRule) => {
+    const chain = request.approval_rule_id ? chainForRule(rule ?? null) : [];
+    const effectiveChain: ApproverRole[] = chain.length > 0 ? chain : ["hr"];
+    const totalSteps = request.approval_rule_id
+      ? Math.max(1, request.total_approval_steps || effectiveChain.length)
+      : 1;
+    const currentStep = Math.min(Math.max(1, request.current_approval_step), totalSteps);
+    const role: ApproverRole = effectiveChain[currentStep - 1] ?? "hr";
+    const roleLabel = t(`hr:approver_${role}`, APPROVER_ROLE_LABELS[role]);
+
+    if (totalSteps <= 1) {
+      return t("hr:awaitingRole", "Awaiting {{role}}", { role: roleLabel });
+    }
+    return t("hr:awaitingStep", "Awaiting {{role}} — step {{step}} of {{total}}", {
+      role: roleLabel,
+      step: currentStep,
+      total: totalSteps,
+    });
   };
 
   // Count by urgency
@@ -258,7 +277,7 @@ export function PendingApprovalsWidget() {
                   label: lt?.name || request.leave_type,
                 };
                 const rule = getApplicableRule(request);
-                const currentStepLabel = getApprovalStepLabel(request.current_approval_step, rule);
+                const currentStepLabel = getApprovalStepLabel(request, rule);
 
                 return (
                   <div

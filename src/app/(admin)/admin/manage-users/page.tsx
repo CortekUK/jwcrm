@@ -148,7 +148,7 @@ export default function ManageUsersPage() {
 
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://gyikimtqsasryewwawgs.supabase.co';
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/-admin-toggle-user-status`,
+        `${supabaseUrl}/functions/v1/admin-toggle-user-status`,
         {
           method: 'POST',
           headers: {

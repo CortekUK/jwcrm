@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, useCallback } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,11 +108,12 @@ const getPeriodOptions = (t: (key: string) => string): { value: PeriodOption; la
 
 const PAGE_SIZE = 20;
 
-export default function EmployeeAttendanceHistoryPage() {
+function EmployeeAttendanceHistoryContent() {
   const { t } = useTranslation(["hr"]);
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const employeeId = params?.id as string;
   const statusConfig = getStatusConfig(t);
   const periodOptions = getPeriodOptions(t);
@@ -126,6 +127,15 @@ export default function EmployeeAttendanceHistoryPage() {
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
+
+  // The attendance alerts card links here with `?action=warn` to mean "open the
+  // Send Warning dialog". Nothing read it, so the button just dumped you on the
+  // history page and you had to find the action yourself.
+  useEffect(() => {
+    if (searchParams?.get("action") === "warn") {
+      setShowWarningModal(true);
+    }
+  }, [searchParams]);
 
   const getDateRange = useCallback((periodValue: PeriodOption) => {
     const today = new Date();
@@ -562,5 +572,13 @@ export default function EmployeeAttendanceHistoryPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function EmployeeAttendanceHistoryPage() {
+  return (
+    <Suspense fallback={null}>
+      <EmployeeAttendanceHistoryContent />
+    </Suspense>
   );
 }

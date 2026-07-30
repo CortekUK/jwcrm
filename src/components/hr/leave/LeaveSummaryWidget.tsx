@@ -20,15 +20,33 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays } from "date-fns";
 import { useLeaveTypes } from "@/hooks/useLeaveTypes";
 import { getLeaveTypeIcon } from "@/lib/leave-type-icons";
+import { useToast } from "@/hooks/use-toast";
+import {
+  APPROVER_ROLE_LABELS,
+  ApprovalActorContext,
+  ApproverRole,
+  EMPTY_ACTOR_CONTEXT,
+  LeaveApprovalRule,
+  authorizeStep,
+  buildApprovalActorContext,
+  chainForRule,
+  fetchActiveApprovalRules,
+  recordApprovalDecision,
+} from "@/lib/hr/leaveApproval";
+import { applyLeaveBalanceChange } from "@/lib/hr/leaveBalances";
 
 interface PendingRequest {
   id: string;
+  employee_id: string;
   employee_name: string;
   leave_type: string;
   start_date: string;
   end_date: string;
   total_days: number;
   created_at: string;
+  approval_rule_id: string | null;
+  current_approval_step: number;
+  total_approval_steps: number;
 }
 
 interface LeaveSummaryWidgetProps {
@@ -40,9 +58,12 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
   const { t } = useTranslation(["hr"]);
   const router = useRouter();
   const { getBySlug } = useLeaveTypes();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approvalRules, setApprovalRules] = useState<LeaveApprovalRule[]>([]);
+  const [actorContext, setActorContext] = useState<ApprovalActorContext>(EMPTY_ACTOR_CONTEXT);
 
   useEffect(() => {
     fetchPendingRequests();
@@ -54,11 +75,15 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
         .from("leave_requests")
         .select(`
           id,
+          employee_id,
           leave_type,
           start_date,
           end_date,
           total_days,
           created_at,
+          approval_rule_id,
+          current_approval_step,
+          total_approval_steps,
           employees!inner(full_name)
         `)
         .eq("status", "pending")
@@ -67,15 +92,26 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
 
       const formatted: PendingRequest[] = (data || []).map((req: any) => ({
         id: req.id,
+        employee_id: req.employee_id,
         employee_name: req.employees.full_name,
         leave_type: req.leave_type,
         start_date: req.start_date,
         end_date: req.end_date,
         total_days: req.total_days,
         created_at: req.created_at,
+        approval_rule_id: req.approval_rule_id ?? null,
+        current_approval_step: req.current_approval_step || 1,
+        total_approval_steps: req.total_approval_steps || 1,
       }));
 
       setRequests(formatted);
+
+      const [rules, ctx] = await Promise.all([
+        fetchActiveApprovalRules(),
+        buildApprovalActorContext(),
+      ]);
+      setApprovalRules(rules);
+      setActorContext(ctx);
     } catch (error) {
       console.error("Error fetching leave requests:", error);
     } finally {
@@ -83,24 +119,96 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
     }
   };
 
+  // Which approver the request is waiting on, and whether this user may act.
+  // Requests with no persisted rule predate multi-step approval and stay
+  // single-step.
+  const getApprovalInfo = (request: PendingRequest) => {
+    const rule = request.approval_rule_id
+      ? approvalRules.find((r) => r.id === request.approval_rule_id) ?? null
+      : null;
+    const chain = request.approval_rule_id ? chainForRule(rule) : [];
+    const effectiveChain: ApproverRole[] = chain.length > 0 ? chain : ["hr"];
+    const totalSteps = request.approval_rule_id
+      ? Math.max(1, request.total_approval_steps || effectiveChain.length)
+      : 1;
+    const currentStep = Math.min(Math.max(1, request.current_approval_step), totalSteps);
+    const currentRole: ApproverRole = effectiveChain[currentStep - 1] ?? "hr";
+
+    const auth = authorizeStep(actorContext, {
+      role: currentRole,
+      employeeId: request.employee_id,
+      leaveType: request.leave_type,
+      totalDays: request.total_days,
+    });
+
+    const roleLabel = t(`leaveWidget.approver_${currentRole}`, APPROVER_ROLE_LABELS[currentRole]);
+    const label =
+      totalSteps > 1
+        ? t("leaveWidget.awaitingStep", "Awaiting {{role}} — step {{step}} of {{total}}", {
+            role: roleLabel,
+            step: currentStep,
+            total: totalSteps,
+          })
+        : t("leaveWidget.awaitingRole", "Awaiting {{role}}", { role: roleLabel });
+
+    return { currentRole, currentStep, totalSteps, auth, label };
+  };
+
+  // One click here signs off the CURRENT step only. The request stays pending
+  // until the last required approver acts; the leave page owns the balance
+  // deduction and notification that run on final approval.
   const handleApprove = async (request: PendingRequest) => {
     setApprovingId(request.id);
     try {
-      const { data: userData } = await supabase.auth.getUser();
+      const decision = await recordApprovalDecision({
+        request,
+        action: "approved",
+        preloadedRules: approvalRules,
+      });
 
-      const { error } = await supabase
-        .from("leave_requests")
-        .update({
-          status: "approved",
-          approved_by: userData.user?.id,
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", request.id);
+      if (decision.error) {
+        toast({
+          title: t("common.error", "Error"),
+          description: decision.error.message,
+          variant: "destructive",
+        });
+        return;
+      }
 
-      if (error) throw error;
+      if (decision.isFinal) {
+        // Final approval: move the balance. This widget has never marked
+        // attendance or sent the approval email (the leave page owns those) —
+        // but it must not leave the balance stale now that a click here can
+        // genuinely close a request.
+        const ltConfig = getBySlug(request.leave_type);
+        if (ltConfig?.tracks_balance) {
+          const { error: balanceError } = await applyLeaveBalanceChange({
+            employeeId: request.employee_id,
+            year: new Date().getFullYear(),
+            slug: request.leave_type,
+            usedDelta: request.total_days,
+            pendingDelta: -request.total_days,
+          });
+          if (balanceError) {
+            console.error("Error updating leave balance:", balanceError);
+            toast({
+              title: t("common.error", "Error"),
+              description: balanceError.message,
+              variant: "destructive",
+            });
+          }
+        }
 
-      setRequests((prev) => prev.filter((r) => r.id !== request.id));
-      onApprove?.(request.id);
+        setRequests((prev) => prev.filter((r) => r.id !== request.id));
+        onApprove?.(request.id);
+      } else {
+        // Still pending on the next approver — reflect the new step in place.
+        setRequests((prev) =>
+          prev.map((r) =>
+            r.id === request.id ? { ...r, current_approval_step: decision.nextStep } : r,
+          ),
+        );
+      }
     } catch (error) {
       console.error("Error approving request:", error);
     } finally {
@@ -185,6 +293,7 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
               const isToday =
                 request.start_date === format(new Date(), "yyyy-MM-dd") ||
                 differenceInDays(new Date(request.start_date), new Date()) <= 1;
+              const approval = getApprovalInfo(request);
 
               return (
                 <div
@@ -206,6 +315,10 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
                           {format(new Date(request.end_date), "MMM d")}
                         </span>
                         <span className="font-medium">({request.total_days}d)</span>
+                      </div>
+                      {/* Which approver this request is waiting on */}
+                      <div className="mt-1 text-xs text-[#6B6B6B] dark:text-muted-foreground">
+                        {approval.label}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -230,7 +343,7 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
                             size="sm"
                             className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/30"
                             onClick={() => handleApprove(request)}
-                            disabled={approvingId !== null}
+                            disabled={approvingId !== null || !approval.auth.allowed}
                           >
                             {approvingId === request.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -239,7 +352,11 @@ export function LeaveSummaryWidget({ onApprove, onDeny }: LeaveSummaryWidgetProp
                             )}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>{t("leaveWidget.approve")}</TooltipContent>
+                        <TooltipContent>
+                          {approval.auth.allowed
+                            ? t("leaveWidget.approve")
+                            : approval.auth.reason}
+                        </TooltipContent>
                       </Tooltip>
                     </div>
                   </div>

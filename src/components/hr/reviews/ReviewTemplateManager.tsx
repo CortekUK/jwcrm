@@ -104,6 +104,14 @@ export function ReviewTemplateManager() {
   const [showCustomFieldInput, setShowCustomFieldInput] = useState(false);
   const [customFieldName, setCustomFieldName] = useState("");
 
+  // Drag-to-reorder state for the section list.
+  // `dragHandleIndex` is what makes a row draggable at all: rows are only
+  // draggable while the GripVertical handle is held, otherwise dragging a row
+  // would hijack clicks on the Required switch and the remove button.
+  const [dragHandleIndex, setDragHandleIndex] = useState<number | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
   // Fetch templates
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -384,6 +392,33 @@ export function ReviewTemplateManager() {
     });
   };
 
+  // The section list is rendered in `order` sequence, so every drag index below
+  // is an index into this array — not into `formData.sections`, which is stored
+  // in insertion order.
+  const orderedSections = [...formData.sections].sort((a, b) => a.order - b.order);
+
+  const resetDragState = () => {
+    setDragHandleIndex(null);
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // Moves a section and renumbers `order` 1..n so the value persisted into the
+  // `review_templates.sections` JSONB is what QuarterlyReviewForm sorts by.
+  const handleReorderSections = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0) return;
+    setFormData((prev) => {
+      const ordered = [...prev.sections].sort((a, b) => a.order - b.order);
+      if (from >= ordered.length || to >= ordered.length) return prev;
+      const [moved] = ordered.splice(from, 1);
+      ordered.splice(to, 0, moved);
+      return {
+        ...prev,
+        sections: ordered.map((s, i) => ({ ...s, order: i + 1 })),
+      };
+    });
+  };
+
   const availableSectionsToAdd = ALL_AVAILABLE_SECTIONS.filter(
     s => s.type !== "readonly" && !formData.sections.find(fs => fs.id === s.id)
   );
@@ -575,15 +610,45 @@ export function ReviewTemplateManager() {
             <div className="space-y-2">
               <Label>{t("hr:reviews.templateSections")}</Label>
               <div className="space-y-2">
-                {formData.sections
-                  .sort((a, b) => a.order - b.order)
-                  .map((section) => (
+                {orderedSections.map((section, index) => (
                   <div
                     key={section.id}
-                    className="flex items-center justify-between p-3 bg-[#FAFAF8] dark:bg-gray-800 rounded-lg border border-[#E6E6E4] dark:border-gray-700"
+                    draggable={dragHandleIndex === index}
+                    onDragStart={(e) => {
+                      setDragIndex(index);
+                      e.dataTransfer.effectAllowed = "move";
+                      // Firefox refuses to start a drag without payload.
+                      e.dataTransfer.setData("text/plain", section.id);
+                    }}
+                    onDragOver={(e) => {
+                      if (dragIndex === null) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      if (dragOverIndex !== index) setDragOverIndex(index);
+                    }}
+                    onDrop={(e) => {
+                      if (dragIndex === null) return;
+                      e.preventDefault();
+                      handleReorderSections(dragIndex, index);
+                      resetDragState();
+                    }}
+                    onDragEnd={resetDragState}
+                    className={`flex items-center justify-between p-3 bg-[#FAFAF8] dark:bg-gray-800 rounded-lg border border-[#E6E6E4] dark:border-gray-700 ${
+                      dragIndex === index ? "opacity-50" : ""
+                    } ${
+                      dragIndex !== null && dragOverIndex === index && dragOverIndex !== dragIndex
+                        ? "border-[#0C5536] dark:border-[#0C5536]"
+                        : ""
+                    }`}
                   >
                     <div className="flex items-center gap-3">
-                      <GripVertical className="h-4 w-4 text-[#6B6B6B] cursor-move" />
+                      <GripVertical
+                        className="h-4 w-4 text-[#6B6B6B] cursor-move shrink-0"
+                        // Rows are inert until the handle is pressed, so the
+                        // switch and remove button stay clickable.
+                        onPointerDown={() => setDragHandleIndex(index)}
+                        onPointerUp={() => setDragHandleIndex(null)}
+                      />
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-[#222222] dark:text-gray-200">

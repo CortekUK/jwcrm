@@ -32,6 +32,14 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useLeaveTypes } from "@/hooks/useLeaveTypes";
+import { getLeaveTypeIcon } from "@/lib/leave-type-icons";
+import {
+  fetchLeaveBalances,
+  setLeaveEntitlement,
+  balanceFor,
+  type LeaveBalanceMap,
+} from "@/lib/hr/leaveBalances";
 
 interface EmployeeBalance {
   employee_id: string;
@@ -45,6 +53,8 @@ interface EmployeeBalance {
   sick_entitled: number;
   sick_used: number;
   sick_remaining: number;
+  /** Every tracked leave type, keyed by slug — including custom ones. */
+  by_slug: LeaveBalanceMap;
 }
 
 export default function LeaveBalancesPage() {
@@ -62,9 +72,13 @@ export default function LeaveBalancesPage() {
   // Edit dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedBalance, setSelectedBalance] = useState<EmployeeBalance | null>(null);
-  const [annualEntitled, setAnnualEntitled] = useState(30);
-  const [sickEntitled, setSickEntitled] = useState(90);
+  // Entitlement per leave type slug, so custom leave types can be set too.
+  const [entitlements, setEntitlements] = useState<Record<string, number>>({});
   const [isSaving, setIsSaving] = useState(false);
+
+  // Leave types that actually track a balance drive the edit dialog's fields.
+  const { leaveTypes } = useLeaveTypes();
+  const trackedTypes = leaveTypes.filter((lt) => lt.tracks_balance);
 
   const fetchBalances = useCallback(async () => {
     setLoading(true);
@@ -80,40 +94,33 @@ export default function LeaveBalancesPage() {
         .eq("employment_status", "active")
         .order("full_name");
 
-      // Fetch leave balances for current year
-      const { data: balancesData } = await supabase
-        .from("leave_balances")
-        .select("*")
-        .eq("year", currentYear);
+      // Fetch leave balances for current year via the shared helper: reads the
+      // per-leave-type table and falls back to the legacy annual_*/sick_*
+      // columns when that table is not there yet.
+      const { byEmployee, legacyByEmployee, error: balanceError } =
+        await fetchLeaveBalances(currentYear);
 
-      // Map balances to employees
-      const balanceMap: Record<string, any> = {};
-      (balancesData || []).forEach((bal: any) => {
-        balanceMap[bal.employee_id] = bal;
-      });
+      if (balanceError) throw new Error(balanceError.message);
 
       const formattedBalances: EmployeeBalance[] = (employeesData || []).map((emp: any) => {
-        const bal = balanceMap[emp.id] || {
-          id: null,
-          annual_entitled: 30,
-          annual_used: 0,
-          annual_pending: 0,
-          sick_entitled: 90,
-          sick_used: 0,
-        };
+        const bySlug = byEmployee[emp.id] || {};
+        const annual = balanceFor(bySlug, "annual");
+        const sick = balanceFor(bySlug, "sick");
 
         return {
           employee_id: emp.id,
           employee_name: emp.full_name,
           department_name: emp.departments?.name || null,
-          balance_id: bal.id,
-          annual_entitled: bal.annual_entitled || 30,
-          annual_used: bal.annual_used || 0,
-          annual_pending: bal.annual_pending || 0,
-          annual_remaining: (bal.annual_entitled || 30) - (bal.annual_used || 0) - (bal.annual_pending || 0),
-          sick_entitled: bal.sick_entitled || 90,
-          sick_used: bal.sick_used || 0,
-          sick_remaining: (bal.sick_entitled || 90) - (bal.sick_used || 0),
+          balance_id: legacyByEmployee[emp.id]?.id || null,
+          annual_entitled: annual.entitled,
+          annual_used: annual.used,
+          annual_pending: annual.pending,
+          annual_remaining: annual.entitled - annual.used - annual.pending,
+          sick_entitled: sick.entitled,
+          sick_used: sick.used,
+          // Sick remaining has never subtracted pending — unchanged.
+          sick_remaining: sick.entitled - sick.used,
+          by_slug: bySlug,
         };
       });
 
@@ -136,8 +143,14 @@ export default function LeaveBalancesPage() {
 
   const openEditDialog = (balance: EmployeeBalance) => {
     setSelectedBalance(balance);
-    setAnnualEntitled(balance.annual_entitled);
-    setSickEntitled(balance.sick_entitled);
+    const next: Record<string, number> = {};
+    for (const lt of trackedTypes) {
+      next[lt.slug] = balanceFor(balance.by_slug, lt.slug).entitled;
+    }
+    // Annual and sick always have a field even if leave_types is unavailable.
+    if (next.annual === undefined) next.annual = balance.annual_entitled;
+    if (next.sick === undefined) next.sick = balance.sick_entitled;
+    setEntitlements(next);
     setEditDialogOpen(true);
   };
 
@@ -146,27 +159,17 @@ export default function LeaveBalancesPage() {
 
     setIsSaving(true);
     try {
-      if (selectedBalance.balance_id) {
-        // Update existing balance
-        const { error } = await supabase
-          .from("leave_balances")
-          .update({
-            annual_entitled: annualEntitled,
-            sick_entitled: sickEntitled,
-          })
-          .eq("id", selectedBalance.balance_id);
-
-        if (error) throw error;
-      } else {
-        // Create new balance
-        const { error } = await supabase.from("leave_balances").insert({
-          employee_id: selectedBalance.employee_id,
-          year: currentYear,
-          annual_entitled: annualEntitled,
-          sick_entitled: sickEntitled,
-        });
-
-        if (error) throw error;
+      // One statement per leave type — an unrelated failure can no longer take
+      // a valid entitlement down with it. Annual/sick are dual-written to the
+      // legacy leave_balances columns by the helper.
+      for (const [slug, entitled] of Object.entries(entitlements)) {
+        const { error } = await setLeaveEntitlement(
+          selectedBalance.employee_id,
+          currentYear,
+          slug,
+          entitled,
+        );
+        if (error) throw new Error(error.message);
       }
 
       toast({
@@ -510,42 +513,61 @@ export default function LeaveBalancesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="annual_entitled" className="text-[#555555]">
-                <div className="flex items-center gap-2">
-                  <Plane className="h-4 w-4 text-[#2563EB]" />
-                  {t("leaveBalances.annualLeaveEntitlement")}
+            {/* One field per balance-tracking leave type. Annual and sick keep
+                their existing icon, label and helper text verbatim; custom types
+                use their own configured icon and colour. */}
+            {trackedTypes.map((lt) => {
+              const isAnnual = lt.slug === "annual";
+              const isSick = lt.slug === "sick";
+              const Icon = isAnnual
+                ? Plane
+                : isSick
+                  ? Thermometer
+                  : getLeaveTypeIcon(lt.icon_name);
+              const iconClass = isAnnual
+                ? "text-[#2563EB]"
+                : isSick
+                  ? "text-[#C6A03B]"
+                  : lt.color_class;
+              const label = isAnnual
+                ? t("leaveBalances.annualLeaveEntitlement")
+                : isSick
+                  ? t("leaveBalances.sickLeaveEntitlement")
+                  : t("leaveBalances.entitlementFor", "{{name}} Entitlement", {
+                      name: lt.name,
+                    });
+              const hint = isAnnual
+                ? t("leaveBalances.uaeStandardAnnual")
+                : isSick
+                  ? t("leaveBalances.uaeStandardSick")
+                  : null;
+
+              return (
+                <div className="grid gap-2" key={lt.slug}>
+                  <Label htmlFor={`entitled_${lt.slug}`} className="text-[#555555]">
+                    <div className="flex items-center gap-2">
+                      <Icon className={`h-4 w-4 ${iconClass}`} />
+                      {label}
+                    </div>
+                  </Label>
+                  <Input
+                    id={`entitled_${lt.slug}`}
+                    type="number"
+                    min={0}
+                    max={365}
+                    value={entitlements[lt.slug] ?? 0}
+                    onChange={(e) =>
+                      setEntitlements((prev) => ({
+                        ...prev,
+                        [lt.slug]: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                  />
+                  {hint && <p className="text-xs text-[#6B6B6B]">{hint}</p>}
                 </div>
-              </Label>
-              <Input
-                id="annual_entitled"
-                type="number"
-                min={0}
-                max={365}
-                value={annualEntitled}
-                onChange={(e) => setAnnualEntitled(parseInt(e.target.value) || 0)}
-                className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
-              />
-              <p className="text-xs text-[#6B6B6B]">{t("leaveBalances.uaeStandardAnnual")}</p>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="sick_entitled" className="text-[#555555]">
-                <div className="flex items-center gap-2">
-                  <Thermometer className="h-4 w-4 text-[#C6A03B]" />
-                  {t("leaveBalances.sickLeaveEntitlement")}
-                </div>
-              </Label>
-              <Input
-                id="sick_entitled"
-                type="number"
-                min={0}
-                max={365}
-                value={sickEntitled}
-                onChange={(e) => setSickEntitled(parseInt(e.target.value) || 0)}
-                className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
-              />
-              <p className="text-xs text-[#6B6B6B]">{t("leaveBalances.uaeStandardSick")}</p>
-            </div>
+              );
+            })}
           </div>
           <DialogFooter className="border-t border-[#E6E6E4] pt-4">
             <Button variant="outline" onClick={() => setEditDialogOpen(false)} className="border-[#E6E6E4]">

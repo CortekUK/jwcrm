@@ -165,7 +165,7 @@ function AdminWillsContent() {
   // the cases assigned to them, so the restriction is applied in the query
   // itself rather than as a UI filter that could be bypassed.
   const { data: allWills, isLoading } = useQuery({
-    queryKey: ['admin-wills', userIdFilter, rolesKnown, isAccountManagerOnly, user?.id],
+    queryKey: ['admin-wills', userIdFilter, rolesKnown, isAccountManagerOnly, user?.id, sortOrder],
     queryFn: async () => {
       let query = supabase
         .from('wills')

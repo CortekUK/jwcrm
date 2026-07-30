@@ -77,6 +77,75 @@ const STATUSES = [
   { value: "skipped", label: "Skipped" },
 ];
 
+// `documents_included` is a free-form JSONB array and every producer writes a
+// different object shape into it: the document digests write
+// { id, type, employee, threshold, days_remaining }, the KPI jobs write
+// { kpi_name, target_value, achieved_value, score, weighting }, the monthly KPI
+// job writes { employee_name, completed, total, pending_kpis }, and the leave
+// route writes { employee_name, leave_type, start_date, end_date, total_days }.
+// This used to be typed as string[] and rendered with {doc}, which threw
+// "Objects are not valid as a React child" and crashed the row expand for every
+// non-empty log. Nothing guarantees a shape here, so describe whatever arrives.
+const DOCUMENT_LABEL_KEYS = [
+  "document_name",
+  "name",
+  "kpi_name",
+  "employee_name",
+  "employee",
+  "title",
+  "document_type",
+  "type",
+  "leave_type",
+];
+
+function formatDocumentValue(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    const parts = value.map(formatDocumentValue).filter(Boolean);
+    return parts.length > 0 ? parts.join(", ") : null;
+  }
+  return null;
+}
+
+function describeIncludedDocument(doc: unknown): { label: string; details: string } {
+  const primitive = formatDocumentValue(doc);
+  if (primitive !== null && (typeof doc !== "object" || doc === null)) {
+    return { label: primitive, details: "" };
+  }
+
+  if (typeof doc !== "object" || doc === null) {
+    return { label: String(doc), details: "" };
+  }
+
+  const entries = Object.entries(doc as Record<string, unknown>);
+
+  const labelKey = DOCUMENT_LABEL_KEYS.find((key) => {
+    const value = (doc as Record<string, unknown>)[key];
+    return typeof value === "string" && value.trim().length > 0;
+  });
+
+  const label = labelKey
+    ? String((doc as Record<string, unknown>)[labelKey])
+    : // Nothing name-like — fall back to the whole object so the row still
+      // tells the reader something instead of crashing.
+      JSON.stringify(doc);
+
+  const details = entries
+    .filter(([key]) => key !== labelKey && key !== "id")
+    .map(([key, value]) => {
+      const formatted = formatDocumentValue(value);
+      if (formatted === null || formatted === "") return null;
+      return `${key.replace(/_/g, " ")}: ${formatted}`;
+    })
+    .filter(Boolean)
+    .slice(0, 4)
+    .join(" · ");
+
+  return { label, details: labelKey ? details : "" };
+}
+
 export function EmailLogsTable() {
   const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
@@ -569,11 +638,19 @@ export function EmailLogsTable() {
                                   <div>
                                     <p className="text-[#6B6B6B] font-medium mb-1">{t("hr:documentsIncluded", "Documents Included")}:</p>
                                     <div className="flex flex-wrap gap-2">
-                                      {(log.documents_included as string[]).map((doc, idx) => (
-                                        <Badge key={idx} variant="outline" className="border-[#E6E6E4] bg-white">
-                                          {doc}
-                                        </Badge>
-                                      ))}
+                                      {(log.documents_included as unknown[]).map((doc, idx) => {
+                                        const { label, details } = describeIncludedDocument(doc);
+                                        return (
+                                          <Badge key={idx} variant="outline" className="border-[#E6E6E4] bg-white">
+                                            {label}
+                                            {details && (
+                                              <span className="text-[#6B6B6B] font-normal ltr:ml-1 rtl:mr-1">
+                                                ({details})
+                                              </span>
+                                            )}
+                                          </Badge>
+                                        );
+                                      })}
                                     </div>
                                   </div>
                                 )}

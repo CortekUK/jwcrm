@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
+import {
+  insertEmailNotificationLog,
+  testModeRedirectMetadata,
+} from '@/lib/hr/email-notification-log';
 
 type KPIReportRequest = {
   employeeId: string;
@@ -226,9 +230,12 @@ export async function POST(request: NextRequest) {
 
     // Log to email_notification_logs table
     try {
-      await supabase.from('email_notification_logs').insert({
+      await insertEmailNotificationLog(supabase, {
         notification_type: 'kpi_quarterly_report',
-        recipient_email: employee.email,
+        // Record where the email ACTUALLY went — test mode delivers to the
+        // admin address, so logging the employee claimed a delivery that
+        // never happened.
+        recipient_email: adminEmail,
         subject: `KPI Performance Report - ${monthName} ${year}`,
         documents_included: assignedEvaluations.map((evaluation) => {
           const kpi = evaluation.kpi as { id: string; name: string; target_value: number; unit: string; weighting: number };
@@ -240,6 +247,7 @@ export async function POST(request: NextRequest) {
             weighting: kpi.weighting,
           };
         }),
+        metadata: testModeRedirectMetadata(employee.email, adminEmail),
         status: 'sent',
         resend_email_id: emailResult.data?.id,
         sent_at: new Date().toISOString(),

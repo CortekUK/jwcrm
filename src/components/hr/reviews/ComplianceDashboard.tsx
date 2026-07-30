@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +93,10 @@ export function ComplianceDashboard() {
   const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
   const router = useRouter();
+  const pathname = usePathname();
+  // Rendered under both /hr/reviews/compliance and /admin/hr/reviews/compliance,
+  // so the destination has to follow whichever portal the user is in.
+  const reviewsBasePath = pathname?.startsWith("/admin") ? "/admin/hr" : "/hr";
 
   const [selectedQuarter, setSelectedQuarter] = useState(String(getCurrentQuarter()));
   const [selectedYear, setSelectedYear] = useState(String(getCurrentYear()));
@@ -487,7 +491,10 @@ export function ComplianceDashboard() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push("/admin/hr/reviews?status=overdue")}
+                // The reviews list has no overdue filter (its tabs are
+                // all/pending/complete), so `?status=overdue` was never read.
+                // Send the user to the list rather than to a dead param.
+                onClick={() => router.push(`${reviewsBasePath}/reviews`)}
                 className="border-red-200 text-red-600 hover:bg-red-50"
               >
                 {t("hr:viewAll", "View All")}

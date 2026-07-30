@@ -149,6 +149,7 @@ export type Database = {
           documents_included: Json | null
           error_message: string | null
           id: string
+          metadata: Json | null
           notification_type: Database["public"]["Enums"]["notification_type"]
           recipient_email: string
           resend_email_id: string | null
@@ -160,6 +161,7 @@ export type Database = {
           documents_included?: Json | null
           error_message?: string | null
           id?: string
+          metadata?: Json | null
           notification_type: Database["public"]["Enums"]["notification_type"]
           recipient_email: string
           resend_email_id?: string | null
@@ -171,6 +173,7 @@ export type Database = {
           documents_included?: Json | null
           error_message?: string | null
           id?: string
+          metadata?: Json | null
           notification_type?: Database["public"]["Enums"]["notification_type"]
           recipient_email?: string
           resend_email_id?: string | null
@@ -1287,6 +1290,7 @@ export type Database = {
         | "kpi_quarterly_report"
         | "kpi_incomplete_reminder"
         | "kpi_monthly_reminder"
+        | "document_threshold_alert"
       proposal_status: "draft" | "sent" | "paid" | "cancelled"
       reminder_status: "pending" | "triggered" | "done" | "dismissed"
       will_status:
@@ -1464,6 +1468,7 @@ export const Constants = {
         "kpi_quarterly_report",
         "kpi_incomplete_reminder",
         "kpi_monthly_reminder",
+        "document_threshold_alert",
       ],
       proposal_status: ["draft", "sent", "paid", "cancelled"],
       reminder_status: ["pending", "triggered", "done", "dismissed"],

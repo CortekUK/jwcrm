@@ -14,8 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, CalendarDays } from "lucide-react";
+import { Loader2, CalendarDays, X } from "lucide-react";
 import { toast } from "sonner";
+import {
+  LEAVE_ATTACHMENT_ACCEPT,
+  validateLeaveAttachment,
+} from "@/lib/hr/leaveAttachments";
 
 type LeaveType = { slug: string; name: string };
 type LeaveRequest = {
@@ -49,6 +53,9 @@ export default function MyLeavePage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
+  const [certificate, setCertificate] = useState<File | null>(null);
+  // Bumped to reset the file input after a successful submit.
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   const token = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
@@ -98,14 +105,33 @@ export default function MyLeavePage() {
     setSubmitting(true);
     try {
       const t = await token();
-      const res = await fetch("/api/hr/leave/self", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(t ? { Authorization: `Bearer ${t}` } : {}),
-        },
-        body: JSON.stringify({ leave_type: leaveType, start_date: startDate, end_date: endDate, reason }),
-      });
+      const auth: Record<string, string> = t ? { Authorization: `Bearer ${t}` } : {};
+
+      // With no certificate this is byte-for-byte the request it always was.
+      // A certificate switches the same endpoint to multipart so the file can
+      // travel with it; the server uploads it and stores the path.
+      const res = certificate
+        ? await fetch("/api/hr/leave/self", {
+            method: "POST",
+            headers: auth,
+            body: (() => {
+              const form = new FormData();
+              form.append("leave_type", leaveType);
+              form.append("start_date", startDate);
+              form.append("end_date", endDate);
+              form.append("reason", reason);
+              form.append("certificate", certificate);
+              return form;
+            })(),
+          })
+        : await fetch("/api/hr/leave/self", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...auth,
+            },
+            body: JSON.stringify({ leave_type: leaveType, start_date: startDate, end_date: endDate, reason }),
+          });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not submit.");
       toast.success("Leave request submitted for approval.");
@@ -113,6 +139,8 @@ export default function MyLeavePage() {
       setStartDate("");
       setEndDate("");
       setReason("");
+      setCertificate(null);
+      setFileInputKey((k) => k + 1);
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not submit.");
@@ -192,6 +220,48 @@ export default function MyLeavePage() {
               <div className="space-y-1.5">
                 <Label className="text-[#555555]">Reason (optional)</Label>
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} placeholder="Add any details for HR" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[#555555]">Attach certificate (optional)</Label>
+                <Input
+                  key={fileInputKey}
+                  type="file"
+                  accept={LEAVE_ATTACHMENT_ACCEPT}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (!file) {
+                      setCertificate(null);
+                      return;
+                    }
+                    const problem = validateLeaveAttachment(file);
+                    if (problem) {
+                      toast.error(problem);
+                      setCertificate(null);
+                      setFileInputKey((k) => k + 1);
+                      return;
+                    }
+                    setCertificate(file);
+                  }}
+                />
+                <p className="text-xs text-[#999999]">
+                  PDF, JPG or PNG, up to 5MB. Only HR can see it.
+                </p>
+                {certificate && (
+                  <div className="flex items-center gap-2 text-xs text-[#555555]">
+                    <span className="truncate">{certificate.name}</span>
+                    <button
+                      type="button"
+                      className="text-[#999999] hover:text-[#555555]"
+                      onClick={() => {
+                        setCertificate(null);
+                        setFileInputKey((k) => k + 1);
+                      }}
+                      aria-label="Remove attached certificate"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
               </div>
               <Button
                 type="submit"

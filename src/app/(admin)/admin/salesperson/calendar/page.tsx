@@ -252,7 +252,9 @@ export default function SalespersonCalendarPage() {
 
   const handleViewLead = (leadId: string) => {
     setDayModalOpen(false);
-    router.push(`/admin/salesperson/leads?leadId=${leadId}`);
+    // `/admin/salesperson/leads?leadId=…` redirects to a list that ignores the
+    // param, so the lead you clicked was lost. Go straight to its detail page.
+    router.push(`/admin/lead-management/leads/${leadId}`);
   };
 
   const handleSendMeetingInvite = (comm: CommunicationData) => {
