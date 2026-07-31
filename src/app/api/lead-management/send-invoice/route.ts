@@ -7,6 +7,7 @@ import { buildInvoiceEmailHTML } from "@/lib/email/invoiceEmailTemplate";
 import { normalizeLineItems, lineItemsSubtotal } from "@/lib/pdf/invoiceLineItems";
 import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
 import { companyDetails } from "@/config/company";
+import { paymentResolverUrl } from "@/lib/finance/paymentLink";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -110,6 +111,12 @@ export async function POST(request: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/payment/cancelled`,
     });
 
+    // The link that goes to the client. NOT session.url: a Checkout Session is
+    // fixed at the amount it was created with, so a link sitting in an inbox
+    // would still charge the full total after a part payment. This resolves the
+    // outstanding balance when the client clicks it.
+    const payUrl = paymentResolverUrl(proposal.id);
+
     // 4. Update proposal with Stripe info
     const { error: updateError } = await supabaseAdmin
       .from("proposals")
@@ -190,7 +197,7 @@ export async function POST(request: NextRequest) {
         clientPhone: lead.phone,
         clientCompany: lead.company_name,
         amount: subtotalAmount,
-        paymentUrl: session.url,
+        paymentUrl: payUrl,
         lineItems: items,
       }),
     });
@@ -223,7 +230,7 @@ export async function POST(request: NextRequest) {
       success: true,
       proposalId: proposal.id,
       invoiceNumber: proposal.invoice_number,
-      paymentUrl: session.url,
+      paymentUrl: payUrl,
       emailProvider: emailResult.provider,
     });
   } catch (error) {

@@ -3,6 +3,7 @@ import { stripe } from '@/integrations/stripe/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import crypto from 'crypto';
+import { invoiceTotalFor } from '@/lib/finance/outstandingBalance';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -76,13 +77,82 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 2. Update proposal status to 'paid'
+      // 2. Record the payment intent regardless of whether this clears the
+      //    invoice — it is the audit trail for the charge that just happened.
+      const { error: intentError } = await supabaseAdmin
+        .from('proposals')
+        .update({
+          stripe_payment_intent_id: session.payment_intent as string,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', proposalId);
+
+      if (intentError) {
+        console.error('Error recording payment intent:', intentError);
+        throw intentError;
+      }
+
+      // 3. Load the invoice so we can work out whether it is actually settled.
+      const { data: proposal, error: fetchError } = await supabaseAdmin
+        .from('proposals')
+        .select('id, lead_id, amount, currency, line_items, status, paid_at')
+        .eq('id', proposalId)
+        .single();
+
+      if (fetchError || !proposal) {
+        console.error('Error fetching proposal:', fetchError);
+        throw fetchError;
+      }
+
+      // 4. Is the invoice actually covered?
+      //
+      // A card payment may only be part of what is owed — the client pays the
+      // drafting fee now and the court fees + VAT later. Marking the invoice
+      // 'paid' on any successful charge is how a part-paid invoice used to
+      // disappear from the outstanding list with money still owed on it.
+      const { data: allPayments, error: paymentsReadError } = await supabaseAdmin
+        .from('proposal_payments')
+        .select('amount')
+        .eq('proposal_id', proposalId);
+
+      if (paymentsReadError) {
+        console.error('Error reading payments:', paymentsReadError);
+        throw paymentsReadError;
+      }
+
+      const totalPaid = (allPayments || []).reduce(
+        (sum: number, p: { amount: number | string | null }) => sum + (Number(p.amount) || 0),
+        0
+      );
+      // VAT-inclusive total, from the single source of truth.
+      const invoiceTotal = invoiceTotalFor({
+        id: proposal.id,
+        amount: proposal.amount,
+        currency: proposal.currency,
+        line_items: proposal.line_items,
+        status: proposal.status,
+      });
+      // Sub-cent remainders are rounding noise, not a debt.
+      const fullyCovered = totalPaid >= invoiceTotal - 0.01;
+
+      if (!fullyCovered) {
+        // Part payment: the payment row above already moves the balance, and
+        // that is all that should change. Status stays 'sent', paid_at stays
+        // empty and the lead stays in its current pipeline stage — the work
+        // has not been paid for yet.
+        console.log(
+          `Partial payment on proposal ${proposalId}: ${totalPaid} of ${invoiceTotal} — leaving status as '${proposal.status}'`
+        );
+        return NextResponse.json({ received: true, fullyCovered: false });
+      }
+
+      // 5. Settled in full — mark the invoice paid.
       const { error: proposalError } = await supabaseAdmin
         .from('proposals')
         .update({
           status: 'paid',
-          paid_at: new Date().toISOString(),
-          stripe_payment_intent_id: session.payment_intent as string,
+          // Keep the original settlement timestamp on a webhook retry.
+          paid_at: proposal.paid_at || new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq('id', proposalId);
@@ -92,38 +162,17 @@ export async function POST(request: NextRequest) {
         throw proposalError;
       }
 
-      // 3. Get the lead from the proposal
-      const { data: proposal, error: fetchError } = await supabaseAdmin
-        .from('proposals')
-        .select('lead_id')
-        .eq('id', proposalId)
-        .single();
-
-      if (fetchError || !proposal) {
-        console.error('Error fetching proposal:', fetchError);
-        throw fetchError;
-      }
-
-      // 4. Get the proposal amount for tracking
-      const { data: proposalData, error: proposalDataError } = await supabaseAdmin
-        .from('proposals')
-        .select('amount, currency')
-        .eq('id', proposalId)
-        .single();
-
-      if (proposalDataError) {
-        console.error('Error fetching proposal data:', proposalDataError);
-      }
-
-      // 5. Update lead status to 'won' and set payment fields
+      // 6. Update lead status to 'won' and set payment fields
       const { error: leadError } = await supabaseAdmin
         .from('leads')
         .update({
           status: 'won',
           is_paid: true,
           paid_at: new Date().toISOString(),
-          paid_amount: proposalData?.amount || session.amount_total ? (session.amount_total as number) / 100 : null,
-          paid_currency: proposalData?.currency || 'AED',
+          // Everything collected against this invoice, not just this charge —
+          // a settled invoice may have been paid across several payments.
+          paid_amount: totalPaid,
+          paid_currency: proposal.currency || 'AED',
           updated_at: new Date().toISOString(),
         })
         .eq('id', proposal.lead_id);
@@ -133,11 +182,23 @@ export async function POST(request: NextRequest) {
         throw leadError;
       }
 
-      // 6. Create client user in Supabase Auth
+      // 7. Create client user in Supabase Auth
+      //
+      // Only reached when the invoice is settled in full. The welcome email
+      // says "your payment has been received and your account is now ready",
+      // which would be untrue — and would hand over portal access — while a
+      // balance is still outstanding.
+      if (!leadEmail) {
+        // No address to create an account for or send credentials to. The
+        // invoice is still correctly marked paid above.
+        console.warn(`No leadEmail in session metadata for proposal ${proposalId}; skipping account creation`);
+        return NextResponse.json({ received: true, fullyCovered: true });
+      }
+
       const password = generatePassword();
 
       const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email: leadEmail!,
+        email: leadEmail,
         password,
         email_confirm: true,
         user_metadata: {
@@ -190,7 +251,7 @@ export async function POST(request: NextRequest) {
         const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
         const isTestMode = !process.env.PRODUCTION_EMAIL_MODE;
 
-        const recipientEmail = isTestMode ? adminEmail : leadEmail!;
+        const recipientEmail = isTestMode ? adminEmail : leadEmail;
         const subjectPrefix = isTestMode ? `[Original: ${leadEmail}] ` : '';
 
         try {

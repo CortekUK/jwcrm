@@ -135,6 +135,9 @@ export default function MyLeavePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not submit.");
       toast.success("Leave request submitted for approval.");
+      // The request was created, but the days could not be reserved against the
+      // balance. Never silent — HR needs to hear about it.
+      if (data.warning) toast.warning(data.warning);
       setLeaveType("");
       setStartDate("");
       setEndDate("");

@@ -13,6 +13,7 @@ import { companyDetails } from "@/config/company";
 import { buildInvoiceEmailHTML } from "@/lib/email/invoiceEmailTemplate";
 import { normalizeLineItems, lineItemsSubtotal } from "@/lib/pdf/invoiceLineItems";
 import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
+import { paymentResolverUrl } from "@/lib/finance/paymentLink";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -116,12 +117,16 @@ export async function POST(
         success_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/payment/cancelled`,
       });
-      paymentUrl = session.url || null;
+      // The link handed to the client resolves the outstanding balance when it
+      // is clicked. session.url is fixed at today's total and would re-charge
+      // the whole invoice after a part payment, so it is stored for reference
+      // only and never sent out.
+      paymentUrl = session.url ? paymentResolverUrl(proposal.id) : null;
       await supabaseAdmin
         .from("proposals")
         .update({
           stripe_checkout_session_id: session.id,
-          stripe_payment_link: paymentUrl,
+          stripe_payment_link: session.url,
         })
         .eq("id", proposal.id);
     } catch (stripeErr) {

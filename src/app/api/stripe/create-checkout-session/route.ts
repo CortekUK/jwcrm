@@ -1,3 +1,11 @@
+// DEPRECATED — nothing in the app calls this.
+//
+// It creates a checkout session for a caller-supplied amount and stores it as
+// the proposal's payment link, which is exactly the frozen-amount behaviour
+// that caused a part-paid invoice to be charged in full a second time. The
+// payment path is now GET /api/pay/[proposalId], which resolves the
+// outstanding balance at click time. Do not wire this route back up.
+
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/integrations/stripe/server';
 import { createClient } from '@supabase/supabase-js';

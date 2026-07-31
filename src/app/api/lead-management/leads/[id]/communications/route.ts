@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
   getLeadAutomationSettings,
+  getLeadCadenceSettings,
   resolveCallerId,
 } from "@/lib/lead-management/settingsServer";
 import { isRuleActive } from "@/lib/lead-management/settingsTypes";
@@ -69,6 +70,75 @@ export async function GET(
 
 // Valid call outcomes matching the database enum
 const VALID_CALL_OUTCOMES = ["answered", "no_answer", "voicemail", "busy", "wrong_number"];
+
+/**
+ * Contact cadence is enforced by the database, not here.
+ *
+ * `trigger_handle_call_attempt` (AFTER INSERT on `lead_communications`) owns
+ * the attempt counting and the auto-unreachable decision — it has done so all
+ * along, which is why the copy of the rule that used to live in
+ * AddCommunicationDialog was redundant rather than load-bearing. Re-deciding it
+ * here would be a second, competing implementation.
+ *
+ * So this only REPORTS: given the lead's status as it was before the insert, it
+ * re-reads the row and tells the caller whether the trigger just moved the lead
+ * to `unreachable`, and at which attempt count. That is what keeps the dialog's
+ * "marked unreachable" toast alive.
+ *
+ * Never throws: the communication is already committed and must not be reported
+ * as failed because this lookup misbehaved.
+ */
+async function detectAutoUnreachable(params: {
+  leadId: string;
+  callOutcome: string | null;
+  previousStatus: string | null;
+}): Promise<{
+  markedUnreachable: boolean;
+  failedAttempts: number;
+  currentStatus: string | null;
+}> {
+  const { leadId, callOutcome, previousStatus } = params;
+  const inert = {
+    markedUnreachable: false,
+    failedAttempts: 0,
+    currentStatus: previousStatus,
+  };
+
+  try {
+    // The trigger only acts on rows that carry an outcome.
+    if (!callOutcome) return inert;
+
+    const { data: current, error } = await supabaseAdmin
+      .from("leads")
+      .select("status, call_attempt_count")
+      .eq("id", leadId)
+      .single();
+
+    if (error || !current) {
+      if (error) console.error("Cadence reporting: failed to re-read lead:", error);
+      return inert;
+    }
+
+    const currentStatus = current.status ?? null;
+
+    // Already unreachable before this communication: nothing new to report.
+    if (currentStatus !== "unreachable" || previousStatus === "unreachable") {
+      return { ...inert, currentStatus };
+    }
+
+    // `call_attempt_count` is the trigger's own counter. It should equal the
+    // configured limit at this point; the settings value is only a fallback for
+    // the toast wording if the column is unexpectedly empty.
+    const attempts = Number(current.call_attempt_count) || 0;
+    const failedAttempts =
+      attempts > 0 ? attempts : (await getLeadCadenceSettings()).maxAttempts;
+
+    return { markedUnreachable: true, failedAttempts, currentStatus };
+  } catch (err) {
+    console.error("Cadence reporting failed:", err);
+    return inert;
+  }
+}
 
 // POST - Add new communication to lead
 export async function POST(
@@ -138,16 +208,29 @@ export async function POST(
       );
     }
 
+    // The insert has fired `trigger_handle_call_attempt`, which owns attempt
+    // counting and the auto-unreachable decision. Read the result before doing
+    // anything else with the status.
+    const cadence = await detectAutoUnreachable({
+      leadId,
+      callOutcome: call_outcome || null,
+      previousStatus: lead.status ?? null,
+    });
+
     // `auto_status_contacted`: move the lead to Contacted when a communication
     // is logged — but ONLY from `not_started`. This route used to force
     // "contacted" unconditionally, which silently reversed leads that had
     // already reached qualified/negotiation/won. With the rule switched off it
     // is now genuinely inert and the status is left alone.
     //
+    // The status is taken from the post-insert read, not the snapshot taken
+    // before it: the trigger may have just moved the lead to `unreachable`, and
+    // this rule must not drag it back to `contacted`.
+    //
     // If call_outcome indicates the call wasn't answered, the database trigger
     // still handles retry reminders and attempt counts.
     const automation = await getLeadAutomationSettings();
-    if (isRuleActive(automation, "auto_status_contacted") && lead.status === "not_started") {
+    if (isRuleActive(automation, "auto_status_contacted") && cadence.currentStatus === "not_started") {
       const { error: statusError } = await supabaseAdmin
         .from("leads")
         .update({ status: "contacted", updated_at: new Date().toISOString() })
@@ -180,7 +263,17 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ data }, { status: 201 });
+    return NextResponse.json(
+      {
+        data,
+        // The dialog still shows the "marked unreachable" toast; it just learns
+        // the fact from the database trigger's result instead of re-deriving
+        // the rule client-side.
+        autoMarkedUnreachable: cadence.markedUnreachable,
+        failedAttempts: cadence.failedAttempts,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Error in POST /api/lead-management/leads/[id]/communications:", error);
     return NextResponse.json(

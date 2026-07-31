@@ -4,6 +4,7 @@ import {
   uploadLeaveAttachment,
   validateLeaveAttachment,
 } from "@/lib/hr/leaveAttachments";
+import { applyLeaveBalanceChange } from "@/lib/hr/leaveBalances";
 
 // Employee leave self-service. The caller submits and views leave for THEIR OWN
 // employee record (resolved from their auth user), so no one can act for others.
@@ -117,6 +118,64 @@ async function initializeApprovalPlan(
       .eq("id", requestId);
   } catch (err) {
     console.error("Failed to resolve leave approval chain:", err);
+  }
+}
+
+/**
+ * Reserve the requested days against the employee's balance, exactly as the
+ * HR-created path does (`handleSubmitRequest` in app/(hr)/hr/leave/page.tsx).
+ *
+ * Without this, "pending" only ever counted HR-created requests, so an employee
+ * could self-submit more leave than they hold and nothing showed it as
+ * reserved. The deny/approve paths already release `pendingDelta: -total_days`
+ * for ANY balance-tracking leave type regardless of who created the request, so
+ * reserving here is what makes that release balance out.
+ *
+ * Only leave types with `tracks_balance = true` reserve anything — mirroring
+ * the `getBySlug(leaveType)?.tracks_balance` check on the HR path.
+ *
+ * Returns a human-readable warning instead of throwing: see the call site for
+ * why a failed reservation does not reject the submission.
+ */
+async function reservePendingBalance(params: {
+  employeeId: string;
+  leaveType: string;
+  totalDays: number;
+}): Promise<string | null> {
+  const { employeeId, leaveType, totalDays } = params;
+  try {
+    const { data: type, error: typeError } = await supabaseAdmin
+      .from("leave_types")
+      .select("slug, tracks_balance")
+      .eq("slug", leaveType)
+      .maybeSingle();
+
+    if (typeError) {
+      console.error("Leave self POST: could not read leave type:", typeError);
+      return "Your request was submitted, but your leave balance could not be updated. Please tell HR.";
+    }
+
+    // Unknown type, or a type that does not track a balance: nothing to reserve
+    // and nothing to warn about. This is the path every non-tracked leave type
+    // takes, and it behaves exactly as before.
+    if (!type?.tracks_balance) return null;
+
+    const { error: balanceError } = await applyLeaveBalanceChange({
+      employeeId,
+      year: new Date().getFullYear(),
+      slug: leaveType,
+      pendingDelta: totalDays,
+    });
+
+    if (balanceError) {
+      console.error("Leave self POST: could not reserve pending balance:", balanceError);
+      return `Your request was submitted, but your leave balance could not be updated: ${balanceError.message}`;
+    }
+
+    return null;
+  } catch (err) {
+    console.error("Leave self POST: pending balance reservation failed:", err);
+    return "Your request was submitted, but your leave balance could not be updated. Please tell HR.";
   }
 }
 
@@ -280,7 +339,24 @@ export async function POST(request: NextRequest) {
 
     await initializeApprovalPlan(inserted.id, leave_type, total_days);
 
-    return NextResponse.json({ ok: true, id: inserted.id });
+    // Reserve the days. This runs AFTER the insert, so a failure here cannot
+    // reject the submission — the request already exists and the employee's
+    // only submission path must not report a failure for a request that was in
+    // fact created (nor would silently deleting it be safe, since the approval
+    // plan and any uploaded certificate are already attached to it). The
+    // failure is therefore surfaced as a warning the caller shows, and logged,
+    // rather than swallowed. Same posture as the HR path, which also warns.
+    const balanceWarning = await reservePendingBalance({
+      employeeId: employee.id,
+      leaveType: leave_type,
+      totalDays: total_days,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      id: inserted.id,
+      ...(balanceWarning ? { warning: balanceWarning } : {}),
+    });
   } catch (err) {
     console.error("Leave self POST exception:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

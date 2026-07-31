@@ -9,6 +9,11 @@ export type InvoiceEmailData = {
   clientPhone?: string | null;
   clientCompany?: string | null;
   amount: number;
+  /**
+   * Where "Pay now" points. Must be the /api/pay/[proposalId] resolver, never a
+   * raw Stripe Checkout URL — the email sits in the client's inbox and a Stripe
+   * URL is frozen at the amount it was created with.
+   */
   paymentUrl?: string | null;
   lineItems?: InvoiceLineItem[];
 };
@@ -173,7 +178,7 @@ export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
             data.paymentUrl
               ? `<div style="text-align:center;margin:26px 0 6px;">
                   <a href="${data.paymentUrl}" style="background-color:#0C5536;color:#ffffff;padding:14px 38px;text-decoration:none;border-radius:5px;display:inline-block;font-size:16px;font-weight:bold;">Pay ${fmt(total)} AED Now</a>
-                  <div style="color:#6B6B6B;font-size:12px;margin-top:10px;">Secure payment via Stripe. A PDF copy of this invoice is attached.</div>
+                  <div style="color:#6B6B6B;font-size:12px;margin-top:10px;">Secure payment via Stripe. If you have already paid part of this invoice, you will only be charged the remaining balance. A PDF copy of this invoice is attached.</div>
                 </div>`
               : `<div style="text-align:center;color:#6B6B6B;font-size:12px;margin-top:20px;">A PDF copy of this invoice is attached.</div>`
           }

@@ -47,6 +47,7 @@ import {
 import { format, differenceInDays, parseISO, subDays, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from "date-fns";
 import { Proposal, ProposalStatus } from "@/types/finance";
 import { cn } from "@/lib/utils";
+import { paymentResolverPath } from "@/lib/finance/paymentLink";
 
 type SortField = "invoice_number" | "client" | "amount" | "status" | "sent_at" | "paid_at";
 type SortDirection = "asc" | "desc" | null;
@@ -735,7 +736,7 @@ export function InvoiceTable({
                             title={t("paymentLink")}
                           >
                             <a
-                              href={proposal.stripe_payment_link}
+                              href={paymentResolverPath(proposal.id)}
                               target="_blank"
                               rel="noopener noreferrer"
                             >

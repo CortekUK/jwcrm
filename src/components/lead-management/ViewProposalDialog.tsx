@@ -32,6 +32,7 @@ import { InvoicePDFTemplate, InvoicePDFData } from "./InvoicePDFTemplate";
 import { supabase } from "@/integrations/supabase/client";
 import { companyDetails } from "@/config/company";
 import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { paymentResolverPath, paymentResolverUrl } from "@/lib/finance/paymentLink";
 import { format } from "date-fns";
 import { Download, FileText, Receipt, Loader2, ExternalLink, Eye, ChevronDown, CircleDollarSign, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -308,7 +309,8 @@ export function ViewProposalDialog({
       status: proposal.status,
       createdAt: proposal.created_at,
       paidAt: proposal.paid_at,
-      paymentLink: proposal.stripe_payment_link,
+      // Balance-resolving link, not the frozen Stripe URL.
+      paymentLink: proposal.stripe_payment_link ? paymentResolverUrl(proposal.id) : null,
     });
 
     // Wait for next render to have the ref populated
@@ -498,7 +500,7 @@ export function ViewProposalDialog({
                         <Button
                           variant="default"
                           size="sm"
-                          onClick={() => window.open(proposal.stripe_payment_link!, "_blank")}
+                          onClick={() => window.open(paymentResolverPath(proposal.id), "_blank")}
                         >
                           <ExternalLink className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
                           {t("paymentLink")}
@@ -671,7 +673,10 @@ export function ViewProposalDialog({
                                 status: proposal.status,
                                 createdAt: proposal.created_at,
                                 paidAt: proposal.paid_at,
-                                paymentLink: proposal.stripe_payment_link,
+                                // Balance-resolving link, not the frozen Stripe URL.
+                                paymentLink: proposal.stripe_payment_link
+                                  ? paymentResolverUrl(proposal.id)
+                                  : null,
                               }}
                             />
                           )}

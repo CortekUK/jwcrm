@@ -14,6 +14,7 @@ import { InvoicePDFTemplate, InvoicePDFData } from "@/components/lead-management
 import { Download, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Proposal } from "@/types/finance";
+import { paymentResolverUrl } from "@/lib/finance/paymentLink";
 
 interface ViewInvoiceDialogProps {
   proposal: Proposal | null;
@@ -44,7 +45,8 @@ export function ViewInvoiceDialog({
     status: proposal.status,
     createdAt: proposal.created_at,
     paidAt: proposal.paid_at,
-    paymentLink: proposal.stripe_payment_link,
+    // Balance-resolving link, not the frozen Stripe URL.
+    paymentLink: proposal.stripe_payment_link ? paymentResolverUrl(proposal.id) : null,
   };
 
   const handleDownload = async () => {

@@ -158,58 +158,26 @@ export function AddCommunicationDialog({
         }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to add communication");
+        throw new Error(result?.error || "Failed to add communication");
       }
 
       toast.success(t("communicationAdded"));
       onOpenChange(false);
       onSuccess?.();
 
-      // Check cadence enforcement for failed call outcomes
-      const callOutcome = isPhoneCall ? data.call_outcome : null;
-      if (callOutcome) {
-        try {
-          // Contact cadence is org-wide and lives in the DB now — reading it
-          // from localStorage meant the rule only applied on machines that had
-          // visited the Settings page.
-          const cadenceResponse = await fetch(
-            "/api/lead-management/settings/followup-cadence"
-          );
-          if (cadenceResponse.ok) {
-            const { data: cadence } = await cadenceResponse.json();
-            if (cadence?.autoMarkUnreachable && cadence.failedOutcomes?.includes(callOutcome)) {
-              // Fetch communications to count consecutive failures
-              const commResponse = await fetch(`/api/lead-management/leads/${leadId}/communications`);
-              if (commResponse.ok) {
-                const { data: comms } = await commResponse.json();
-                // Count consecutive failed attempts from newest
-                let consecutiveFails = 0;
-                for (const comm of comms) {
-                  if (comm.call_outcome && cadence.failedOutcomes.includes(comm.call_outcome)) {
-                    consecutiveFails++;
-                  } else {
-                    break;
-                  }
-                }
-                if (consecutiveFails >= (cadence.maxAttempts || 3)) {
-                  await fetch(`/api/lead-management/leads/${leadId}`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ status: "unreachable" }),
-                  });
-                  toast.info(
-                    t("leadMarkedUnreachable", `Lead marked as unreachable after ${consecutiveFails} failed contact attempts`),
-                  );
-                  onSuccess?.();
-                }
-              }
-            }
-          }
-        } catch (cadenceError) {
-          console.error("Error checking cadence enforcement:", cadenceError);
-        }
+      // Contact cadence is enforced by the API (so it applies no matter what
+      // logged the communication). All this does is report the outcome.
+      if (result?.autoMarkedUnreachable) {
+        toast.info(
+          t(
+            "leadMarkedUnreachable",
+            `Lead marked as unreachable after ${result.failedAttempts} failed contact attempts`
+          )
+        );
+        onSuccess?.();
       }
     } catch (error) {
       console.error("Error adding communication:", error);
