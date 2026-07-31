@@ -792,8 +792,15 @@ export function LeaveApprovalSettings() {
                 <Input
                   type="number"
                   min="1"
-                  value={ruleForm.min_days}
-                  onChange={(e) => setRuleForm({ ...ruleForm, min_days: parseInt(e.target.value) || 1 })}
+                  value={ruleForm.min_days ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setRuleForm({ ...ruleForm, min_days: raw === "" ? (null as unknown as number) : parseInt(raw, 10) });
+                  }}
+                  onBlur={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    setRuleForm((f) => ({ ...f, min_days: Number.isFinite(n) ? Math.max(1, n) : 1 }));
+                  }}
                   className="border-[#E6E6E4]"
                 />
               </div>
@@ -870,8 +877,15 @@ export function LeaveApprovalSettings() {
                   type="number"
                   min="1"
                   max="1000"
-                  value={ruleForm.priority}
-                  onChange={(e) => setRuleForm({ ...ruleForm, priority: parseInt(e.target.value) || 100 })}
+                  value={ruleForm.priority ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setRuleForm({ ...ruleForm, priority: raw === "" ? (null as unknown as number) : parseInt(raw, 10) });
+                  }}
+                  onBlur={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    setRuleForm((f) => ({ ...f, priority: Number.isFinite(n) ? Math.max(0, n) : 100 }));
+                  }}
                   className="border-[#E6E6E4]"
                 />
                 <p className="text-xs text-[#6B6B6B]">{t("hr:priorityDesc", "Lower = higher priority")}</p>

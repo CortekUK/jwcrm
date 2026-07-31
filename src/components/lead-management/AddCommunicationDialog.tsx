@@ -171,11 +171,15 @@ export function AddCommunicationDialog({
       // Contact cadence is enforced by the API (so it applies no matter what
       // logged the communication). All this does is report the outcome.
       if (result?.autoMarkedUnreachable) {
+        // The count must be passed as the named interpolation the translation
+        // declares ({{consecutiveFails}}); baking it into the fallback string
+        // alone left i18next rendering the raw placeholder.
         toast.info(
-          t(
-            "leadMarkedUnreachable",
-            `Lead marked as unreachable after ${result.failedAttempts} failed contact attempts`
-          )
+          t("leadMarkedUnreachable", {
+            consecutiveFails: result.failedAttempts,
+            defaultValue:
+              "Lead marked as unreachable after {{consecutiveFails}} failed contact attempts",
+          })
         );
         onSuccess?.();
       }

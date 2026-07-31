@@ -665,8 +665,15 @@ export default function LeadManagementSettings() {
                           min={1}
                           max={365}
                           disabled={!canWrite}
-                          value={staleLeadDays}
-                          onChange={(e) => setStaleLeadDays(parseInt(e.target.value) || 7)}
+                          value={staleLeadDays ?? ""}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            setStaleLeadDays(raw === "" ? (null as unknown as number) : parseInt(raw, 10));
+                          }}
+                          onBlur={(e) => {
+                            const n = parseInt(e.target.value, 10);
+                            setStaleLeadDays(Number.isFinite(n) ? Math.min(365, Math.max(1, n)) : 7);
+                          }}
                           className="w-20 border-[#E6E6E4]"
                         />
                         <span className="text-sm text-[#6B6B6B]">{t("days", "days")}</span>
@@ -718,8 +725,25 @@ export default function LeadManagementSettings() {
                     min={1}
                     max={20}
                     disabled={!canWrite}
-                    value={cadenceSettings.maxAttempts}
-                    onChange={(e) => setCadenceSettings(prev => ({ ...prev, maxAttempts: parseInt(e.target.value) || 3 }))}
+                    // Empty is allowed WHILE TYPING: coercing "" straight back to a
+                    // default made the old digit reappear the instant you deleted it,
+                    // so the field could only be changed with the arrow keys.
+                    // The value is clamped on blur instead.
+                    value={cadenceSettings.maxAttempts ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setCadenceSettings(prev => ({
+                        ...prev,
+                        maxAttempts: raw === "" ? (null as unknown as number) : parseInt(raw, 10),
+                      }));
+                    }}
+                    onBlur={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      setCadenceSettings(prev => ({
+                        ...prev,
+                        maxAttempts: Number.isFinite(n) ? Math.min(20, Math.max(1, n)) : 3,
+                      }));
+                    }}
                     className="border-[#E6E6E4]"
                   />
                   <p className="text-xs text-[#6B6B6B]">{t("maxAttemptsHint", "Number of failed attempts before marking unreachable")}</p>
@@ -731,8 +755,22 @@ export default function LeadManagementSettings() {
                     min={1}
                     max={30}
                     disabled={!canWrite}
-                    value={cadenceSettings.intervalDays}
-                    onChange={(e) => setCadenceSettings(prev => ({ ...prev, intervalDays: parseInt(e.target.value) || 2 }))}
+                    // Same empty-while-typing handling as Maximum Contact Attempts.
+                    value={cadenceSettings.intervalDays ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setCadenceSettings(prev => ({
+                        ...prev,
+                        intervalDays: raw === "" ? (null as unknown as number) : parseInt(raw, 10),
+                      }));
+                    }}
+                    onBlur={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      setCadenceSettings(prev => ({
+                        ...prev,
+                        intervalDays: Number.isFinite(n) ? Math.min(30, Math.max(1, n)) : 2,
+                      }));
+                    }}
                     className="border-[#E6E6E4]"
                   />
                   <p className="text-xs text-[#6B6B6B]">{t("intervalDaysHint", "Recommended gap between contact attempts")}</p>

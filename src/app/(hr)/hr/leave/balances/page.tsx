@@ -555,11 +555,11 @@ export default function LeaveBalancesPage() {
                     type="number"
                     min={0}
                     max={365}
-                    value={entitlements[lt.slug] ?? 0}
+                    value={entitlements[lt.slug] ?? ""}
                     onChange={(e) =>
                       setEntitlements((prev) => ({
                         ...prev,
-                        [lt.slug]: parseInt(e.target.value) || 0,
+                        [lt.slug]: e.target.value === "" ? (null as unknown as number) : parseInt(e.target.value, 10),
                       }))
                     }
                     className="border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
