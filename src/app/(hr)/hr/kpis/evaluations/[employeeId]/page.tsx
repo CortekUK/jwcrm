@@ -46,9 +46,16 @@ export default function EmployeeEvaluationPage() {
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
   const [showAddCustomKpi, setShowAddCustomKpi] = useState(false);
 
+  // Single source of truth for the period: currentYear/currentMonth drive both the
+  // evaluation form and the report button, and are mirrored into the URL so the
+  // period survives a refresh. router.replace keeps the Back button intact.
   const handlePeriodChange = (year: number, month: number) => {
     setCurrentYear(year);
     setCurrentMonth(month);
+    const url = new URL(window.location.href);
+    url.searchParams.set("year", year.toString());
+    url.searchParams.set("month", month.toString());
+    router.replace(url.pathname + url.search);
   };
 
   useEffect(() => {
@@ -179,8 +186,8 @@ export default function EmployeeEvaluationPage() {
             <CardContent>
               <EmployeeKPIEvaluationForm
                 employee={employee}
-                initialYear={initialYear}
-                initialMonth={initialMonth}
+                initialYear={currentYear}
+                initialMonth={currentMonth}
                 onPeriodChange={handlePeriodChange}
                 onSuccess={handleSuccess}
               />
@@ -194,15 +201,7 @@ export default function EmployeeEvaluationPage() {
             employeeId={employee.id}
             employeeName={employee.full_name}
             jobRoleId={employee.job_role_id}
-            onPeriodSelect={(year, month) => {
-              setCurrentYear(year);
-              setCurrentMonth(month);
-              // Update URL params
-              const url = new URL(window.location.href);
-              url.searchParams.set("year", year.toString());
-              url.searchParams.set("month", month.toString());
-              router.replace(url.pathname + url.search);
-            }}
+            onPeriodSelect={handlePeriodChange}
           />
         </div>
       </div>

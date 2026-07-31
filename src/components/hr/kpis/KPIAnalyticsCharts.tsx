@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,6 +43,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { useHrBasePath } from "@/hooks/useHrBasePath";
 import { cn } from "@/lib/utils";
 import { subMonths, format, getMonth, getYear } from "date-fns";
 
@@ -120,9 +121,8 @@ export function KPIAnalyticsCharts() {
   const { t, i18n } = useTranslation(["hr"]);
   const isRtl = i18n.language === "ar";
   const router = useRouter();
-  const pathname = usePathname();
-  const basePath = pathname?.startsWith("/admin") ? "/admin/hr" : "/hr";
-  
+  const basePath = useHrBasePath();
+
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [employeeScores, setEmployeeScores] = useState<EmployeeScore[]>([]);
@@ -255,10 +255,14 @@ export function KPIAnalyticsCharts() {
 
       if (kpiError) throw kpiError;
 
-      // Get evaluations for selected year
+      // Get evaluations for selected year.
+      // Every chart below plots percentages, so it must read `score` (percent of
+      // target, see calculateScore in lib/kpi-validation) — `achieved_value` is the
+      // raw amount in the KPI's own unit and is only used as a "was it filled in"
+      // signal for the completion rate.
       const { data: evaluations, error: evalError } = await supabase
         .from("kpi_evaluations")
-        .select("employee_id, kpi_id, achieved_value, month, year, status")
+        .select("employee_id, kpi_id, achieved_value, score, month, year, status")
         .eq("year", selectedYear);
 
       if (evalError) throw evalError;
@@ -294,9 +298,9 @@ export function KPIAnalyticsCharts() {
 
         roleKpis.forEach((kpi: any) => {
           const eval_ = empEvals.find((e: any) => e.kpi_id === kpi.id);
-          if (eval_?.achieved_value !== null && eval_?.achieved_value !== undefined) {
+          if (eval_?.score !== null && eval_?.score !== undefined) {
             const weight = kpi.weighting / 100;
-            weightedSum += eval_.achieved_value * weight;
+            weightedSum += Number(eval_.score) * weight;
             totalWeight += weight;
           }
         });
@@ -330,7 +334,7 @@ export function KPIAnalyticsCharts() {
       const kpiScoreMap: Record<string, { total: number; count: number; name: string; jobRoleName: string }> = {};
       
       (evaluations || []).forEach((eval_: any) => {
-        if (eval_.achieved_value === null || eval_.achieved_value === undefined) return;
+        if (eval_.score === null || eval_.score === undefined) return;
         const kpi = kpiMap[eval_.kpi_id];
         if (!kpi) return;
 
@@ -342,7 +346,7 @@ export function KPIAnalyticsCharts() {
             jobRoleName: kpi.job_roles?.name || "",
           };
         }
-        kpiScoreMap[eval_.kpi_id].total += eval_.achieved_value;
+        kpiScoreMap[eval_.kpi_id].total += Number(eval_.score);
         kpiScoreMap[eval_.kpi_id].count++;
       });
 
@@ -367,9 +371,9 @@ export function KPIAnalyticsCharts() {
         
         if (monthEvals.length === 0) continue;
 
-        const scoredEvals = monthEvals.filter((e: any) => e.achieved_value !== null);
+        const scoredEvals = monthEvals.filter((e: any) => e.score !== null && e.score !== undefined);
         const avgScore = scoredEvals.length > 0
-          ? Math.round(scoredEvals.reduce((sum: number, e: any) => sum + e.achieved_value, 0) / scoredEvals.length)
+          ? Math.round(scoredEvals.reduce((sum: number, e: any) => sum + Number(e.score), 0) / scoredEvals.length)
           : 0;
 
         // Calculate completion rate for this month

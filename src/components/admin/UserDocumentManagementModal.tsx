@@ -451,10 +451,15 @@ export function UserDocumentManagementModal({
     try {
       const field = docType === 'passport' ? 'passport_number' : 'emirates_id_number';
 
-      await supabase
+      // PostgREST returns { error } rather than throwing, so without this check
+      // a rejected write still showed the green "saved" toast and the edit was
+      // silently lost.
+      const { error } = await supabase
         .from('user_identity_documents' as any)
         .update({ [field]: value })
         .eq('id', doc.id);
+
+      if (error) throw error;
 
       toast({
         title: t('toast:success'),
@@ -475,10 +480,13 @@ export function UserDocumentManagementModal({
     if (!doc) return;
 
     try {
-      await supabase
+      // See handleSaveNumber — an unchecked error here silently discarded the edit.
+      const { error } = await supabase
         .from('user_identity_documents' as any)
         .update({ extracted_name: name })
         .eq('id', doc.id);
+
+      if (error) throw error;
 
       toast({
         title: t('toast:success'),

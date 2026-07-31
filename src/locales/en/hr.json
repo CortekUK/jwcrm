@@ -863,6 +863,7 @@
     "viewDocument": "View",
     "documents": "Documents",
     "expiringSoon": "Expiring Soon",
+    "allEmployees": "All Employees",
     "noDepartment": "No Department"
   },
   "active": "Active",
@@ -1066,6 +1067,7 @@
     "employeesWithKPIs": "Employees with KPIs",
     "excellent": "Excellent",
     "good": "Good",
+    "loadError": "Could not load KPI overview",
     "markEvaluations": "Mark Evaluations",
     "needsAttention": "Needs Attention",
     "needsImprovement": "Needs Improvement",

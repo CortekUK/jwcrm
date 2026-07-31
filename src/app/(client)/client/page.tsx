@@ -130,6 +130,9 @@ export default function ClientDashboard() {
             .from('will_status_events')
             .select('id, new_status, previous_status, changed_at, will_id')
             .in('will_id', willIds)
+            // Internal events (e.g. a logged edit request) carry no real status
+            // transition, so they would render here as a phantom status change.
+            .eq('is_internal', false)
             .order('changed_at', { ascending: false })
             .limit(5);
 

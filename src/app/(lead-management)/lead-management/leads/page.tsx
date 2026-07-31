@@ -20,6 +20,10 @@ import {
   computeLeadPaymentStates,
   type LeadPaymentSummary,
 } from "@/lib/finance/leadPaymentState";
+import {
+  fetchLeadActivity,
+  type LeadActivitySummary,
+} from "@/lib/lead-management/leadActivity";
 import { toast } from "sonner";
 import { Target, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -187,6 +191,14 @@ function LeadsPageContent() {
         );
       }
 
+      // Real contact recency and next action. Neither is a column on `leads`,
+      // so without this the health badge scored on updated_at — which any edit
+      // refreshes — and the "Overdue" badge had nothing to show.
+      let activity = new Map<string, LeadActivitySummary>();
+      if (leadIds.length > 0) {
+        activity = await fetchLeadActivity(leadIds);
+      }
+
       if (seq !== fetchSeqRef.current) return; // superseded by a newer search
 
       setLeads(
@@ -194,6 +206,15 @@ function LeadsPageContent() {
           ...lead,
           payment_state: paymentStates.get(lead.id)?.state,
           balance_due: paymentStates.get(lead.id)?.balanceDue,
+          // Communications win; a bare call attempt is the fallback. If there
+          // is neither, the field stays undefined and the badge says so.
+          // The generated Supabase types predate last_call_attempt_at; the
+          // column is on the live table.
+          last_contact_at:
+            activity.get(lead.id)?.lastContactAt ??
+            (lead as { last_call_attempt_at?: string | null }).last_call_attempt_at ??
+            null,
+          next_action_at: activity.get(lead.id)?.nextActionAt ?? null,
         }))
       );
     } catch (error) {

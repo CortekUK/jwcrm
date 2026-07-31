@@ -2,7 +2,6 @@
 
 import { XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 
 export default function PaymentCancelledPage() {
   return (
@@ -20,10 +19,12 @@ export default function PaymentCancelledPage() {
             If you have any questions or would like to try again, please contact us.
           </p>
           <div className="space-y-3">
+            {/* "Return to Home" used to point at "/", which redirects to
+                /admin/auth — this page is reached by external leads paying an
+                invoice, so it dumped them on the staff login. There is no
+                public home page to send them to, and the note below already
+                tells them how to resume, so support is the only real action. */}
             <Button asChild className="w-full">
-              <Link href="/">Return to Home</Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full">
               <a href="mailto:support@justwills.ae">Contact Support</a>
             </Button>
           </div>

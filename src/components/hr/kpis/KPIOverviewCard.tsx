@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +17,10 @@ import {
   AlertTriangle,
   CheckCircle2,
   ClipboardList,
+  RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useHrBasePath } from "@/hooks/useHrBasePath";
 import { cn } from "@/lib/utils";
 
 interface PerformanceBand {
@@ -55,12 +57,12 @@ interface OverviewStats {
 }
 
 export function KPIOverviewCard() {
-  const { t, i18n } = useTranslation(["hr"]);
+  const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
   const router = useRouter();
-  const pathname = usePathname();
-  const basePath = pathname?.startsWith("/admin") ? "/admin/hr" : "/hr";
+  const basePath = useHrBasePath();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<OverviewStats>({
     totalEmployeesWithKPIs: 0,
     completionRate: 0,
@@ -77,6 +79,8 @@ export function KPIOverviewCard() {
   }, []);
 
   const fetchKPIOverview = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const today = new Date();
       const currentMonth = today.getMonth() + 1;
@@ -137,19 +141,23 @@ export function KPIOverviewCard() {
       // Get evaluations for current month with scores
       const { data: evaluations, error: evalError } = await supabase
         .from("kpi_evaluations")
-        .select("employee_id, kpi_id, achieved_value, status")
+        .select("employee_id, kpi_id, score, status")
         .eq("month", currentMonth)
         .eq("year", currentYear);
 
       if (evalError) throw evalError;
 
-      // Build evaluation map: employee_id -> kpi_id -> achieved_value
+      // Build evaluation map: employee_id -> kpi_id -> score.
+      // `score` is the percentage of target (see calculateScore in lib/kpi-validation);
+      // `achieved_value` is the raw amount in the KPI's own unit and must not be
+      // rendered as a percentage.
       const evaluationMap: Record<string, Record<string, number | null>> = {};
       (evaluations || []).forEach((eval_: any) => {
         if (!evaluationMap[eval_.employee_id]) {
           evaluationMap[eval_.employee_id] = {};
         }
-        evaluationMap[eval_.employee_id][eval_.kpi_id] = eval_.achieved_value;
+        evaluationMap[eval_.employee_id][eval_.kpi_id] =
+          eval_.score !== null && eval_.score !== undefined ? Number(eval_.score) : null;
       });
 
       // Calculate stats for each employee
@@ -278,6 +286,9 @@ export function KPIOverviewCard() {
       });
     } catch (error) {
       console.error("Error fetching KPI overview:", error);
+      // Without this the card falls back to zeros, which is indistinguishable
+      // from "no KPIs configured".
+      setError(t("hr:kpiOverview.loadError"));
     } finally {
       setLoading(false);
     }
@@ -365,6 +376,31 @@ export function KPIOverviewCard() {
             ))}
           </div>
           <Skeleton className="h-32 rounded-lg" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="border-[#E6E6E4] dark:border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-xl font-semibold text-[#0C5536] dark:text-[#C6A03B] flex items-center gap-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+            <div className="h-8 w-8 rounded-lg bg-[hsl(var(--jw-gold-accent))]/10 flex items-center justify-center">
+              <Target className="h-4 w-4 text-[hsl(var(--jw-gold-accent))]" />
+            </div>
+            {t("hr:kpiOverview.title")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <AlertTriangle className="h-12 w-12 mx-auto text-red-400 mb-3" />
+            <p className="text-red-600">{error}</p>
+            <Button variant="outline" className="mt-4" onClick={fetchKPIOverview}>
+              <RefreshCw className={cn("h-4 w-4", isRtl ? "ml-2" : "mr-2")} />
+              {t("common:retry", "Retry")}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );

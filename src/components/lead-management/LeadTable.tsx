@@ -95,8 +95,10 @@ export interface Lead {
   balance_due?: number;
   created_at: string;
   updated_at: string;
-  last_contact_date?: string | null;
-  next_action_date?: string | null;
+  // Enriched by the page, not columns on `leads`: newest logged communication
+  // (or last call attempt) and earliest outstanding reminder.
+  last_contact_at?: string | null;
+  next_action_at?: string | null;
   // Joined fields
   source_data?: { id: string; name: string } | null;
   assigned_user?: { user_id: string; full_name: string } | null;
@@ -1103,10 +1105,9 @@ export function LeadTable({
                     {/* Health Indicator */}
                     <TableCell>
                       <LeadHealthIndicator
-                        lastContactDate={lead.last_contact_date}
-                        nextActionDate={lead.next_action_date}
+                        lastContactDate={lead.last_contact_at}
+                        nextActionDate={lead.next_action_at}
                         createdAt={lead.created_at}
-                        updatedAt={lead.updated_at}
                         status={lead.status}
                         compact
                       />

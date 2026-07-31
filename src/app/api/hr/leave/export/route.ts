@@ -12,6 +12,40 @@ import {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+/**
+ * leave_requests.leave_type used to be an enum; when it became TEXT the existing
+ * values were never rewritten, so some rows still carry the old spelling.
+ * Selecting the modern slug must also match its legacy spelling, otherwise the
+ * export silently omits those rows.
+ * Kept deliberately explicit (no fuzzy matching), and kept in place even after
+ * the data has been normalised so un-migrated environments stay correct.
+ */
+const LEGACY_LEAVE_TYPE_ALIASES: Record<string, string[]> = {
+  working_abroad: ["working_from_abroad"],
+};
+
+/** legacy spelling -> canonical slug (reverse of LEGACY_LEAVE_TYPE_ALIASES) */
+const CANONICAL_LEAVE_TYPE: Record<string, string> = Object.entries(
+  LEGACY_LEAVE_TYPE_ALIASES
+).reduce((acc, [canonical, legacySlugs]) => {
+  legacySlugs.forEach((legacy) => {
+    acc[legacy] = canonical;
+  });
+  return acc;
+}, {} as Record<string, string>);
+
+/** Expand a selected slug list to include the legacy spellings it should match */
+const expandLeaveTypeFilter = (slugs: string[]): string[] => {
+  const expanded = new Set<string>();
+  slugs.forEach((slug) => {
+    expanded.add(slug);
+    (LEGACY_LEAVE_TYPE_ALIASES[slug] || []).forEach((legacy) =>
+      expanded.add(legacy)
+    );
+  });
+  return Array.from(expanded);
+};
+
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
@@ -34,6 +68,14 @@ export async function POST(request: NextRequest) {
     const LEAVE_TYPE_LABELS: Record<string, string> = {};
     (leaveTypesData || []).forEach((lt: any) => {
       LEAVE_TYPE_LABELS[lt.slug] = lt.name;
+    });
+
+    // Legacy spellings have no leave_types row; label them like their canonical
+    // slug so a stray un-canonicalised value never falls through to the raw slug
+    Object.entries(CANONICAL_LEAVE_TYPE).forEach(([legacy, canonical]) => {
+      if (!LEAVE_TYPE_LABELS[legacy] && LEAVE_TYPE_LABELS[canonical]) {
+        LEAVE_TYPE_LABELS[legacy] = LEAVE_TYPE_LABELS[canonical];
+      }
     });
 
     // Verify the token
@@ -107,7 +149,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (leaveTypes !== "all" && leaveTypes.length > 0) {
-      query = query.in("leave_type", leaveTypes);
+      // include legacy spellings so no matching request is silently dropped
+      query = query.in("leave_type", expandLeaveTypeFilter(leaveTypes));
     }
 
     if (statuses !== "all" && statuses.length > 0) {
@@ -165,7 +208,9 @@ export async function POST(request: NextRequest) {
         employee_name: req.employees?.full_name || "Unknown",
         department_name: req.employees?.departments?.name || null,
         job_title: req.employees?.job_title || null,
-        leave_type: req.leave_type,
+        // fold legacy spellings onto the canonical slug so the CSV label,
+        // per-employee by_type and overall byType counts all agree
+        leave_type: CANONICAL_LEAVE_TYPE[req.leave_type] || req.leave_type,
         start_date: req.start_date,
         end_date: req.end_date,
         total_days: req.total_days,

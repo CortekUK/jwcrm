@@ -219,15 +219,32 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     );
 
-    await supabaseAdmin
+    // will_status_events.new_status is NOT NULL, so the old `new_status: null`
+    // insert failed with 23502 on every single edit request and the error was
+    // never checked — the "logged for the legal team" promise was empty.
+    // An edit request is an annotation, not a transition, so record the will's
+    // current status with no previous_status: the timeline then renders one
+    // badge plus the note instead of a fake status change.
+    const { data: willRow } = await supabaseAdmin
+      .from('wills')
+      .select('status')
+      .eq('id', willId)
+      .single();
+
+    const { error: logError } = await supabaseAdmin
       .from('will_status_events')
       .insert({
         will_id: willId,
         previous_status: null,
-        new_status: null,
+        new_status: willRow?.status ?? 'in_progress',
         actor_user_id: user.id,
+        is_internal: true,
         notes: `Client requested edits: ${subject}\n\n${message}`,
       });
+
+    if (logError) {
+      console.error('Failed to log edit request to will_status_events:', logError);
+    }
 
     return NextResponse.json({
       success: true,

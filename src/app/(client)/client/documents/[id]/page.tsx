@@ -133,16 +133,22 @@ export default function ClientDocumentDetail() {
     fetchWill();
   }, [user, id, router, t]);
 
-  const handleDownload = async () => {
-    if (!pdfUrl) return;
+  // Takes the source explicitly so the signed copy can be downloaded too — its
+  // button used to call window.open, which just opened another viewer tab and
+  // never saved a file.
+  const handleDownload = async (
+    sourceUrl: string | null = pdfUrl,
+    filePrefix = 'will-draft'
+  ) => {
+    if (!sourceUrl) return;
 
     try {
-      const response = await fetch(pdfUrl);
+      const response = await fetch(sourceUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `will-draft-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      link.download = `${filePrefix}-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -582,7 +588,7 @@ export default function ClientDocumentDetail() {
                 <Eye className={isRtl ? "ml-2 h-4 w-4" : "mr-2 h-4 w-4"} />
                 {t('documentDetail.viewDocument')}
               </Button>
-              <Button onClick={handleDownload} variant="outline" className="flex-1 border-2 border-[#0C5536] bg-background text-[#0C5536] hover:bg-[#0C5536] hover:text-white hover:border-[#C6A03B]">
+              <Button onClick={() => handleDownload()} variant="outline" className="flex-1 border-2 border-[#0C5536] bg-background text-[#0C5536] hover:bg-[#0C5536] hover:text-white hover:border-[#C6A03B]">
                 <Download className={isRtl ? "ml-2 h-4 w-4" : "mr-2 h-4 w-4"} />
                 {t('documentDetail.downloadPdf')}
               </Button>
@@ -643,7 +649,7 @@ export default function ClientDocumentDetail() {
                           {t('documentDetail.signature.viewSigned', 'View signed copy')}
                         </Button>
                         <Button
-                          onClick={() => window.open(signedPdfUrl, '_blank')}
+                          onClick={() => handleDownload(signedPdfUrl, 'will-signed')}
                           variant="outline"
                           className="flex-1 border-2 border-[#0C5536] bg-background text-[#0C5536] hover:bg-[#0C5536] hover:text-white hover:border-[#C6A03B]"
                         >

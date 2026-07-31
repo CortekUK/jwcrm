@@ -138,6 +138,8 @@ export const usePortalStore = create<PortalState>((set, get) => ({
           .from('will_status_events')
           .select('id, new_status, previous_status, changed_at, will_id')
           .in('will_id', willIds)
+          // Internal events carry no real status transition — see client/page.tsx.
+          .eq('is_internal', false)
           .order('changed_at', { ascending: false })
           .limit(5);
         recentActivity = (activityData || []) as PortalActivityEvent[];

@@ -9,29 +9,42 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { 
-  Flame, 
-  Clock, 
-  AlertTriangle, 
+import {
+  Flame,
+  Clock,
+  AlertTriangle,
   Calendar,
   CheckCircle2,
   TrendingUp,
+  CircleDashed,
 } from "lucide-react";
 import { differenceInDays, parseISO, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface LeadHealthIndicatorProps {
+  /**
+   * Real last-contact timestamp (newest logged communication, or the last call
+   * attempt). Never `leads.updated_at` — an unrelated edit is not contact.
+   */
   lastContactDate?: string | null;
+  /** Earliest outstanding reminder for the lead. */
   nextActionDate?: string | null;
   createdAt: string;
-  updatedAt: string;
   status: string;
   isPaid?: boolean;
   compact?: boolean;
   showAll?: boolean;
 }
 
-type HealthStatus = "hot" | "warm" | "stale" | "cold" | "won" | "lost" | "unreachable";
+type HealthStatus =
+  | "hot"
+  | "warm"
+  | "stale"
+  | "cold"
+  | "won"
+  | "lost"
+  | "unreachable"
+  | "unknown";
 
 interface HealthIndicator {
   status: HealthStatus;
@@ -47,7 +60,6 @@ export function LeadHealthIndicator({
   lastContactDate,
   nextActionDate,
   createdAt,
-  updatedAt,
   status,
   isPaid,
   compact = false,
@@ -112,6 +124,17 @@ export function LeadHealthIndicator({
       borderColor: "border-[#737373]/20",
       description: t("unreachableLeadDesc", "Could not contact after 3 attempts"),
     },
+    unknown: {
+      label: t("noContactLogged", "No contact logged"),
+      icon: CircleDashed,
+      color: "text-[#6B6B6B]",
+      bgColor: "bg-[#F5F5F5]",
+      borderColor: "border-[#E6E6E4]",
+      description: t(
+        "noContactLoggedDesc",
+        "No communication or call attempt recorded yet"
+      ),
+    },
   };
 
   const health = useMemo((): HealthIndicator | null => {
@@ -126,10 +149,14 @@ export function LeadHealthIndicator({
       return { status: "unreachable", ...healthIndicators.unreachable };
     }
 
+    // Without a real contact timestamp there is nothing to score. Falling back
+    // to updated_at used to make any unrelated edit look like fresh contact.
+    if (!lastContactDate) {
+      return { status: "unknown", ...healthIndicators.unknown };
+    }
+
     // Calculate days since last activity
-    const lastActivity = lastContactDate 
-      ? parseISO(lastContactDate) 
-      : parseISO(updatedAt);
+    const lastActivity = parseISO(lastContactDate);
     const daysSinceActivity = differenceInDays(new Date(), lastActivity);
     const daysSinceCreation = differenceInDays(new Date(), parseISO(createdAt));
 
@@ -144,14 +171,12 @@ export function LeadHealthIndicator({
       return { status: "stale", ...healthIndicators.stale };
     }
     return { status: "cold", ...healthIndicators.cold };
-  }, [lastContactDate, updatedAt, createdAt, status, healthIndicators]);
+  }, [lastContactDate, createdAt, status, healthIndicators]);
 
   const daysSinceContact = useMemo(() => {
-    const lastActivity = lastContactDate 
-      ? parseISO(lastContactDate) 
-      : parseISO(updatedAt);
-    return differenceInDays(new Date(), lastActivity);
-  }, [lastContactDate, updatedAt]);
+    if (!lastContactDate) return null;
+    return differenceInDays(new Date(), parseISO(lastContactDate));
+  }, [lastContactDate]);
 
   const nextActionInfo = useMemo(() => {
     if (!nextActionDate) return null;
@@ -171,35 +196,69 @@ export function LeadHealthIndicator({
 
   const Icon = health.icon;
 
-  // Compact mode - single badge
+  // Every caller uses compact mode, so the next-action badge renders there too
+  // — otherwise "Overdue" is computed for every lead and shown to nobody.
+  const nextActionBadge = nextActionInfo && (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="status"
+            className={cn(
+              "gap-1 whitespace-nowrap cursor-default",
+              nextActionInfo.isOverdue
+                ? "bg-[#FEECEC] text-[#C0392B] border-[#C0392B]/20"
+                : nextActionInfo.daysUntil <= 2
+                  ? "bg-[#FFF9E6] text-[#C6A03B] border-[#C6A03B]/20"
+                  : "bg-[#E6F7F1] text-[#0C5536] border-[#0C5536]/20"
+            )}
+          >
+            <Calendar className="h-3 w-3" />
+            {nextActionInfo.isOverdue
+              ? t("overdue", "Overdue")
+              : nextActionInfo.formattedDate
+            }
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{t("nextActionDue", "Next action due")}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+
+  // Compact mode - health badge, plus the next action when one is due
   if (compact) {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge 
-              variant="status"
-              className={cn(
-                "gap-1 whitespace-nowrap border cursor-default",
-                health.bgColor,
-                health.color,
-                health.borderColor
+      <div className="flex flex-wrap items-center gap-1.5">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="status"
+                className={cn(
+                  "gap-1 whitespace-nowrap border cursor-default",
+                  health.bgColor,
+                  health.color,
+                  health.borderColor
+                )}
+              >
+                <Icon className="h-3 w-3" />
+                {health.label}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{health.description}</p>
+              {daysSinceContact !== null && daysSinceContact > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("lastContact", "Last contact")}: {daysSinceContact} {t("daysAgo", "days ago")}
+                </p>
               )}
-            >
-              <Icon className="h-3 w-3" />
-              {health.label}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{health.description}</p>
-            {daysSinceContact > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("lastContact", "Last contact")}: {daysSinceContact} {t("daysAgo", "days ago")}
-              </p>
-            )}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        {nextActionBadge}
+      </div>
     );
   }
 
@@ -230,7 +289,7 @@ export function LeadHealthIndicator({
       </TooltipProvider>
 
       {/* Days since contact - only show if stale or cold */}
-      {showAll && (health.status === "stale" || health.status === "cold") && daysSinceContact > 0 && (
+      {showAll && (health.status === "stale" || health.status === "cold") && daysSinceContact !== null && daysSinceContact > 0 && (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -250,34 +309,7 @@ export function LeadHealthIndicator({
       )}
 
       {/* Next action due */}
-      {showAll && nextActionInfo && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="status"
-                className={cn(
-                  "gap-1 whitespace-nowrap cursor-default",
-                  nextActionInfo.isOverdue 
-                    ? "bg-[#FEECEC] text-[#C0392B] border-[#C0392B]/20" 
-                    : nextActionInfo.daysUntil <= 2
-                      ? "bg-[#FFF9E6] text-[#C6A03B] border-[#C6A03B]/20"
-                      : "bg-[#E6F7F1] text-[#0C5536] border-[#0C5536]/20"
-                )}
-              >
-                <Calendar className="h-3 w-3" />
-                {nextActionInfo.isOverdue 
-                  ? t("overdue", "Overdue")
-                  : nextActionInfo.formattedDate
-                }
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{t("nextActionDue", "Next action due")}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+      {nextActionBadge}
 
       {/* Paid indicator */}
       {isPaid && (
@@ -293,17 +325,15 @@ export function LeadHealthIndicator({
 // Helper function to get health status from lead data
 export function getLeadHealthStatus(lead: {
   created_at: string;
-  updated_at: string;
   status: string;
-  last_contact_date?: string | null;
+  last_contact_at?: string | null;
 }): HealthStatus {
   if (lead.status === "won") return "won";
   if (lead.status === "lost") return "lost";
   if (lead.status === "unreachable") return "unreachable";
+  if (!lead.last_contact_at) return "unknown";
 
-  const lastActivity = lead.last_contact_date 
-    ? parseISO(lead.last_contact_date) 
-    : parseISO(lead.updated_at);
+  const lastActivity = parseISO(lead.last_contact_at);
   const daysSinceActivity = differenceInDays(new Date(), lastActivity);
   const daysSinceCreation = differenceInDays(new Date(), parseISO(lead.created_at));
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,6 +41,7 @@ interface Document {
   employee_id: string;
   employee_name: string;
   department_name: string | null;
+  employment_status: string | null;
   document_type: string;
   document_name: string;
   document_path: string;
@@ -70,6 +71,8 @@ const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   certification: "Certification",
 };
 
+const EMPLOYMENT_STATUSES = ["active", "inactive", "on_leave", "terminated"];
+
 export default function DocumentsPage() {
   const { t, i18n } = useTranslation(["hr"]);
   const isRtl = i18n.language === "ar";
@@ -77,18 +80,16 @@ export default function DocumentsPage() {
 
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [stats, setStats] = useState<DocumentStats>({
-    total: 0,
-    active: 0,
-    expiringSoon: 0,
-    expired: 0,
-  });
-  const [typeStats, setTypeStats] = useState<DocumentTypeCount[]>([]);
 
   // Filters - initialize from URL params
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState(() => searchParams.get("type") || "all");
   const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") || "all");
+  // Employment status of the document owner. Defaults to "active" (the previous
+  // hard-coded scope) but is now visible and changeable instead of silent.
+  const [employmentStatusFilter, setEmploymentStatusFilter] = useState(
+    () => searchParams?.get("employmentStatus") || "active"
+  );
 
   useEffect(() => {
     fetchDocuments();
@@ -116,7 +117,6 @@ export default function DocumentsPage() {
           )
         `
         )
-        .eq("employees.employment_status", "active")
         .order("uploaded_at", { ascending: false });
 
       if (error) throw error;
@@ -126,6 +126,7 @@ export default function DocumentsPage() {
         employee_id: doc.employee_id,
         employee_name: doc.employees?.full_name || "Unknown",
         department_name: doc.employees?.departments?.name || null,
+        employment_status: doc.employees?.employment_status || null,
         document_type: doc.document_type,
         document_name: doc.document_name,
         document_path: doc.document_path,
@@ -136,38 +137,6 @@ export default function DocumentsPage() {
       }));
 
       setDocuments(formattedDocs);
-
-      // Calculate stats - use 90 days to match HR dashboard threshold
-      const today = new Date();
-      const ninetyDaysFromNow = new Date();
-      ninetyDaysFromNow.setDate(ninetyDaysFromNow.getDate() + 90);
-
-      const activeDocs = formattedDocs.filter((d) => d.is_active);
-      const expiredDocs = activeDocs.filter(
-        (d) => d.expiry_date && new Date(d.expiry_date) < today
-      );
-      const expiringSoonDocs = activeDocs.filter(
-        (d) =>
-          d.expiry_date &&
-          new Date(d.expiry_date) >= today &&
-          new Date(d.expiry_date) <= ninetyDaysFromNow
-      );
-
-      setStats({
-        total: formattedDocs.length,
-        active: activeDocs.length,
-        expiringSoon: expiringSoonDocs.length,
-        expired: expiredDocs.length,
-      });
-
-      // Calculate type stats
-      const typeCounts: Record<string, number> = {};
-      activeDocs.forEach((doc) => {
-        typeCounts[doc.document_type] = (typeCounts[doc.document_type] || 0) + 1;
-      });
-      setTypeStats(
-        Object.entries(typeCounts).map(([type, count]) => ({ type, count }))
-      );
     } catch (error) {
       console.error("Error fetching documents:", error);
     } finally {
@@ -246,8 +215,55 @@ export default function DocumentsPage() {
     }
   };
 
+  // Documents currently in scope, i.e. after the employment status filter.
+  // Stats and type counts are derived from this so they can never disagree
+  // with the scope the user has chosen.
+  const scopedDocuments = useMemo(
+    () =>
+      employmentStatusFilter === "all"
+        ? documents
+        : documents.filter((d) => d.employment_status === employmentStatusFilter),
+    [documents, employmentStatusFilter]
+  );
+
+  // Calculate stats - use 90 days to match HR dashboard threshold
+  const stats: DocumentStats = useMemo(() => {
+    const today = new Date();
+    const ninetyDaysFromNow = new Date();
+    ninetyDaysFromNow.setDate(ninetyDaysFromNow.getDate() + 90);
+
+    const activeDocs = scopedDocuments.filter((d) => d.is_active);
+    const expiredDocs = activeDocs.filter(
+      (d) => d.expiry_date && new Date(d.expiry_date) < today
+    );
+    const expiringSoonDocs = activeDocs.filter(
+      (d) =>
+        d.expiry_date &&
+        new Date(d.expiry_date) >= today &&
+        new Date(d.expiry_date) <= ninetyDaysFromNow
+    );
+
+    return {
+      total: scopedDocuments.length,
+      active: activeDocs.length,
+      expiringSoon: expiringSoonDocs.length,
+      expired: expiredDocs.length,
+    };
+  }, [scopedDocuments]);
+
+  // Calculate type stats
+  const typeStats: DocumentTypeCount[] = useMemo(() => {
+    const typeCounts: Record<string, number> = {};
+    scopedDocuments
+      .filter((d) => d.is_active)
+      .forEach((doc) => {
+        typeCounts[doc.document_type] = (typeCounts[doc.document_type] || 0) + 1;
+      });
+    return Object.entries(typeCounts).map(([type, count]) => ({ type, count }));
+  }, [scopedDocuments]);
+
   // Filter documents
-  const filteredDocuments = documents.filter((doc) => {
+  const filteredDocuments = scopedDocuments.filter((doc) => {
     const matchesSearch =
       doc.employee_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       doc.document_name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -472,6 +488,24 @@ export default function DocumentsPage() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              <Select
+                value={employmentStatusFilter}
+                onValueChange={setEmploymentStatusFilter}
+              >
+                <SelectTrigger className="w-full sm:w-[180px] border-[#E6E6E4]">
+                  <SelectValue placeholder={t("hr:employmentStatus")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    {t("hr:documentsPage.allEmployees", "All Employees")}
+                  </SelectItem>
+                  {EMPLOYMENT_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {t(`hr:status.${status}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="rounded-lg border border-[#E6E6E4] overflow-hidden">
@@ -509,6 +543,9 @@ export default function DocumentsPage() {
                           </p>
                           <p className="text-xs text-[#6B6B6B]">
                             {doc.department_name || t("hr:documentsPage.noDepartment")}
+                            {doc.employment_status &&
+                              doc.employment_status !== "active" &&
+                              ` · ${t(`hr:status.${doc.employment_status}`)}`}
                           </p>
                         </div>
                       </TableCell>

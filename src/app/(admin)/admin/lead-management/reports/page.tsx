@@ -14,6 +14,8 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCollectedRevenue } from "@/lib/finance/collectedRevenueClient";
+import { sumCollectedRevenue, type LeadCollectedRevenue } from "@/lib/finance/collectedRevenue";
 import { LeadExportButton } from "@/components/lead-management/LeadExportButton";
 import {
   PieChart,
@@ -81,6 +83,11 @@ export default function LeadManagementReportsPage() {
 
   const [loading, setLoading] = useState(true);
   const [leads, setLeads] = useState<Lead[]>([]);
+  // Money per lead, reconciled from the payment ledger and the legacy
+  // leads.paid_amount — see src/lib/finance/collectedRevenue.ts.
+  const [revenueByLead, setRevenueByLead] = useState<Map<string, LeadCollectedRevenue>>(
+    new Map()
+  );
 
   useEffect(() => {
     fetchData();
@@ -104,7 +111,9 @@ export default function LeadManagementReportsPage() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setLeads((data as Lead[]) || []);
+      const leadRows = (data as Lead[]) || [];
+      setLeads(leadRows);
+      setRevenueByLead(await fetchCollectedRevenue(leadRows));
     } catch (error) {
       console.error("Error fetching leads:", error);
     } finally {
@@ -125,9 +134,10 @@ export default function LeadManagementReportsPage() {
 
     const totalLeads = currentMonthLeads.length;
     const dealsWon = leads.filter((l) => l.status === "won").length;
-    const totalRevenue = leads
-      .filter((l) => l.is_paid && l.paid_amount)
-      .reduce((sum, l) => sum + (l.paid_amount || 0), 0);
+    const totalRevenue = sumCollectedRevenue(
+      revenueByLead,
+      leads.map((l) => l.id)
+    );
 
     const conversionRate = leads.length > 0 
       ? Math.round((dealsWon / leads.length) * 100) 
@@ -211,7 +221,7 @@ export default function LeadManagementReportsPage() {
       monthlyTrend,
       conversionFunnel,
     };
-  }, [leads, t]);
+  }, [leads, revenueByLead, t]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {

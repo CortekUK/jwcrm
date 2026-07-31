@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Returns the real activation state for every user.
+ * Returns the real activation state — and email address — for every user.
  *
  * The deactivation flag lives in auth.users.user_metadata.is_active (it is what
  * SignInForm checks before letting anyone in) — there is no status column on
@@ -12,6 +12,11 @@ import { NextRequest, NextResponse } from "next/server";
  * The existing admin-get-users edge function exposes the same flag but is
  * restricted to superadmins, and the dashboard is an admin-level page, so this
  * route re-exposes just the flag to admins and superadmins.
+ *
+ * Emails come from the same walk: `profiles` has no email column either, so the
+ * dashboard's "search by name or email" could never match and the per-row email
+ * line never rendered. `data` keeps its original shape for existing callers;
+ * the emails arrive alongside it.
  */
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -52,6 +57,7 @@ export async function GET(request: NextRequest) {
     // listUsers is paginated; walk every page so nobody is silently reported
     // as active just because they fell off page one.
     const statuses: Record<string, boolean> = {};
+    const emails: Record<string, string> = {};
     const perPage = 1000;
     for (let page = 1; page <= 50; page++) {
       const { data, error } = await supabaseAdmin.auth.admin.listUsers({
@@ -67,12 +73,17 @@ export async function GET(request: NextRequest) {
         statuses[authUser.id] =
           (authUser.user_metadata as { is_active?: boolean } | null)
             ?.is_active !== false;
+        // A user genuinely may have no email (phone-only sign-up), so only
+        // record one when it exists.
+        if (authUser.email) {
+          emails[authUser.id] = authUser.email;
+        }
       }
 
       if (users.length < perPage) break;
     }
 
-    return NextResponse.json({ data: statuses });
+    return NextResponse.json({ data: statuses, emails });
   } catch (error) {
     console.error("Error fetching user activation states:", error);
     return NextResponse.json(

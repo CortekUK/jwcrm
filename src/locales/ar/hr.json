@@ -863,6 +863,7 @@
     "viewDocument": "عرض",
     "documents": "مستندات",
     "expiringSoon": "على وشك الانتهاء",
+    "allEmployees": "جميع الموظفين",
     "noDepartment": "بدون قسم"
   },
   "active": "نشط",
@@ -1066,6 +1067,7 @@
     "employeesWithKPIs": "الموظفون الذين لديهم مؤشرات أداء",
     "excellent": "ممتاز",
     "good": "جيد",
+    "loadError": "تعذّر تحميل نظرة عامة على مؤشرات الأداء",
     "markEvaluations": "تسجيل التقييمات",
     "needsAttention": "يحتاج إلى اهتمام",
     "needsImprovement": "يحتاج إلى تحسين",

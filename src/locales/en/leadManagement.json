@@ -480,6 +480,8 @@
   "noActivity": "No activity yet",
   "noActivityDescription": "Activity will appear here as you work with leads",
   "noActivityYet": "No activity yet",
+  "noContactLogged": "No contact logged",
+  "noContactLoggedDesc": "No communication or call attempt recorded yet",
   "noDataAvailable": "No data available",
   "noDocuments": "No documents",
   "noDocumentsDescription": "Upload contracts, IDs, or other files",

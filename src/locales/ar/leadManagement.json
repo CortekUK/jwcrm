@@ -480,6 +480,8 @@
   "noActivity": "لا يوجد نشاط بعد",
   "noActivityDescription": "سيظهر النشاط هنا عند العمل مع العملاء المحتملين",
   "noActivityYet": "لا يوجد نشاط بعد",
+  "noContactLogged": "لم يُسجَّل أي تواصل",
+  "noContactLoggedDesc": "لم يتم تسجيل أي تواصل أو محاولة اتصال بعد",
   "noDataAvailable": "لا توجد بيانات متاحة",
   "noDocuments": "لا توجد مستندات",
   "noDocumentsDescription": "قم برفع العقود، الهويات، أو ملفات أخرى",

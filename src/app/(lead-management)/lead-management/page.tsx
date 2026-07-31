@@ -24,6 +24,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { format, parseISO, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { LeadStatus, LeadStatusBadge } from "@/components/lead-management/LeadStatusBadge";
+import { fetchCollectedRevenue } from "@/lib/finance/collectedRevenueClient";
+import { collectedFor, sumCollectedRevenue } from "@/lib/finance/collectedRevenue";
 import {
   BarChart,
   Bar,
@@ -151,12 +153,15 @@ export default function LeadManagementDashboard() {
         ? (wonLeads / (wonLeads + lostLeads)) * 100 
         : 0;
 
-      const totalRevenue = leads?.reduce((sum, l) => {
-        if (l.is_paid && l.paid_amount) {
-          return sum + l.paid_amount;
-        }
-        return sum;
-      }, 0) || 0;
+      // Money per lead comes from the payment ledger where it exists and from
+      // the legacy leads.paid_amount only where it does not — see
+      // src/lib/finance/collectedRevenue.ts. Two extra queries for the whole
+      // set, not one per lead.
+      const revenueByLead = await fetchCollectedRevenue(leads || []);
+      const totalRevenue = sumCollectedRevenue(
+        revenueByLead,
+        (leads || []).map((l) => l.id)
+      );
 
       setStats({
         totalLeads,
@@ -201,9 +206,7 @@ export default function LeadManagementDashboard() {
         sourceStats[sourceId].count++;
         if (l.status === "won") {
           sourceStats[sourceId].won++;
-          if (l.paid_amount) {
-            sourceStats[sourceId].revenue += l.paid_amount;
-          }
+          sourceStats[sourceId].revenue += collectedFor(revenueByLead, l.id);
         }
       });
 
@@ -247,9 +250,7 @@ export default function LeadManagementDashboard() {
           salespersonStats[l.assigned_to].totalLeads++;
           if (l.status === "won") {
             salespersonStats[l.assigned_to].wonLeads++;
-            if (l.paid_amount) {
-              salespersonStats[l.assigned_to].revenue += l.paid_amount;
-            }
+            salespersonStats[l.assigned_to].revenue += collectedFor(revenueByLead, l.id);
           }
         }
       });

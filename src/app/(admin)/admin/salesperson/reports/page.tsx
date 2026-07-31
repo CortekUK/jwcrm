@@ -14,6 +14,12 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCollectedRevenue } from "@/lib/finance/collectedRevenueClient";
+import {
+  collectedFor,
+  sumCollectedRevenue,
+  type LeadCollectedRevenue,
+} from "@/lib/finance/collectedRevenue";
 import { LeadExportButton } from "@/components/lead-management/LeadExportButton";
 import {
   PieChart,
@@ -78,6 +84,11 @@ export default function SalespersonReportsPage() {
 
   const [loading, setLoading] = useState(true);
   const [leads, setLeads] = useState<Lead[]>([]);
+  // Money per lead, reconciled from the payment ledger and the legacy
+  // leads.paid_amount — see src/lib/finance/collectedRevenue.ts.
+  const [revenueByLead, setRevenueByLead] = useState<Map<string, LeadCollectedRevenue>>(
+    new Map()
+  );
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -118,7 +129,9 @@ export default function SalespersonReportsPage() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setLeads((data as Lead[]) || []);
+      const leadRows = (data as Lead[]) || [];
+      setLeads(leadRows);
+      setRevenueByLead(await fetchCollectedRevenue(leadRows));
     } catch (error) {
       console.error("Error fetching leads:", error);
     } finally {
@@ -139,9 +152,10 @@ export default function SalespersonReportsPage() {
 
     const myTotalLeads = currentMonthLeads.length;
     const myDealsWon = leads.filter((l) => l.status === "won").length;
-    const myRevenue = leads
-      .filter((l) => l.is_paid && l.paid_amount)
-      .reduce((sum, l) => sum + (l.paid_amount || 0), 0);
+    const myRevenue = sumCollectedRevenue(
+      revenueByLead,
+      leads.map((l) => l.id)
+    );
 
     const myConversionRate = leads.length > 0 
       ? Math.round((myDealsWon / leads.length) * 100) 
@@ -195,9 +209,10 @@ export default function SalespersonReportsPage() {
       });
 
       const monthWon = monthLeads.filter((l) => l.status === "won").length;
-      const monthRevenue = monthLeads
-        .filter((l) => l.is_paid && l.paid_amount)
-        .reduce((sum, l) => sum + (l.paid_amount || 0), 0);
+      const monthRevenue = monthLeads.reduce(
+        (sum, l) => sum + collectedFor(revenueByLead, l.id),
+        0
+      );
 
       myMonthlyTrend.push({ month: monthLabel, leads: monthLeads.length, won: monthWon });
       myRevenueTrend.push({ month: monthLabel, revenue: monthRevenue });
@@ -214,7 +229,7 @@ export default function SalespersonReportsPage() {
       myMonthlyTrend,
       myRevenueTrend,
     };
-  }, [leads, t]);
+  }, [leads, revenueByLead, t]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {

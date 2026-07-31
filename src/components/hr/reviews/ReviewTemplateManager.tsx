@@ -275,11 +275,16 @@ export function ReviewTemplateManager() {
 
   const handleSetDefault = async (templateId: string) => {
     try {
-      // First, unset all defaults
-      await supabase
+      // First, unset any template that is currently the default. Filtering on
+      // is_default is both valid (id is a uuid, so a string sentinel makes
+      // Postgres reject the whole statement) and semantically correct.
+      const { error: unsetError } = await supabase
         .from("review_templates")
         .update({ is_default: false })
-        .neq("id", "placeholder");
+        .eq("is_default", true)
+        .neq("id", templateId);
+
+      if (unsetError) throw unsetError;
 
       // Then set the new default
       const { error } = await supabase

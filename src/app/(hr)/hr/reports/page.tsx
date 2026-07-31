@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +30,7 @@ import { ExportAttendanceModal } from "@/components/hr/attendance/ExportAttendan
 import { BatchDocumentExportButton } from "@/components/hr/documents/BatchDocumentExportButton";
 import { KPIExportButton } from "@/components/hr/kpis/KPIExportButton";
 import { supabase } from "@/integrations/supabase/client";
+import { useLeaveTypes } from "@/hooks/useLeaveTypes";
 import {
   PieChart,
   Pie,
@@ -61,13 +62,28 @@ const COLORS = {
   absent: "#ef4444",
 };
 
+// Fallback palette for leave type slugs that have no entry in COLORS (HR can add
+// new leave types at any time, plus legacy values still present in the data)
+const LEAVE_TYPE_FALLBACK_COLORS = [
+  "#8b5cf6",
+  "#14b8a6",
+  "#ec4899",
+  "#f97316",
+  "#06b6d4",
+  "#84cc16",
+];
+
+// Humanise a raw slug so unknown/legacy leave types are still readable
+const humaniseLeaveTypeSlug = (slug: string) =>
+  slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
 interface AnalyticsData {
   totalEmployees: number;
   attendanceRate: number;
   pendingLeave: number;
   avgKpiScore: number | null;
   kpiDistribution: { name: string; value: number; color: string }[];
-  leaveByType: { name: string; value: number; color: string }[];
+  leaveByTypeCounts: Record<string, number>;
   attendanceTrend: { day: string; rate: number }[];
   reviewStats: { complete: number; pending: number; overdue: number };
 }
@@ -76,6 +92,7 @@ export default function ReportsPage() {
   const { t, i18n } = useTranslation(["hr", "common"]);
   const router = useRouter();
   const isRtl = i18n.language === "ar";
+  const { leaveTypes: leaveTypesList } = useLeaveTypes();
 
   const [leaveExportOpen, setLeaveExportOpen] = useState(false);
   const [attendanceExportOpen, setAttendanceExportOpen] = useState(false);
@@ -86,7 +103,7 @@ export default function ReportsPage() {
     pendingLeave: 0,
     avgKpiScore: null,
     kpiDistribution: [],
-    leaveByType: [],
+    leaveByTypeCounts: {},
     attendanceTrend: [],
     reviewStats: { complete: 0, pending: 0, overdue: 0 },
   });
@@ -182,12 +199,6 @@ export default function ReportsPage() {
       (leaveResult.data || []).forEach((l) => {
         leaveByTypeMap[l.leave_type] = (leaveByTypeMap[l.leave_type] || 0) + 1;
       });
-      const leaveByType = [
-        { name: t("hr:leaveTypeLabels.annual", "Annual"), value: leaveByTypeMap["annual"] || 0, color: COLORS.annual },
-        { name: t("hr:leaveTypeLabels.sick", "Sick"), value: leaveByTypeMap["sick"] || 0, color: COLORS.sick },
-        { name: t("hr:leaveTypeLabels.emergency", "Emergency"), value: leaveByTypeMap["emergency"] || 0, color: COLORS.emergency },
-        { name: t("hr:leaveTypeLabels.unpaid", "Unpaid"), value: leaveByTypeMap["unpaid"] || 0, color: COLORS.unpaid },
-      ].filter((l) => l.value > 0);
 
       // Process KPIs
       const kpiEvaluations = kpiResult.data || [];
@@ -223,7 +234,7 @@ export default function ReportsPage() {
         pendingLeave,
         avgKpiScore,
         kpiDistribution,
-        leaveByType,
+        leaveByTypeCounts: leaveByTypeMap,
         attendanceTrend: last7Days,
         reviewStats,
       });
@@ -233,6 +244,30 @@ export default function ReportsPage() {
       setLoading(false);
     }
   };
+
+  // Build the pending-leave chart from the counted data itself plus the
+  // configurable leave_types table, so newly added types and legacy values
+  // (e.g. "working_from_abroad") are shown rather than silently discarded.
+  const leaveByType = useMemo(() => {
+    const nameBySlug: Record<string, string> = {};
+    for (const lt of leaveTypesList) {
+      nameBySlug[lt.slug] = lt.name;
+    }
+    const knownColors = COLORS as Record<string, string>;
+    let fallbackIndex = 0;
+    return Object.entries(analytics.leaveByTypeCounts)
+      .filter(([, value]) => value > 0)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([slug, value]) => ({
+        // translation key when we have one, else the leave_types display name,
+        // else the humanised slug
+        name: t(`hr:leaveTypeLabels.${slug}`, nameBySlug[slug] || humaniseLeaveTypeSlug(slug)),
+        value,
+        color:
+          knownColors[slug] ??
+          LEAVE_TYPE_FALLBACK_COLORS[fallbackIndex++ % LEAVE_TYPE_FALLBACK_COLORS.length],
+      }));
+  }, [analytics.leaveByTypeCounts, leaveTypesList, t]);
 
   const getCategoryColor = () => {
     return "bg-[rgba(198,160,59,0.15)] text-[#0C5536]";
@@ -442,15 +477,15 @@ export default function ReportsPage() {
             <CardContent>
               {loading ? (
                 <Skeleton className="h-[200px] w-full" />
-              ) : analytics.leaveByType.length > 0 ? (
+              ) : leaveByType.length > 0 ? (
                 <div className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={analytics.leaveByType} layout="vertical">
+                    <BarChart data={leaveByType} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="#E6E6E4" />
                       <XAxis type="number" tick={{ fontSize: 12 }} stroke="#777777" />
                       <YAxis dataKey="name" type="category" tick={{ fontSize: 12 }} stroke="#777777" width={80} />
                       <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                        {analytics.leaveByType.map((entry, index) => (
+                        {leaveByType.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Bar>

@@ -1,5 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  computeCollectedRevenue,
+  sumCollectedRevenue,
+  dominantCurrency,
+  type RevenueLeadLike,
+  type RevenueProposalLike,
+  type RevenuePaymentLike,
+} from "@/lib/finance/collectedRevenue";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -77,15 +85,34 @@ export async function GET(
         .length || 0;
     const conversionRate = total > 0 ? (won / total) * 100 : 0;
 
-    const totalRevenue =
-      leads
-        ?.filter((l) => l.is_paid && l.paid_amount)
-        .reduce((sum, l) => sum + (l.paid_amount || 0), 0) || 0;
+    // Revenue comes from the payment ledger where it exists and falls back to
+    // the legacy leads.paid_amount elsewhere — see collectedRevenue.ts. Two
+    // extra queries for the whole set, not one per lead.
+    const leadRows = (leads || []) as unknown as RevenueLeadLike[];
+    const leadIds = leadRows.map((l) => l.id);
 
-    // Get the most common currency
-    const currencies =
-      leads?.filter((l) => l.paid_currency).map((l) => l.paid_currency!) || [];
-    const currency = currencies.length > 0 ? currencies[0] : "AED";
+    let proposals: RevenueProposalLike[] = [];
+    let payments: RevenuePaymentLike[] = [];
+    if (leadIds.length > 0) {
+      const { data: proposalRows } = await supabaseAdmin
+        .from("proposals")
+        .select("id, lead_id, currency")
+        .in("lead_id", leadIds);
+      proposals = (proposalRows || []) as unknown as RevenueProposalLike[];
+
+      const proposalIds = proposals.map((p) => p.id);
+      if (proposalIds.length > 0) {
+        const { data: paymentRows } = await supabaseAdmin
+          .from("proposal_payments")
+          .select("proposal_id, amount")
+          .in("proposal_id", proposalIds);
+        payments = (paymentRows || []) as unknown as RevenuePaymentLike[];
+      }
+    }
+
+    const revenueByLead = computeCollectedRevenue(leadRows, proposals, payments);
+    const totalRevenue = sumCollectedRevenue(revenueByLead);
+    const currency = dominantCurrency(revenueByLead);
 
     return NextResponse.json({
       data: {

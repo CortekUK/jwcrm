@@ -101,6 +101,16 @@ export function EmployeeKPIEvaluationForm({
 
   const yearOptions = getYearOptions();
 
+  // The parent can move the period from outside the form (clicking a row in
+  // Performance History). useState only reads the props once, so follow them.
+  useEffect(() => {
+    if (initialYear !== undefined) setSelectedYear(initialYear);
+  }, [initialYear]);
+
+  useEffect(() => {
+    if (initialMonth !== undefined) setSelectedMonth(initialMonth);
+  }, [initialMonth]);
+
   // Fetch KPIs and existing assignments
   useEffect(() => {
     const fetchData = async () => {

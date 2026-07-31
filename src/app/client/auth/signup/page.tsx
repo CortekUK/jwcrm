@@ -53,7 +53,9 @@ export default function ClientAuthSignup() {
         email: data.email,
         password: data.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          // "/" redirects to /admin/auth, so verifying used to drop a new client
+          // on the staff login. This page is the one built for it.
+          emailRedirectTo: `${window.location.origin}/client/auth/verified`,
           data: {
             full_name: data.fullName,
           },

@@ -152,7 +152,10 @@ function AdminDashboard() {
         // `profiles` query can reach — hence the dedicated admin route. If it
         // fails we leave the state unknown rather than claiming everyone is
         // active, which is what the hardcoded badge used to do.
+        // The same route carries the email addresses: `profiles` has no email
+        // column, so without them the "name or email" search matched nothing.
         let activationStates: Record<string, boolean> | null = null;
+        let emails: Record<string, string> = {};
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.access_token) {
@@ -162,6 +165,7 @@ function AdminDashboard() {
             if (statusResponse.ok) {
               const payload = await statusResponse.json();
               activationStates = payload.data || {};
+              emails = payload.emails || {};
             } else {
               console.error('Failed to fetch user activation states:', statusResponse.status);
             }
@@ -173,6 +177,7 @@ function AdminDashboard() {
         const enrichedUsers = usersWithDetails.map(user => ({
           ...user,
           is_active: activationStates ? activationStates[user.user_id] ?? true : null,
+          email: emails[user.user_id],
           willsCount: willCounts[user.user_id] || 0,
           reviewsCount: reviewsCounts[user.user_id] || 0,
           approvedCount: approvedCounts[user.user_id] || 0,

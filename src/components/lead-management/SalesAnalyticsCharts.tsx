@@ -40,6 +40,10 @@ import {
 } from "recharts";
 import { LeadStatus } from "./LeadStatusBadge";
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO, differenceInDays } from "date-fns";
+import {
+  collectedFor,
+  type LeadCollectedRevenue,
+} from "@/lib/finance/collectedRevenue";
 
 interface Lead {
   id: string;
@@ -66,6 +70,12 @@ interface ChartClickAction {
 
 interface SalesAnalyticsChartsProps {
   leads: Lead[];
+  /**
+   * Money collected per lead id, from src/lib/finance/collectedRevenue.ts.
+   * Revenue is deliberately not derived from lead.paid_amount here — that
+   * column predates the payment ledger and misses everything recorded since.
+   */
+  revenueByLead: Map<string, LeadCollectedRevenue>;
   isLoading?: boolean;
   onChartClick?: (action: ChartClickAction) => void;
 }
@@ -114,6 +124,7 @@ const pieChartConfig = {
 
 export function SalesAnalyticsCharts({
   leads,
+  revenueByLead,
   isLoading,
   onChartClick,
 }: SalesAnalyticsChartsProps) {
@@ -181,7 +192,6 @@ export function SalesAnalyticsCharts({
 
       const monthRevenue = leads
         .filter((lead) => {
-          if (!lead.is_paid || !lead.paid_amount) return false;
           try {
             const createdDate = parseISO(lead.created_at);
             return isWithinInterval(createdDate, { start: monthStart, end: monthEnd });
@@ -189,7 +199,7 @@ export function SalesAnalyticsCharts({
             return false;
           }
         })
-        .reduce((sum, lead) => sum + (lead.paid_amount || 0), 0);
+        .reduce((sum, lead) => sum + collectedFor(revenueByLead, lead.id), 0);
 
       months.push({
         month: monthLabel,
@@ -199,7 +209,7 @@ export function SalesAnalyticsCharts({
     }
 
     return months;
-  }, [leads, dateRange]);
+  }, [leads, revenueByLead, dateRange]);
 
   // Conversion rate trend
   const conversionTrendData = useMemo(() => {

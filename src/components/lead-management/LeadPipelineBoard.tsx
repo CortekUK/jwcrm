@@ -53,8 +53,10 @@ export interface Lead {
   paid_currency: string | null;
   created_at: string;
   updated_at: string;
-  last_contact_date?: string | null;
-  next_action_date?: string | null;
+  // Enriched by the page, not columns on `leads`: newest logged communication
+  // (or last call attempt) and earliest outstanding reminder.
+  last_contact_at?: string | null;
+  next_action_at?: string | null;
   source_data?: { id: string; name: string } | null;
   assigned_user?: { user_id: string; full_name: string } | null;
 }
@@ -82,6 +84,9 @@ const PIPELINE_COLUMNS: { status: LeadStatus; label: string; color: string; bgCo
   { status: "qualified", label: "Qualified", color: "#7C3AED", bgColor: "#F3E8FF", borderColor: "#7C3AED" },
   { status: "negotiation", label: "Negotiation", color: "#4F46E5", bgColor: "#E6E6FF", borderColor: "#4F46E5" },
   { status: "pending", label: "Pending", color: "#C6A03B", bgColor: "#FFF9E6", borderColor: "#C6A03B" },
+  // `hold` is a real lead_status value; leaving it out of the columns meant
+  // every lead paused on hold was grouped into a bucket the board never rendered.
+  { status: "hold", label: "On Hold", color: "#D97706", bgColor: "#FFF4E6", borderColor: "#D97706" },
   { status: "won", label: "Won", color: "#0C5536", bgColor: "#D4EDDA", borderColor: "#0C5536" },
   { status: "lost", label: "Lost", color: "#C0392B", bgColor: "#FEECEC", borderColor: "#C0392B" },
   { status: "unreachable", label: "Unreachable", color: "#737373", bgColor: "#E5E5E5", borderColor: "#737373" },
@@ -285,10 +290,9 @@ export function LeadPipelineBoard({
         {/* Health Indicator */}
         <div className="mb-2">
           <LeadHealthIndicator
-            lastContactDate={lead.last_contact_date}
-            nextActionDate={lead.next_action_date}
+            lastContactDate={lead.last_contact_at}
+            nextActionDate={lead.next_action_at}
             createdAt={lead.created_at}
-            updatedAt={lead.updated_at}
             status={lead.status}
             isPaid={lead.is_paid}
             compact

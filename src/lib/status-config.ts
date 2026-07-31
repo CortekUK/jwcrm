@@ -219,7 +219,8 @@ export const CLIENT_STATUS_MAP: Record<WillStatus, ClientStatusConfig> = {
     bannerTitle: "portal:banner.awaitingReview.title",
     bannerSubtitle: "portal:banner.awaitingReview.subtitle",
     bannerIcon: Clock,
-    primaryCTA: { label: "portal:cta.viewSubmission", route: "/documents" },
+    // "/documents" is not a route — it 404'd. Every other CTA here is /client/*.
+    primaryCTA: { label: "portal:cta.viewSubmission", route: "/client/documents" },
     showTimeline: true,
     readOnlyForm: true,
     timelineLabel: "portal:documentsPage.statusLabels.awaitingReview",

@@ -14,6 +14,11 @@ import {
   Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  collectedFor,
+  dominantCurrency,
+  type LeadCollectedRevenue,
+} from "@/lib/finance/collectedRevenue";
 
 export interface SalespersonStats {
   total: number;
@@ -192,14 +197,20 @@ export function SalespersonStatsCard({
   );
 }
 
-// Helper function to calculate stats from leads
+// Helper function to calculate stats from leads.
+//
+// Revenue is not read off the leads: leads.paid_amount is the pre-ledger
+// record and misses everything taken through proposal_payments since. Callers
+// pass the reconciled figures from src/lib/finance/collectedRevenue.ts.
 export function calculateSalespersonStats(
   leads: Array<{
+    id: string;
     status: string;
     is_paid: boolean;
     paid_amount: number | null;
     paid_currency: string | null;
-  }>
+  }>,
+  revenueByLead: Map<string, LeadCollectedRevenue>
 ): SalespersonStats {
   const total = leads.length;
   const won = leads.filter((l) => l.status === "won").length;
@@ -211,15 +222,13 @@ export function calculateSalespersonStats(
 
   const conversionRate = total > 0 ? (won / total) * 100 : 0;
 
-  const totalRevenue = leads
-    .filter((l) => l.is_paid && l.paid_amount)
-    .reduce((sum, l) => sum + (l.paid_amount || 0), 0);
+  const totalRevenue = leads.reduce(
+    (sum, l) => sum + collectedFor(revenueByLead, l.id),
+    0
+  );
 
-  // Get the most common currency
-  const currencies = leads
-    .filter((l) => l.paid_currency)
-    .map((l) => l.paid_currency!);
-  const currency = currencies.length > 0 ? currencies[0] : "AED";
+  // The currency most of the money is in.
+  const currency = dominantCurrency(revenueByLead);
 
   return {
     total,
@@ -236,6 +245,7 @@ export function calculateSalespersonStats(
 // Helper function to calculate stats for previous period (for comparison)
 export function calculatePreviousPeriodStats(
   leads: Array<{
+    id: string;
     status: string;
     is_paid: boolean;
     paid_amount: number | null;
@@ -243,7 +253,8 @@ export function calculatePreviousPeriodStats(
     created_at: string;
   }>,
   periodStartDate: Date,
-  periodEndDate: Date
+  periodEndDate: Date,
+  revenueByLead: Map<string, LeadCollectedRevenue>
 ): PreviousPeriodStats {
   const filteredLeads = leads.filter((l) => {
     const createdDate = new Date(l.created_at);
@@ -254,7 +265,7 @@ export function calculatePreviousPeriodStats(
     return {};
   }
 
-  const stats = calculateSalespersonStats(filteredLeads);
+  const stats = calculateSalespersonStats(filteredLeads, revenueByLead);
   
   return {
     total: stats.total,

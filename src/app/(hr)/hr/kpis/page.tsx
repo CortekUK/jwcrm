@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Target, ClipboardCheck, BarChart3, LineChart } from "lucide-react";
+import { useHrBasePath } from "@/hooks/useHrBasePath";
 
 type KPI = {
   id: string;
@@ -43,6 +44,10 @@ type Employee = {
   } | null;
 };
 
+// Tab values that can be deep-linked via ?tab= (must match the TabsTrigger values below)
+const TAB_VALUES = ["kpis", "evaluations", "summaries", "analytics"] as const;
+const DEFAULT_TAB = "kpis";
+
 type EvaluationSummary = {
   employee_id: string;
   employee_name: string;
@@ -56,12 +61,22 @@ export default function KPIsPage() {
   const { t, i18n } = useTranslation(["hr", "common"]);
   const isRtl = i18n.language === "ar";
   const router = useRouter();
+  // The admin portal re-exports this page, so hardcoding /admin/hr threw an
+  // HR-portal user out of their own portal mid-flow.
+  const basePath = useHrBasePath();
   const searchParams = useSearchParams();
   
   // Get initial role filter from URL
   const initialRoleFilter = searchParams.get("role") || undefined;
 
-  const [activeTab, setActiveTab] = useState("kpis");
+  // Get initial tab from URL (e.g. the "Mark Evaluations" shortcut on the HR dashboard).
+  // Unknown or absent values fall back to the default tab.
+  const tabParam = searchParams?.get("tab");
+  const initialTab = TAB_VALUES.includes(tabParam as (typeof TAB_VALUES)[number])
+    ? (tabParam as string)
+    : DEFAULT_TAB;
+
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [loading, setLoading] = useState(true);
 
   // KPIs tab state
@@ -369,19 +384,19 @@ export default function KPIsPage() {
   }, [summaryYear, summaryMonth, fetchDepartmentSummaries, loading]);
 
   const handleAddKPI = () => {
-    router.push("/admin/hr/kpis/new");
+    router.push(`${basePath}/kpis/new`);
   };
 
   const handleEditKPI = (id: string) => {
-    router.push(`/admin/hr/kpis/${id}/edit`);
+    router.push(`${basePath}/kpis/${id}/edit`);
   };
 
   const handleEvaluate = (employeeId: string) => {
-    router.push(`/admin/hr/kpis/evaluations/${employeeId}?year=${selectedYear}&month=${selectedMonth}`);
+    router.push(`${basePath}/kpis/evaluations/${employeeId}?year=${selectedYear}&month=${selectedMonth}`);
   };
 
   const handleSummaryEmployeeClick = (employeeId: string) => {
-    router.push(`/admin/hr/kpis/evaluations/${employeeId}?year=${summaryYear}&month=${summaryMonth}`);
+    router.push(`${basePath}/kpis/evaluations/${employeeId}?year=${summaryYear}&month=${summaryMonth}`);
   };
 
   return (

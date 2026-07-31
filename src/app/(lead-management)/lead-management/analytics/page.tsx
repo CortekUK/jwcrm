@@ -62,6 +62,11 @@ import {
 import { format, subMonths, differenceInDays, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { LeadStatus } from "@/components/lead-management/LeadStatusBadge";
 import { cn } from "@/lib/utils";
+import { fetchCollectedRevenue } from "@/lib/finance/collectedRevenueClient";
+import {
+  collectedFor,
+  type LeadCollectedRevenue,
+} from "@/lib/finance/collectedRevenue";
 
 interface Lead {
   id: string;
@@ -107,6 +112,11 @@ export default function LeadAnalyticsPage() {
   const router = useRouter();
 
   const [leads, setLeads] = useState<Lead[]>([]);
+  // Money per lead, reconciled from the payment ledger and the legacy
+  // leads.paid_amount — see src/lib/finance/collectedRevenue.ts.
+  const [revenueByLead, setRevenueByLead] = useState<Map<string, LeadCollectedRevenue>>(
+    new Map()
+  );
   const [salespeople, setSalespeople] = useState<Salesperson[]>([]);
   const [sources, setSources] = useState<SourceData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -139,6 +149,7 @@ export default function LeadAnalyticsPage() {
 
         if (leadsError) throw leadsError;
         setLeads(leadsData || []);
+        setRevenueByLead(await fetchCollectedRevenue(leadsData || []));
 
         // Fetch salespeople
         const { data: profilesData, error: profilesError } = await supabase
@@ -262,7 +273,7 @@ export default function LeadAnalyticsPage() {
       sourceStats[sourceId].leads++;
       if (lead.status === "won") {
         sourceStats[sourceId].won++;
-        sourceStats[sourceId].revenue += lead.paid_amount || 0;
+        sourceStats[sourceId].revenue += collectedFor(revenueByLead, lead.id);
       }
     });
 
@@ -277,7 +288,7 @@ export default function LeadAnalyticsPage() {
         const bVal = b[sourceSort.field as keyof typeof b] as number;
         return sourceSort.direction === "desc" ? bVal - aVal : aVal - bVal;
       });
-  }, [filteredLeads, sourceSort]);
+  }, [filteredLeads, revenueByLead, sourceSort]);
 
   // Salesperson leaderboard data
   const leaderboardData = useMemo(() => {
@@ -293,7 +304,7 @@ export default function LeadAnalyticsPage() {
         salespersonStats[lead.assigned_to].leads++;
         if (lead.status === "won") {
           salespersonStats[lead.assigned_to].won++;
-          salespersonStats[lead.assigned_to].revenue += lead.paid_amount || 0;
+          salespersonStats[lead.assigned_to].revenue += collectedFor(revenueByLead, lead.id);
         }
       }
     });
@@ -310,7 +321,7 @@ export default function LeadAnalyticsPage() {
         const bVal = b[leaderboardSort.field as keyof typeof b] as number;
         return leaderboardSort.direction === "desc" ? bVal - aVal : aVal - bVal;
       });
-  }, [filteredLeads, salespeople, leaderboardSort]);
+  }, [filteredLeads, revenueByLead, salespeople, leaderboardSort]);
 
   // Time-to-close data
   const timeToCloseData = useMemo(() => {
@@ -345,7 +356,10 @@ export default function LeadAnalyticsPage() {
   const metrics = useMemo(() => {
     const totalLeads = filteredLeads.length;
     const wonLeads = filteredLeads.filter(l => l.status === "won").length;
-    const totalRevenue = filteredLeads.reduce((sum, l) => sum + (l.status === "won" ? l.paid_amount || 0 : 0), 0);
+    const totalRevenue = filteredLeads.reduce(
+      (sum, l) => sum + (l.status === "won" ? collectedFor(revenueByLead, l.id) : 0),
+      0
+    );
     const conversionRate = totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 100) : 0;
     
     const wonLeadsWithDates = filteredLeads.filter(l => l.status === "won");
@@ -354,7 +368,7 @@ export default function LeadAnalyticsPage() {
       : 0;
 
     return { totalLeads, wonLeads, totalRevenue, conversionRate, avgDaysToClose };
-  }, [filteredLeads]);
+  }, [filteredLeads, revenueByLead]);
 
   // Sort handler
   const handleLeaderboardSort = (field: SortField) => {
