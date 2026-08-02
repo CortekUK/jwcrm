@@ -429,8 +429,12 @@ export default function DocumentsPage() {
                 {t("hr:documentsPage.documentsList")}
               </h3>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative">
+            {/* flex-wrap + min-w-0: this row carries four controls (search, type,
+                status, employment status). Flex items default to min-width:auto,
+                so the fixed sm:w-[…] widths do not shrink and the row pushed the
+                whole page into horizontal overflow on a narrow window. */}
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 min-w-0">
+              <div className="relative min-w-0">
                 <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C6A03B]" />
                 <Input
                   placeholder={t("hr:documentsPage.searchPlaceholder")}

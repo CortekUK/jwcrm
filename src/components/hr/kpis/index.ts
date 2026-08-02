@@ -21,6 +21,7 @@ export { BulkKPIReportPDFTemplate } from "./BulkKPIReportPDFTemplate";
 export { AddCustomKPIForm } from "./AddCustomKPIForm";
 export { CustomKPIList } from "./CustomKPIList";
 export { CustomKPIEvaluationSection } from "./CustomKPIEvaluationSection";
+export type { CustomKPIEvaluationSectionHandle } from "./CustomKPIEvaluationSection";
 
 // Dashboard Components
 export { KPIEvaluationAlertCard } from "./KPIEvaluationAlertCard";

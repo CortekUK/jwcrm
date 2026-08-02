@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentMonth, getCurrentYear } from "@/lib/kpi-validation";
-import { EmployeeKPIEvaluationForm, EmployeeKPIHistory, DownloadKPIReportButton, AddCustomKPIForm } from "@/components/hr/kpis";
+import { EmployeeKPIEvaluationForm, EmployeeKPIHistory, DownloadKPIReportButton, AddCustomKPIForm, CustomKPIEvaluationSection } from "@/components/hr/kpis";
+import type { CustomKPIEvaluationSectionHandle } from "@/components/hr/kpis";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,8 +88,17 @@ export default function EmployeeEvaluationPage() {
     }
   }, [employeeId]);
 
-  const handleSuccess = () => {
-    // Refresh or show success message
+  // Individual (custom) goals render in their own section and expose no save
+  // button of their own — the parent must flush them, or anything typed there is
+  // silently discarded. Saving the role KPIs saves these in the same action.
+  const customSectionRef = useRef<CustomKPIEvaluationSectionHandle>(null);
+
+  const handleSuccess = async () => {
+    try {
+      await customSectionRef.current?.save();
+    } catch (error) {
+      console.error("Error saving custom KPI evaluations:", error);
+    }
   };
 
   if (loading) {
@@ -191,6 +201,19 @@ export default function EmployeeEvaluationPage() {
                 onPeriodChange={handlePeriodChange}
                 onSuccess={handleSuccess}
               />
+
+              {/* Individual goals. These were being created and counted toward the
+                  role's weighting budget, but this section was never mounted, so
+                  they were invisible and could not be evaluated. */}
+              <div className="mt-8 pt-6 border-t border-[#E6E6E4]">
+                <CustomKPIEvaluationSection
+                  ref={customSectionRef}
+                  employeeId={employee.id}
+                  employeeName={employee.full_name}
+                  year={currentYear}
+                  month={currentMonth}
+                />
+              </div>
             </CardContent>
           </Card>
         </div>
