@@ -8,56 +8,120 @@ import {
   PageNumber,
   BorderStyle,
   ImageRun,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  VerticalAlign,
+  UnderlineType,
 } from "docx";
 import { companyDetails } from "@/config/company";
 import type { WillPdfInput } from "@/lib/pdf/generateWillPDF";
+import {
+  buildCourtWillDocument,
+  paraIsEmpty,
+  type WillDocumentModel,
+  type WillPara,
+} from "@/lib/will/courtTemplate";
 
 /**
- * Word (.docx) counterpart to generateWillPDF.ts — same clauses, same order,
- * same fill-in-the-blank behavior, so the two documents never drift apart.
- * This is the editable draft staff amend before re-uploading the finalized
- * PDF via the existing "Upload PDF" flow.
+ * Word (.docx) Last Will & Testament — BILINGUAL, TWO COLUMNS.
+ *
+ * Layout mirrors the lawyer's own templates (WILL_DXB_TR.docx /
+ * WILL_AUH_TR.docx). In word/document.xml of those files the entire document
+ * body is a single table with ONE row and TWO cells — cell 0 English, cell 1
+ * Arabic, with no <w:bidiVisual>, so Word lays it out English LEFT / Arabic
+ * RIGHT. Each cell contains that language's complete document, so the two
+ * columns flow independently; they are NOT paired clause by clause.
+ *
+ *   [Abu Dhabi only] cover page      — its own 1x2 table (English | Arabic)
+ *   [Dubai only]     branded English cover page (the DXB template has none)
+ *   THE DOCUMENT — one 1x2 table:
+ *       cell 0 = complete ENGLISH document (preamble, ONE..FOURTEEN, execution)
+ *       cell 1 = complete ARABIC document  (preamble, أولاً..رابع عشر, execution)
+ *   [Abu Dhabi only] court attestation block — its own table, one row per line
+ *
+ * All wording comes from the shared court template model
+ * (@/lib/will/courtTemplate), which holds the lawyer's text verbatim — the
+ * same model the PDF and the print preview consume, so they cannot drift.
+ *
+ * Arabic paragraphs are emitted with `bidirectional: true` and right
+ * alignment so Word lays them out right-to-left and shapes the script itself.
+ *
+ * BOLD AND UNDERLINE COME FROM THE DATA. Every paragraph in the model is a list
+ * of the lawyer's own formatting runs, and each becomes one docx TextRun with
+ * that run's `bold` / `underline`. Nothing here decides what to embolden — the
+ * lawyer's headings are "ORDINAL:" in bold followed by an underlined title, and
+ * several of them are full sentences with only the ordinal bold.
  */
 
-const BLANK = "____________";
 const GREEN = "0C5536";
-const GOLD = "C6A03B";
 const GREY = "5A5A5A";
 const INK = "141414";
+const AR_FONT = "Arial";
 
-const val = (v: unknown, fallback = BLANK): string => {
+/** Invisible table borders — the lawyer's body table has tblBorders "none". */
+const NO_BORDERS = {
+  top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+  bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+  left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+  right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+  insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+  insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+} as const;
+
+/** One row, two cells: English left, Arabic right — the lawyer's structure. */
+function bilingualTable(en: Paragraph[], ar: Paragraph[]): Table {
+  const cell = (children: Paragraph[], margins: { left: number; right: number }) =>
+    new TableCell({
+      width: { size: 50, type: WidthType.PERCENTAGE },
+      verticalAlign: VerticalAlign.TOP,
+      margins: { top: 0, bottom: 0, ...margins },
+      // A cell must never be empty in OOXML.
+      children: children.length > 0 ? children : [new Paragraph({ children: [] })],
+    });
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    columnWidths: [4500, 4680], // as in the lawyer's tblGrid
+    borders: NO_BORDERS,
+    rows: [
+      new TableRow({
+        cantSplit: false, // the row MUST be allowed to flow across pages
+        children: [cell(en, { left: 0, right: 160 }), cell(ar, { left: 160, right: 0 })],
+      }),
+    ],
+  });
+}
+
+const val = (v: unknown, fallback = "____________"): string => {
   const s = (v ?? "").toString().trim();
   return s.length > 0 ? s : fallback;
 };
-
-type PersonLike = {
-  name?: string;
-  relation?: string;
-  passport_number?: string;
-  emirates_id_number?: string;
-};
-
-function describePerson(p: PersonLike): string {
-  const relation = val(p.relation, "");
-  const name = val(p.name);
-  const lead = relation ? `my ${relation} ${name}` : name;
-  return (
-    `${lead}, ${BLANK} National, born on ${BLANK}, holder of Passport No: ` +
-    `${val(p.passport_number)}, with United Arab Emirates (UAE) Resident Identity ` +
-    `Card No. ${val(p.emirates_id_number)}`
-  );
-}
 
 export async function generateWillDocx(input: WillPdfInput): Promise<Buffer> {
   const { answers, jurisdiction, clientName, draft, signature, signatureDate } = input;
   const isAUD = jurisdiction === "abu_dhabi";
   const cityLine = isAUD ? "Abu Dhabi, United Arab Emirates" : "Dubai, United Arab Emirates";
-  const ageOfMajority = isAUD ? "twenty-one (21)" : "eighteen (18)";
 
-  const children: Paragraph[] = [];
+  const model: WillDocumentModel = buildCourtWillDocument({ answers, jurisdiction, clientName });
 
-  const centered = (text: string, size: number, bold: boolean, color = INK) =>
-    children.push(
+  /** Top-level document flow: cover table, body table, court table. */
+  const children: (Paragraph | Table)[] = [];
+
+  /** Paragraphs of the ENGLISH column (left cell of the body table). */
+  const enCol: Paragraph[] = [];
+  /** Paragraphs of the ARABIC column (right cell of the body table). */
+  const arCol: Paragraph[] = [];
+
+  const centered = (
+    sink: Paragraph[],
+    text: string,
+    size: number,
+    bold: boolean,
+    color = INK
+  ) =>
+    sink.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: size * 10 },
@@ -65,273 +129,149 @@ export async function generateWillDocx(input: WillPdfInput): Promise<Buffer> {
       })
     );
 
-  const paragraph = (text: string, opts: { size?: number; bold?: boolean; indent?: number } = {}) => {
-    const { size = 10.5, bold = false, indent = 0 } = opts;
-    const parts = text.split("\n\n");
-    for (const part of parts) {
-      children.push(
-        new Paragraph({
-          spacing: { after: 160 },
-          indent: indent ? { left: indent * 20 } : undefined,
-          children: [new TextRun({ text: part, bold, size: size * 2, color: INK, font: "Times New Roman" })],
+  /**
+   * The lawyer's runs → docx runs. Bold and underline are taken verbatim from
+   * the run; only size / colour / font are ours.
+   */
+  const toRuns = (
+    para: WillPara,
+    opts: { size?: number; color?: string; ar?: boolean } = {}
+  ): TextRun[] => {
+    const { size = 10.5, color = INK, ar = false } = opts;
+    return para.map(
+      (r) =>
+        new TextRun({
+          text: r.t,
+          bold: !!r.b,
+          underline: r.u ? { type: UnderlineType.SINGLE } : undefined,
+          size: Math.round(size * 2),
+          color,
+          font: ar ? AR_FONT : "Times New Roman",
+          ...(ar ? { rightToLeft: true } : {}),
         })
-      );
-    }
+    );
   };
 
-  const clause = (heading: string, body: string) => {
-    children.push(
+  /** Plain string → one docx run, for the labels this file owns (not the will). */
+  const plainRun = (
+    text: string,
+    opts: { size?: number; color?: string; ar?: boolean; bold?: boolean } = {}
+  ): TextRun[] =>
+    toRuns([{ t: text, ...(opts.bold ? { b: 1 as const } : {}) }], opts);
+
+  const paragraph = (sink: Paragraph[], para: WillPara, opts: { size?: number } = {}) => {
+    if (paraIsEmpty(para)) return;
+    sink.push(
       new Paragraph({
-        spacing: { before: 200, after: 80 },
-        children: [new TextRun({ text: heading, bold: true, size: 22, color: GREEN, font: "Times New Roman" })],
+        spacing: { after: 160 },
+        children: toRuns(para, opts),
       })
     );
-    paragraph(body);
+  };
+
+  const paragraphAr = (
+    sink: Paragraph[],
+    para: WillPara,
+    opts: { size?: number; color?: string } = {}
+  ) => {
+    if (paraIsEmpty(para)) return;
+    sink.push(
+      new Paragraph({
+        spacing: { after: 160 },
+        bidirectional: true,
+        alignment: AlignmentType.RIGHT,
+        children: toRuns(para, { ...opts, ar: true }),
+      })
+    );
+  };
+
+  /**
+   * One numbered section: its first paragraph, then the rest.
+   *
+   * The first paragraph is NOT force-bolded and NOT enlarged: in the lawyer's
+   * files it is the same 12pt as the body, and several of them ("NINE: If my
+   * ____ does not survive me…") are ordinary sentences with only the ordinal in
+   * bold. It only gets extra space above it, to separate the sections.
+   */
+  const clause = (sink: Paragraph[], paragraphs: WillPara[], lang: "en" | "ar") => {
+    const lines = paragraphs.filter((p) => !paraIsEmpty(p));
+    if (lines.length === 0) return;
+    if (lang === "ar") {
+      sink.push(
+        new Paragraph({
+          spacing: { before: 200, after: 80 },
+          bidirectional: true,
+          alignment: AlignmentType.RIGHT,
+          children: toRuns(lines[0], { ar: true }),
+        })
+      );
+      for (const body of lines.slice(1)) paragraphAr(sink, body);
+    } else {
+      sink.push(
+        new Paragraph({
+          spacing: { before: 200, after: 80 },
+          children: toRuns(lines[0]),
+        })
+      );
+      for (const body of lines.slice(1)) paragraph(sink, body);
+    }
   };
 
   // ---------- Cover page ----------
-  children.push(new Paragraph({ children: [], spacing: { after: 800 } }));
-  centered("LAST WILL AND", 20, true, GREEN);
-  centered("TESTAMENT OF", 20, true, GREEN);
-  children.push(new Paragraph({ children: [], spacing: { after: 400 } }));
-  centered(val(clientName, "Client's Full Name").toUpperCase(), 18, true);
-  children.push(new Paragraph({ children: [], spacing: { after: 800 } }));
-  centered(companyDetails.legalName, 13, true);
-  centered(cityLine, 11, false, GREY);
-  children.push(new Paragraph({ children: [], spacing: { after: 100 } }));
-  centered(companyDetails.invoicePhone, 10, false, GREY);
-  centered(companyDetails.invoiceEmail.toLowerCase(), 10, false, GREY);
+  if (model.cover) {
+    // Abu Dhabi: the source has its own 1x2 cover table (English | Arabic).
+    const coverEn: Paragraph[] = [];
+    const coverAr: Paragraph[] = [];
+    coverEn.push(new Paragraph({ children: [], spacing: { after: 1200 } }));
+    coverAr.push(new Paragraph({ children: [], spacing: { after: 1200 } }));
+    const centeredPara = (sink: Paragraph[], para: WillPara, size: number, color: string, ar: boolean) =>
+      sink.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: size * 10 },
+          ...(ar ? { bidirectional: true } : {}),
+          children: toRuns(para, { size, color, ar }),
+        })
+      );
+    model.cover.en.forEach((line, i) =>
+      centeredPara(coverEn, line, i >= 2 && i <= 4 ? 18 : 11, i >= 2 && i <= 3 ? GREEN : GREY, false)
+    );
+    model.cover.ar.forEach((line, i) =>
+      centeredPara(coverAr, line, i === 0 ? 18 : 12, i === 0 ? GREEN : INK, true)
+    );
+    children.push(bilingualTable(coverEn, coverAr));
+  } else {
+    // Dubai: the source template has no cover page, so keep the branded one.
+    const coverEn: Paragraph[] = [];
+    coverEn.push(new Paragraph({ children: [], spacing: { after: 800 } }));
+    centered(coverEn, "LAST WILL AND", 20, true, GREEN);
+    centered(coverEn, "TESTAMENT OF", 20, true, GREEN);
+    coverEn.push(new Paragraph({ children: [], spacing: { after: 400 } }));
+    centered(coverEn, val(clientName, "Client's Full Name").toUpperCase(), 18, true);
+    coverEn.push(new Paragraph({ children: [], spacing: { after: 800 } }));
+    centered(coverEn, companyDetails.legalName, 13, true);
+    centered(coverEn, cityLine, 11, false, GREY);
+    coverEn.push(new Paragraph({ children: [], spacing: { after: 100 } }));
+    centered(coverEn, companyDetails.invoicePhone, 10, false, GREY);
+    centered(coverEn, companyDetails.invoiceEmail.toLowerCase(), 10, false, GREY);
+    children.push(...coverEn);
+  }
 
-  // ---------- Body (new page) ----------
   children.push(new Paragraph({ children: [], pageBreakBefore: true }));
 
-  const testator = answers.personal || ({} as any);
-  const passportNo = answers.identity?.passport_number;
+  // ---------- English column ----------
+  for (const line of model.preamble.en) paragraph(enCol, line);
+  for (const section of model.sections) clause(enCol, section.en, "en");
 
-  paragraph(
-    `I, ${val(testator.full_name || clientName)}, ${BLANK} National, born on ${BLANK}, ` +
-      `holder of Passport No: ${val(passportNo)}, with United Arab Emirates (UAE) Resident ` +
-      `Identity Card No. ${BLANK}, residing at ${val(testator.address)}, UNITED ARAB EMIRATES, ` +
-      `in order to settle the succession of my estate upon my death do provide as follows, namely:`
-  );
-
-  clause(
-    isAUD ? "ONE   Declaration" : "ONE   Declaration and Revocation",
-    isAUD
-      ? `Being of sound mind and memory and over the age of ${ageOfMajority} years and not being ` +
-          `actuated by any duress, menace, fraud, mistake, or undue influence, do make, publish, and ` +
-          `declare that this Will is made for the purpose only of settling the succession of my estate ` +
-          `situated or arising in the UNITED ARAB EMIRATES only. Any Wills made prior to this Will, ` +
-          `relating to my estate in the UAE are now cancelled.`
-      : `Being of sound and disposing mind and memory and over the age of ${ageOfMajority} years and ` +
-          `not being actuated by any duress, menace, fraud, mistake, or undue influence, do make, ` +
-          `publish, and declare that this Will including the revocation provision hereinafter contained ` +
-          `is made for the purpose only of settling the succession of my estate situated or arising in ` +
-          `the UNITED ARAB EMIRATES (Abu Dhabi, Ajman, Fujairah, Sharjah, Dubai, Ras Al Khaimah and ` +
-          `Umm Al Quwain) only. I hereby revoke and cancel all prior Wills and Testamentary writings ` +
-          `made or granted by me, to the extent that they relate to any part of my estate in the UNITED ` +
-          `ARAB EMIRATES. Further, this Will shall not affect or revoke any other Wills or testamentary ` +
-          `dispositions I have made now or in the future, relating to my estate outside the United Arab ` +
-          `Emirates and shall operate independently and concurrently with any such wills.`
-  );
-
-  const executors = [...(answers.executors || [])].sort((a, b) => a.level - b.level);
-  const primaryExec = executors[0];
-  const substituteExec = executors[1];
-  const furtherExec = executors[2];
-  let twoBody =
-    `I appoint ${primaryExec ? describePerson(primaryExec) : `my ${BLANK}`}, to be my executor ` +
-    `and trustee, but if he/she is unable or unwilling to act or if he/she dies before proving my ` +
-    `Will, the following provision shall apply instead.\n\n`;
-  twoBody +=
-    `I appoint ${substituteExec ? describePerson(substituteExec) : `my ${BLANK}`}, to act as my ` +
-    `substitute executor and trustee.\n\n`;
-  if (furtherExec) {
-    twoBody +=
-      `If all my above appointed executors and trustees are unable or unwilling to act or if they ` +
-      `shall die before proving my Will, I revoke their appointments and I appoint ` +
-      `${describePerson(furtherExec)}, to act as my substitute executor and trustee.\n\n`;
-  }
-  twoBody +=
-    `I appoint as my Executors the company known as ${companyDetails.legalName}, ${cityLine} or the ` +
-    `limited company, incorporated practice or firm that, at the time of my death, has succeeded to ` +
-    `and continues to carry on its practice. (OPTIONAL)\n\n` +
-    `Any executors or trustees acting under my Will are referred to as "my trustees".`;
-  clause("TWO   Appointment of Executors and Trustees", twoBody);
-
-  clause(
-    "THREE   Debts and Funeral Expenses",
-    `I direct my trustee(s) to make payment of any of my lawful debts and/or funeral expenses and ` +
-      `any expenses for the winding up of my estate.`
-  );
-
-  clause(
-    "FOUR   Letter of Wishes",
-    `I direct my trustees to give effect to any writings granted by me, however informal they may be ` +
-      `provided they are signed by me, dated after the date hereof and are clearly expressive of my ` +
-      `intention, as to which my trustees shall be the sole judges. Any bequests so made shall be free ` +
-      `of interest, delivery expenses and government taxes unless otherwise stipulated.`
-  );
-
-  clause(
-    isAUD ? "FIVE   Law" : "FIVE   Jurisdiction",
-    isAUD
-      ? `The Law of the United Arab Emirates (UAE) applies. Sharia Law will not be applied; the wishes ` +
-          `outlined in this Last Will and Testament shall be honored. The substantive provisions governing ` +
-          `testamentary disposition and other dispositions taking effect after my death shall be governed ` +
-          `in accordance with the provisions of this Will.`
-      : `It is expressly stipulated that this Will is in accordance with the United Arab Emirates Article ` +
-          `17 of the Law of Civil Transactions promulgated by Federal Law No 5/1985, and the amendments ` +
-          `thereto and the substantive provisions governing testamentary disposition and other dispositions ` +
-          `taking effect after my death shall be governed in accordance with the provisions of this Will. ` +
-          `Shariah Law shall not apply in any circumstances.`
-  );
-
-  clause(
-    "SIX   Religion & Faith",
-    `I confirm that I am a Non/Muslim and ${val(testator.religion)} by Faith.`
-  );
-
-  clause(
-    "SEVEN   Entitlements of Insurance Proceeds",
-    `I direct my trustees that all proceeds from any insurance policies shall be distributed according ` +
-      `to the existing nomination/beneficiary form filled up by me and in the absence of such form, the ` +
-      `following beneficiary provisions of this Will shall apply instead.`
-  );
-
-  const beneficiaries = [...(answers.beneficiaries || [])].sort((a, b) => a.level - b.level);
-  const primaryBens = beneficiaries.filter((b) => b.level === 1);
-  const contingentBens = beneficiaries.filter((b) => b.level > 1);
-
-  const estatePreamble =
-    `I direct my trustees to make over the whole remainder of my means and estate, moveable and ` +
-    `non-moveable properties, all financial assets including but not limited to bank accounts, ` +
-    `investments, motor vehicles, art and antiques, jewellery, furniture, bonds, stocks, shares, ` +
-    `intangible assets, mutual funds, gratuity payments, and any shareholding in any companies and ` +
-    `any other assets`;
-
-  let eightBody: string;
-  if (primaryBens.length > 0) {
-    const parts = primaryBens.map(
-      (b) => `to ${val(b.name)}${b.relationship ? ` (${b.relationship})` : ""} (${b.percentage ?? BLANK}%)`
-    );
-    eightBody = `${estatePreamble} ${parts.join(", and ")} absolutely.`;
-  } else {
-    eightBody = `${estatePreamble} to my ${BLANK} (100%) one hundred percentage share absolutely.`;
-  }
-  clause("EIGHT   Distribution of My Estate", eightBody);
-
-  let nineBody =
-    `If my primary beneficiary does not survive me, but in such event only, I direct my trustees to ` +
-    `make over the whole remainder of my means and estate in the following manner:\n\n`;
-  if (contingentBens.length > 0) {
-    for (const b of contingentBens) {
-      nineBody +=
-        `As to (${b.percentage ?? BLANK}%) of my estate to ${val(b.name)}` +
-        `${b.relationship ? ` (${b.relationship})` : ""} absolutely and in the event of her/him not ` +
-        `surviving me or failing to take a vested interest then to her/his biological children as shall ` +
-        `survive me to share equally among them if more than one.\n\n`;
-    }
-  } else {
-    nineBody +=
-      `As to (50%) fifty percentage shares of my estate to my ${BLANK} absolutely, and as to (50%) ` +
-      `fifty percentage shares of my estate to my ${BLANK} absolutely. (optional)\n\n`;
-  }
-  nineBody +=
-    `If any part of my estate falls to a beneficiary who has not attained the legal age of majority, ` +
-    `my trustees shall hold the same in trust for this beneficiary until the legal age of majority is ` +
-    `attained. Income arising from such share shall be accumulated by my trustees who may apply all or ` +
-    `part of the income or capital of this share for the maintenance, education or benefit of this ` +
-    `beneficiary. In the event of any of the foregoing shares of the residue remaining undisposed of, ` +
-    `such share shall be distributed to the other beneficiaries pro rata according to their shares.`;
-  clause("NINE   Contingent Distribution", nineBody);
-
-  clause(
-    "TEN   Ultimate Provision",
-    `In the event of no person or persons above referred to taking a vested interest in my estate, I ` +
-      `direct my trustees to make over the whole remainder of my means and estate to ${BLANK}, ` +
-      `absolutely. (OPTIONAL)`
-  );
-
-  clause(
-    "ELEVEN   Beneficiaries Lacking Capacity",
-    `If any part of my estate is held for a beneficiary who lacks full legal capacity, my trustees ` +
-      `shall have the following powers: (a) to pay or apply any part of the income or capital falling to ` +
-      `that beneficiary for his or her benefit in any manner my trustees think proper; (b) to retain the ` +
-      `same until such capacity is attained, accumulating income with capital; or (c) to pay over the ` +
-      `same to the legal guardian or the person for the time being having the custody of that ` +
-      `beneficiary, whose receipt shall be a sufficient discharge to my trustees.`
-  );
-
-  clause(
-    "TWELVE   Powers of My Trustees",
-    `My trustees shall have the fullest powers of retention, realisation, investment, transfer of ` +
-      `property without consideration, and management of my estate as if they were absolute owners and ` +
-      `not trustees. However, all proceeds are for the beneficiaries only. My trustees may appoint one ` +
-      `or more executor of their own number to act as solicitor or agent in any other capacity and allow ` +
-      `that trustee the same remuneration to which that trustee would have been entitled.`
-  );
-
-  const permGuardians = [...(answers.permanent_guardians || [])].sort((a, b) => a.level - b.level);
-  const interimGuardians = [...(answers.interim_guardians || [])].sort((a, b) => a.level - b.level);
-  const childBens = beneficiaries.filter((b) => (b.relationship || "").toLowerCase().includes("child"));
-
-  let thirteenBody =
-    `Upon my demise, I appoint ${permGuardians[0] ? `my ${val(permGuardians[0].relation, "")} ${val(permGuardians[0].name)}` : `my ${BLANK}`} ` +
-    `to act as permanent guardian of my children as follows:\n`;
-  if (childBens.length > 0) {
-    for (const c of childBens) thirteenBody += `My child ${val(c.name)}.\n`;
-  } else {
-    thirteenBody += `My child ${BLANK}.\nMy child ${BLANK}.\n`;
-  }
-  thirteenBody += "\n";
-  if (permGuardians[1]) {
-    thirteenBody +=
-      `In the event of her/him predeceasing me or being unable or unwilling to act, I appoint my ` +
-      `${val(permGuardians[1].relation, "")} ${val(permGuardians[1].name)} to act as permanent guardian of my ` +
-      `children if they are under the age of full capacity at the time of my death.\n\n`;
-  }
-  if (interimGuardians[0]) {
-    thirteenBody +=
-      `However, if the appointed permanent guardians are unable to act, for the interim period only, I ` +
-      `appoint ${describePerson(interimGuardians[0])} to act as interim guardian of my children. This ` +
-      `interim guardianship appointment will apply until the permanent guardians are able to take over ` +
-      `the custody of my children.`;
-  }
-  clause("THIRTEEN   Guardianship Appointments", thirteenBody);
-
-  const exclusion = answers.family_exclusion;
-  const disinherited = answers.disinherit || [];
-  let fourteenBody =
-    `I hereby declare that, in the event of a divorce, my ${BLANK} shall not be entitled to receive or ` +
-    `claim any funds or assets from my estate. (OPTIONAL)`;
-  if (exclusion?.is_excluding || disinherited.length > 0) {
-    const who =
-      disinherited.length > 0
-        ? disinherited.map((d) => `${val(d.relation, "")} ${val(d.name)}`.trim()).join(", ")
-        : BLANK;
-    fourteenBody +=
-      `\n\nDeclaration clause: I hereby declare that I have made no provision for my ${who} in my Will ` +
-      `and he/she shall not be entitled to receive or claim any funds or assets from my estate.`;
-    if (exclusion?.details) fourteenBody += `\n\n${exclusion.details}`;
-  }
-  clause("FOURTEEN   Exclusions", fourteenBody);
-
-  clause(
-    "FINALLY",
-    `I declare that my country of citizenship is ${BLANK} and I am residing in the United Arab ` +
-      `Emirates (UAE) at the time of writing this Will.`
-  );
-
-  // Execution & attestation
-  children.push(
+  enCol.push(
     new Paragraph({
       spacing: { before: 300, after: 100 },
-      children: [new TextRun({ text: "EXECUTION AND ATTESTATION", bold: true, size: 22, color: GREEN, font: "Times New Roman" })],
+      children: [
+        new TextRun({ text: "EXECUTION AND ATTESTATION", bold: true, size: 22, color: GREEN, font: "Times New Roman" }),
+      ],
     })
   );
-  paragraph("This document is executed as follows:");
-  paragraph(`NAME: ${val(testator.full_name || clientName)}`);
+  paragraph(enCol, [{ t: `${model.execution.en.nameLabel} ${model.execution.en.name}` }]);
 
   // Embed the captured signature when the will has been signed; otherwise
   // keep the ruled line for wet signing. Any decoding problem falls back to
@@ -342,21 +282,22 @@ export async function generateWillDocx(input: WillPdfInput): Promise<Buffer> {
       const base64 = signature.includes(",") ? signature.split(",")[1] : signature;
       const imageData = Buffer.from(base64, "base64");
       if (imageData.length > 0) {
-        children.push(
+        enCol.push(
           new Paragraph({
             spacing: { before: 100, after: 0 },
             children: [
-              new TextRun({ text: "SIGNATURE: ", size: 22, font: "Times New Roman" }),
+              new TextRun({ text: `${model.execution.en.signatureLabel} `, size: 22, font: "Times New Roman" }),
               new ImageRun({
                 type: "png",
                 data: imageData,
-                transformation: { width: 180, height: 60 },
+                // Half-width column, so the signature is scaled down from 180x60.
+                transformation: { width: 140, height: 47 },
               }),
             ],
           })
         );
         if (signatureDate) {
-          children.push(
+          enCol.push(
             new Paragraph({
               spacing: { before: 0, after: 120 },
               children: [
@@ -377,10 +318,22 @@ export async function generateWillDocx(input: WillPdfInput): Promise<Buffer> {
     }
   }
   if (!signatureRendered) {
-    paragraph("SIGNATURE: ______________________________");
+    paragraph(enCol, [{ t: `${model.execution.en.signatureLabel} ______________________________` }]);
   }
 
-  if (isAUD) {
+  // ---------- Arabic column ----------
+  for (const line of model.preamble.ar) paragraphAr(arCol, line);
+  for (const section of model.sections) clause(arCol, section.ar, "ar");
+
+  paragraphAr(arCol, [{ t: `${model.execution.ar.nameLabel} ${model.execution.ar.name}` }]);
+  paragraphAr(arCol, [{ t: `${model.execution.ar.signatureLabel} ______________________________` }]);
+
+  // ---------- The document: one row, two cells (English | Arabic) ----------
+  children.push(bilingualTable(enCol, arCol));
+
+  // ---------- Court attestation (Abu Dhabi only) ----------
+  // Its own table in the source; one row per line, English left / Arabic right.
+  if (model.court) {
     children.push(
       new Paragraph({
         spacing: { before: 200, after: 200 },
@@ -389,13 +342,53 @@ export async function generateWillDocx(input: WillPdfInput): Promise<Buffer> {
       })
     );
     children.push(
-      new Paragraph({
-        spacing: { after: 160 },
-        children: [new TextRun({ text: "To be completed by the Court:", bold: true, size: 21, color: GREY, font: "Times New Roman" })],
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        columnWidths: [4500, 4680],
+        borders: NO_BORDERS,
+        rows: model.court.map((row, i) => {
+          const isHeading = i === 0;
+          return new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                verticalAlign: VerticalAlign.TOP,
+                margins: { top: 0, bottom: 0, left: 0, right: 160 },
+                children: [
+                  new Paragraph({
+                    spacing: { after: isHeading ? 160 : 100 },
+                    children: [
+                      ...toRuns(row.en, { size: 10.5, color: GREY }),
+                      ...(isHeading
+                        ? []
+                        : plainRun(" ____________________", { size: 10.5, color: GREY })),
+                    ],
+                  }),
+                ],
+              }),
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                verticalAlign: VerticalAlign.TOP,
+                margins: { top: 0, bottom: 0, left: 160, right: 0 },
+                children: [
+                  new Paragraph({
+                    spacing: { after: isHeading ? 160 : 100 },
+                    bidirectional: true,
+                    alignment: AlignmentType.RIGHT,
+                    children: [
+                      ...toRuns(row.ar, { size: 10.5, color: GREY, ar: true }),
+                      ...(isHeading
+                        ? []
+                        : plainRun(" ____________________", { size: 10.5, color: GREY, ar: true })),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          });
+        }),
       })
     );
-    paragraph("Name of the attestation Officer: ____________________         Will Registration Number: ____________");
-    paragraph("Signature: ____________________         Date: ____________");
   }
 
   const footerText = draft

@@ -10,13 +10,6 @@ import { WillDocumentPreview } from "@/components/admin/WillDocumentPreview";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 export default function AdminWillPrint() {
   const router = useRouter();
@@ -25,10 +18,7 @@ export default function AdminWillPrint() {
   const { t, i18n } = useTranslation(['admin', 'toast']);
   const { toast } = useToast();
   const { locale } = useLanguage();
-  const [pdfLanguage, setPdfLanguage] = useState<string>(locale);
   const [generatingPdf, setGeneratingPdf] = useState(false);
-  const [translatedAnswers, setTranslatedAnswers] = useState<any>(null);
-  const [isTranslating, setIsTranslating] = useState(false);
 
   useEffect(() => {
     i18n.changeLanguage(locale);
@@ -60,13 +50,6 @@ export default function AdminWillPrint() {
     },
     enabled: !!id,
   });
-
-  useEffect(() => {
-    if (will?.answers) {
-      setTranslatedAnswers(will.answers);
-      setIsTranslating(false);
-    }
-  }, [will]);
 
   const handlePrint = () => {
     window.print();
@@ -207,12 +190,11 @@ export default function AdminWillPrint() {
     }
   }, [will]);
 
-  if (isLoading || isTranslating) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--jw-primary-green))] mx-auto mb-4" />
-          {isTranslating && <p className="text-sm text-gray-600">Translating content to Arabic...</p>}
         </div>
       </div>
     );
@@ -245,16 +227,8 @@ export default function AdminWillPrint() {
           </Button>
 
           <div className="flex items-center gap-3">
-            {/* PDF Language Selector */}
-            <Select value={pdfLanguage} onValueChange={setPdfLanguage}>
-              <SelectTrigger id="pdf-language-select" className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">{t('english')}</SelectItem>
-                <SelectItem value="ar">{t('arabic')}</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* The language selector was removed: the court template renders the
+                English and Arabic documents together, so there is nothing to choose. */}
             <Button
               onClick={handleGeneratePdf}
               disabled={generatingPdf}
@@ -295,10 +269,9 @@ export default function AdminWillPrint() {
         )}
 
         <WillDocumentPreview
-          answers={translatedAnswers || will.answers}
+          answers={will.answers}
           clientName={will.profile?.full_name || "Unknown Client"}
           willId={will.id}
-          locale={pdfLanguage}
           status={will.status}
           includeSignature={(will.answers as any)?.family_exclusion?.include_signature_in_pdf ?? true}
         />

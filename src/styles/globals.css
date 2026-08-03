@@ -550,11 +550,11 @@ All colors MUST be HSL.
   font-weight: normal;
 }
 
+/* The client's name is data: render it as captured, never uppercased. */
 .testator-name {
   font-weight: bold;
   text-decoration: underline;
   font-size: 12pt !important;
-  text-transform: uppercase;
   letter-spacing: 1px;
 }
 
@@ -567,15 +567,19 @@ All colors MUST be HSL.
   page-break-inside: avoid;
 }
 
+/* The lawyer's section heading. It is NOT a styled heading block: in
+   WILL_AUH_TR.docx / WILL_DXB_TR.docx it is a normal 12pt paragraph with no
+   <w:caps> and no <w:pBdr>, whose "ONE:" run is bold and whose title run is
+   bold + underlined — and several of them ("NINE: If my ____ does not survive
+   me…") are whole sentences with only the ordinal emphasised. So this element
+   must carry NO uppercasing, NO rule and NO blanket bold: every bit of that
+   comes from the run data via <strong> / <u>. */
 .will-section h2 {
-  font-size: 11pt;
-  font-weight: bold;
+  font-size: 10.5pt;
+  font-weight: normal;
   margin-bottom: 0.5rem;
   margin-top: 1rem;
-  text-transform: uppercase;
   color: #000;
-  border-bottom: 1px solid #333;
-  padding-bottom: 0.2rem;
 }
 
 .will-section h3 {
@@ -865,10 +869,6 @@ All colors MUST be HSL.
   font-weight: bold;
   text-align: center;
   margin-bottom: 1rem;
-  text-transform: uppercase;
-  letter-spacing: 3px;
-  border-bottom: 1px solid #000;
-  padding-bottom: 0.25rem;
 }
 
 .execution-text {
@@ -1144,6 +1144,15 @@ All colors MUST be HSL.
     break-inside: avoid;
   }
 
+  /* The bilingual column pair must be free to split across pages, otherwise
+     the whole (very tall) row is pushed onto one page and clipped. */
+  .will-bilingual,
+  .will-bilingual > tbody > tr,
+  .will-bilingual > tbody > tr > td.will-col {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
   .person-entry,
   .beneficiary-level,
   .signature-section,
@@ -1268,4 +1277,151 @@ All colors MUST be HSL.
 
 .proposal-editor .ProseMirror p:last-child {
   margin-bottom: 0 !important;
+}
+
+/* ------------------------------------------------------------------
+   Bilingual court will (WillDocumentPreview)
+
+   The document container is LTR, but it embeds a complete Arabic
+   document. These rules flip direction and alignment for the Arabic
+   blocks only. They must override the blanket
+   `.will-document[dir="ltr"] h2 { text-align: left !important }` rule
+   above, hence the !important.
+   ------------------------------------------------------------------ */
+
+.will-rtl-block {
+  direction: rtl;
+  text-align: right;
+  font-family: 'Times New Roman', 'Traditional Arabic', 'Arial', serif;
+}
+
+.will-document[dir="ltr"] .will-rtl-block h2,
+.will-document[dir="ltr"] .will-rtl-block h3,
+.will-document[dir="ltr"] .will-rtl-block p,
+.will-rtl-block h2,
+.will-rtl-block h3,
+.will-rtl-block p,
+.will-rtl-block .will-paragraph,
+.will-rtl-block .execution-text,
+.will-rtl-block .signature-label {
+  direction: rtl;
+  text-align: right !important;
+  unicode-bidi: isolate;
+}
+
+.will-document[dir="ltr"] .will-rtl-block .will-paragraph,
+.will-rtl-block .will-paragraph {
+  text-align: justify !important;
+}
+
+.will-document[dir="ltr"] .will-bilingual-cover .will-cover-title,
+.will-document[dir="ltr"] .will-bilingual-cover .will-cover-line {
+  text-align: center !important;
+}
+
+/* ------------------------------------------------------------------
+   Two-column bilingual layout — ENGLISH LEFT, ARABIC RIGHT.
+
+   This mirrors the lawyer's own templates, where the whole document body
+   is a single Word table with one row and two cells (cell 0 English,
+   cell 1 Arabic, no <w:bidiVisual>). Each column holds that language's
+   complete document and the two flow independently — they are NOT
+   aligned clause by clause.
+
+   An HTML <table> is used rather than flex/grid on purpose: browsers can
+   fragment a tall table row across printed pages, while a tall flex/grid
+   item is unfragmentable and gets clipped (or forced onto one enormous
+   page) when html2canvas rasterises it.
+   ------------------------------------------------------------------ */
+
+.will-bilingual {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin: 0;
+}
+
+.will-bilingual > tbody > tr > td.will-col {
+  width: 50%;
+  vertical-align: top;
+  border: none;
+  padding: 0;
+  /* The row must be allowed to split across printed pages. */
+  page-break-inside: auto;
+  break-inside: auto;
+}
+
+/* Gutter between the columns, on the inner edge of each. */
+.will-bilingual > tbody > tr > td.will-col-en {
+  padding-right: 0.28in;
+  border-right: 1px solid #DDD;
+}
+
+.will-bilingual > tbody > tr > td.will-col-ar {
+  padding-left: 0.28in;
+}
+
+.will-bilingual > tbody > tr {
+  page-break-inside: auto;
+  break-inside: auto;
+}
+
+/* The Arabic column is narrower per character; nudge it down a touch so the
+   two columns keep a similar visual weight (typography only, no reflow). */
+.will-col-ar .will-paragraph,
+.will-col-ar .execution-text {
+  font-size: 10pt;
+}
+
+/* Abu Dhabi cover page — its own two-cell table in the source. */
+.will-bilingual-cover {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #000;
+  page-break-after: always;
+  break-after: page;
+}
+
+/* The cover runs carry their own bold, so this rule only sets size/position. */
+.will-bilingual-cover .will-cover-title {
+  font-size: 18pt;
+  font-weight: normal;
+  margin: 0 0 1rem 0;
+  text-align: center !important;
+}
+
+.will-bilingual-cover .will-cover-line {
+  font-size: 12pt;
+  margin: 0.35rem 0;
+  text-align: center !important;
+}
+
+/* Court attestation block (Abu Dhabi only) — English left, Arabic right */
+.will-court-block {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #333;
+  page-break-inside: avoid;
+}
+
+.will-court-row {
+  margin-bottom: 0.75rem;
+}
+
+.will-court-block .will-court-heading,
+.will-court-block .will-court-label {
+  padding-bottom: 0.5rem;
+}
+
+/* "To be completed by the Court:" is bold in the source, so the bold comes
+   from the run data (<strong>), not from this rule. */
+.will-court-heading {
+  font-weight: normal;
+  font-size: 10.5pt;
+  margin: 0.15rem 0;
+}
+
+.will-court-label {
+  font-size: 10.5pt;
+  margin: 0.15rem 0;
 }

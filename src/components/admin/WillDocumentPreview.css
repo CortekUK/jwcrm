@@ -826,3 +826,89 @@
     margin-bottom: 2rem;
   }
 }
+
+/* ------------------------------------------------------------------
+   Bilingual court will (WillDocumentPreview)
+
+   The document container is LTR, but it embeds a complete Arabic
+   document. These rules flip direction and alignment for the Arabic
+   blocks only. They must override the blanket
+   `.will-document[dir="ltr"] h2 { text-align: left !important }` rule
+   above, hence the !important.
+   ------------------------------------------------------------------ */
+
+.will-rtl-block {
+  direction: rtl;
+  text-align: right;
+  font-family: 'Times New Roman', 'Traditional Arabic', 'Arial', serif;
+}
+
+.will-rtl-block h2,
+.will-rtl-block h3,
+.will-rtl-block p,
+.will-rtl-block .will-paragraph,
+.will-rtl-block .execution-text,
+.will-rtl-block .signature-label {
+  direction: rtl;
+  text-align: right !important;
+  unicode-bidi: isolate;
+}
+
+.will-rtl-block .will-paragraph {
+  text-align: justify !important;
+}
+
+/* Arabic document starts on its own printed page, as in the source templates */
+.will-arabic-doc {
+  page-break-before: always;
+  break-before: page;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #000;
+}
+
+/* Abu Dhabi Arabic cover page */
+.will-cover-ar {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #000;
+  page-break-after: always;
+  break-after: page;
+}
+
+.will-cover-ar .will-cover-title {
+  font-size: 18pt;
+  font-weight: bold;
+  margin: 0 0 1rem 0;
+  text-align: center !important;
+}
+
+.will-cover-ar .will-cover-line {
+  font-size: 12pt;
+  margin: 0.35rem 0;
+  text-align: center !important;
+}
+
+/* Court attestation block (Abu Dhabi only) — English line then Arabic line */
+.will-court-block {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #333;
+  page-break-inside: avoid;
+}
+
+.will-court-row {
+  margin-bottom: 0.75rem;
+}
+
+.will-court-heading {
+  font-weight: bold;
+  font-size: 11pt;
+  margin: 0.15rem 0;
+}
+
+.will-court-label {
+  font-size: 10.5pt;
+  margin: 0.15rem 0;
+}
