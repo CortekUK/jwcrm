@@ -80,9 +80,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Goes through the shared helper, so the Resend test-mode swap (everything
-    // to ADMIN_EMAIL with the intended recipient in the subject until
-    // PRODUCTION_EMAIL_MODE is set) still applies.
+    // Goes through the shared helper: Outlook when the caller has connected
+    // their mailbox, otherwise Resend. Either way it is delivered to the
+    // caller's own address resolved above.
     const result = await sendUserEmail(auth.callerId, {
       to,
       subject: `[Test] ${rendered.subject}`,

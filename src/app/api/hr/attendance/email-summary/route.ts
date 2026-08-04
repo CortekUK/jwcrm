@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '@/config/email';
 
 interface AttendanceSummaryRequest {
   date: string;
@@ -75,6 +76,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Date is required' }, { status: 400, headers });
     }
 
+    // The summary goes to the HR recipient supplied by the caller. There is no
+    // fallback address — sending this to the wrong inbox is worse than failing.
+    if (!hrEmail || !hrEmail.trim()) {
+      return NextResponse.json({ error: 'hrEmail is required' }, { status: 400, headers });
+    }
+
     // Fetch attendance data for the date
     const { data: attendanceData, error: attendanceError } = await supabase
       .from('attendance')
@@ -129,10 +136,6 @@ export async function POST(request: NextRequest) {
     // Initialize Resend
     const resend = new Resend(resendApiKey);
 
-    // Test mode: all emails go to admin
-    const adminEmail = process.env.ADMIN_EMAIL || 'aw736024@gmail.com';
-    const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
-
     const formattedDate = format(new Date(date), 'EEEE, MMMM d, yyyy');
 
     console.log('Sending attendance summary for:', date);
@@ -179,10 +182,10 @@ export async function POST(request: NextRequest) {
 
     // Send email
     const emailResult = await resend.emails.send({
-      from: fromEmail,
-      to: adminEmail,
-      // replyTo: hrEmail, // Disabled in test mode - enable in production
-      subject: `[Original: ${hrEmail}] Attendance Summary - ${formattedDate}`,
+      from: EMAIL_FROM,
+      to: hrEmail,
+      replyTo: EMAIL_REPLY_TO,
+      subject: `Attendance Summary - ${formattedDate}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #0C5536; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">

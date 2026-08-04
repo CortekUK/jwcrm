@@ -1,6 +1,7 @@
 import { Resend } from 'npm:resend@6.1.3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { resolveStaffRecipient, applyTestModeSwap } from '../_shared/accountManager.ts';
+import { resolveStaffRecipient } from '../_shared/accountManager.ts';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -84,7 +85,7 @@ Deno.serve(async (req) => {
     // admin address when the case is unassigned.
     const staff = await resolveStaffRecipient(supabase, willId);
     const adminEmail = staff.email;
-    const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
+    const fromEmail = EMAIL_FROM;
 
     console.log('Sending edit request email for will:', willId);
     console.log('From client:', clientEmail);
@@ -94,19 +95,17 @@ Deno.serve(async (req) => {
     );
     console.log('Sending to client:', clientEmail);
 
-    // Real recipient is the resolved account manager; the swap redirects the
-    // actual delivery while the Resend trial is in use.
-    const staffRouted = applyTestModeSwap(
-      staff.email,
-      `[Edit Request] ${subject} - Will #${willId.slice(0, 8)}`
-    );
+    // Recipient is the resolved account manager (or the monitored admin inbox
+    // when the will is unassigned). replyTo is the client so staff can reply
+    // straight back to them.
+    const staffSubject = `[Edit Request] ${subject} - Will #${willId.slice(0, 8)}`;
 
     // Prepare email data for the assigned staff member
     const adminEmailData: any = {
       from: fromEmail,
-      to: staffRouted.to,
+      to: staff.email,
       replyTo: clientEmail,
-      subject: staffRouted.subject,
+      subject: staffSubject,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #0C5536; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
@@ -170,11 +169,11 @@ Deno.serve(async (req) => {
     console.log('Edit request email sent to admin, ID:', adminData?.id);
 
     // Send confirmation email to client
-    const clientRouted = applyTestModeSwap(clientEmail, 'We received your edit request');
     const { data: clientData, error: clientError } = await resend.emails.send({
       from: fromEmail,
-      to: clientRouted.to,
-      subject: clientRouted.subject,
+      to: clientEmail,
+      replyTo: EMAIL_REPLY_TO,
+      subject: 'We received your edit request',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #0C5536; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
@@ -245,7 +244,6 @@ Deno.serve(async (req) => {
         routedTo: staff.email,
         routedToName: staff.name,
         isAccountManager: staff.isAccountManager,
-        testMode: staffRouted.isTestMode,
         adminEmailId: adminData?.id,
         clientEmailId: clientData?.id,
       }),

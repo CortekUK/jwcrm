@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Resend } from 'npm:resend@6.1.3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -208,10 +209,7 @@ Deno.serve(async (req) => {
     }
 
     const resend = new Resend(resendApiKey);
-    const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
-
-    const adminEmail = Deno.env.get('ADMIN_EMAIL') || 'aw736024@gmail.com';
-    const isTestMode = !Deno.env.get('PRODUCTION_EMAIL_MODE');
+    const fromEmail = EMAIL_FROM;
 
     // The editable "Follow-up Email" template from the Settings page. This is
     // the follow-up chaser the template describes; inactive or missing means
@@ -236,7 +234,14 @@ Deno.serve(async (req) => {
     for (const proposal of proposals) {
       try {
         const leadName = proposal.lead?.full_name || 'Valued Customer';
-        const leadEmail = proposal.lead?.email || 'unknown@email.com';
+        // This mail reaches a real client. Without a real address there is
+        // nobody to send to — skip rather than mail a placeholder domain.
+        const leadEmail = (proposal.lead?.email || '').trim();
+        if (!leadEmail) {
+          console.warn(`Skipping proposal ${proposal.id}: lead has no email address`);
+          emailsFailed++;
+          continue;
+        }
         const formattedAmount = formatCurrency(proposal.amount, proposal.currency);
 
         const paymentCta = `
@@ -263,9 +268,7 @@ Deno.serve(async (req) => {
             })
           : `Friendly Reminder: Your Proposal ${proposal.invoice_number} Awaits`;
 
-        // Trial Resend account delivers to one verified address; the intended
-        // recipient stays in the subject until PRODUCTION_EMAIL_MODE is set.
-        const subject = isTestMode ? `[Original: ${leadEmail}] ${baseSubject}` : baseSubject;
+        const subject = baseSubject;
 
         const html = followupTemplate
           ? buildBrandedHtml(
@@ -277,15 +280,12 @@ Deno.serve(async (req) => {
             )
           : generateFollowupEmailHtml(proposal as Proposal, leadName, leadEmail, formattedAmount);
 
-        console.log(`Sending follow-up for proposal ${proposal.invoice_number} (original: ${leadEmail})`);
-
-        if (fromEmail === 'onboarding@resend.dev') {
-          console.warn('Using test email domain - email will only be sent to verified addresses');
-        }
+        console.log(`Sending follow-up for proposal ${proposal.invoice_number} to ${leadEmail}`);
 
         const { data: emailResult, error: emailError } = await resend.emails.send({
           from: fromEmail,
-          to: isTestMode ? adminEmail : leadEmail,
+          to: leadEmail,
+          replyTo: EMAIL_REPLY_TO,
           subject: subject,
           html: html,
           headers: {

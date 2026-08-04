@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '@/config/email';
 
 interface DocumentReminderRequest {
   employeeName: string;
@@ -74,10 +75,6 @@ export async function POST(request: NextRequest) {
     // Initialize Resend
     const resend = new Resend(resendApiKey);
 
-    // Test mode: all emails go to admin (must match Resend registered email for unverified domains)
-    const adminEmail = process.env.ADMIN_EMAIL || 'aw736024@gmail.com';
-    const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
-
     console.log('Sending document reminder for:', employeeName, documentType);
 
     // Determine urgency styling
@@ -91,12 +88,11 @@ export async function POST(request: NextRequest) {
     // Default message if no custom message provided
     const messageContent = customMessage || `Your ${documentType} expires on ${expiryDate}. Please renew and provide a copy to HR as soon as possible.`;
 
-    // Send email to admin (test mode) with original recipient in subject
     const emailResult = await resend.emails.send({
-      from: fromEmail,
-      to: adminEmail,
-      replyTo: employeeEmail,
-      subject: `[Original: ${employeeEmail}] Document Expiry Reminder - ${documentType}`,
+      from: EMAIL_FROM,
+      to: employeeEmail,
+      replyTo: EMAIL_REPLY_TO,
+      subject: `Document Expiry Reminder - ${documentType}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #0C5536; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">

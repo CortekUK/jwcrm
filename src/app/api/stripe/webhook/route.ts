@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import crypto from 'crypto';
 import { invoiceTotalFor } from '@/lib/finance/outstandingBalance';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '@/config/email';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -246,19 +247,12 @@ export async function POST(request: NextRequest) {
         // 7. Send welcome email with credentials
         const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/client`;
 
-        // Test mode: all emails go to admin with original recipient in subject
-        const adminEmail = process.env.ADMIN_EMAIL || 'aw736024@gmail.com';
-        const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
-        const isTestMode = !process.env.PRODUCTION_EMAIL_MODE;
-
-        const recipientEmail = isTestMode ? adminEmail : leadEmail;
-        const subjectPrefix = isTestMode ? `[Original: ${leadEmail}] ` : '';
-
         try {
           await resend.emails.send({
-            from: fromEmail,
-            to: recipientEmail,
-            subject: `${subjectPrefix}Welcome to Just Wills - Your Account is Ready`,
+            from: EMAIL_FROM,
+            to: leadEmail,
+            replyTo: EMAIL_REPLY_TO,
+            subject: `Welcome to Just Wills - Your Account is Ready`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background-color: #0C5536; padding: 20px; text-align: center;">

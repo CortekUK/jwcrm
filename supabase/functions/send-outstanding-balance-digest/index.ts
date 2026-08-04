@@ -10,6 +10,8 @@
 // decides how and when to chase.
 
 import { Resend } from 'npm:resend@6.1.3';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
+import { getAdminFallbackEmail } from '../_shared/accountManager.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 
 const corsHeaders = {
@@ -178,22 +180,18 @@ Deno.serve(async (req) => {
         </div>
       </div>`;
 
-    // Trial Resend account delivers to one verified address; the intended
-    // recipient is preserved in the subject until PRODUCTION_EMAIL_MODE is set.
     const financeEmail =
       (setting.recipient_email || '').trim() ||
-      Deno.env.get('FINANCE_EMAIL') ||
-      Deno.env.get('ADMIN_EMAIL') ||
-      'aw736024@gmail.com';
-    const adminEmail = Deno.env.get('ADMIN_EMAIL') || 'aw736024@gmail.com';
-    const isTestMode = !Deno.env.get('PRODUCTION_EMAIL_MODE');
+      (Deno.env.get('FINANCE_EMAIL') || '').trim() ||
+      getAdminFallbackEmail();
     const baseSubject = `Outstanding balances — ${money(totalOwed, currency)} across ${outstanding.length} invoice${outstanding.length === 1 ? '' : 's'}`;
 
     const resend = new Resend(resendApiKey);
     const { data: emailData, error: sendError } = await resend.emails.send({
-      from: Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev',
-      to: isTestMode ? adminEmail : financeEmail,
-      subject: isTestMode ? `[Original: ${financeEmail}] ${baseSubject}` : baseSubject,
+      from: EMAIL_FROM,
+      to: financeEmail,
+      replyTo: EMAIL_REPLY_TO,
+      subject: baseSubject,
       html,
     });
 
@@ -208,7 +206,6 @@ Deno.serve(async (req) => {
         totalOutstanding: totalOwed,
         routedTo: financeEmail,
         recipientSource: (setting.recipient_email || '').trim() ? 'dashboard setting' : 'environment fallback',
-        testMode: isTestMode,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

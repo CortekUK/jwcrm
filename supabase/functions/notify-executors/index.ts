@@ -1,5 +1,6 @@
 import { Resend } from 'npm:resend@6.1.3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,16 +134,11 @@ Deno.serve(async (req) => {
 
     // Initialize Resend
     const resend = new Resend(resendApiKey);
-    const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
+    const fromEmail = EMAIL_FROM;
 
     console.log(`Sending ${config.title} notification emails for will:`, willId);
     console.log(`Number of ${config.title}s:`, peopleToNotify.length);
-    console.log('Using FROM_EMAIL:', fromEmail);
-
-    // Warning if using test email
-    if (fromEmail === 'onboarding@resend.dev') {
-      console.warn('⚠️ Using test email domain - emails will only be sent to verified addresses');
-    }
+    console.log('Sending from:', fromEmail);
 
     const emailResults = [];
 
@@ -159,7 +155,8 @@ Deno.serve(async (req) => {
       try {
         const { data, error } = await resend.emails.send({
           from: fromEmail,
-          to: 'aw736024@gmail.com',
+          to: person.email,
+          replyTo: EMAIL_REPLY_TO,
           subject: `Important: You have been appointed as ${role === 'executor' ? 'an' : 'a'} ${config.title}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

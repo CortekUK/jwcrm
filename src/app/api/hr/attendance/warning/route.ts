@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '@/config/email';
 
 interface WarningRequest {
   employeeId: string;
@@ -69,21 +70,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers });
     }
 
+    // The notice goes to the employee. No fallback address.
+    if (!employeeEmail || !employeeEmail.trim()) {
+      return NextResponse.json({ error: 'Employee has no email address' }, { status: 400, headers });
+    }
+
     // Initialize Resend
     const resend = new Resend(resendApiKey);
-
-    // Test mode: all emails go to admin
-    const adminEmail = process.env.ADMIN_EMAIL || 'aw736024@gmail.com';
-    const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 
     console.log('Sending attendance warning to:', employeeName);
 
     // Send email
     const emailResult = await resend.emails.send({
-      from: fromEmail,
-      to: adminEmail,
-      // replyTo: employeeEmail, // Disabled in test mode - enable in production
-      subject: `[Original: ${employeeEmail || 'no-email'}] Attendance Notice - Action Required`,
+      from: EMAIL_FROM,
+      to: employeeEmail,
+      replyTo: EMAIL_REPLY_TO,
+      subject: `Attendance Notice - Action Required`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #DC2626; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">

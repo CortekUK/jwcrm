@@ -6,7 +6,8 @@
 // from the user's own mailbox, and replies land in their normal inbox.
 //
 // Otherwise the helper falls back to Resend so existing behavior keeps
-// working today. The recipient sees the message from FROM_EMAIL.
+// working today. The recipient sees the message from EMAIL_FROM, with replies
+// directed to EMAIL_REPLY_TO.
 //
 // Callers should never crash on email errors — both branches catch and
 // return { ok: false, ... } so the surrounding write (create proposal,
@@ -15,6 +16,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { refreshTokens, getOutlookEnv } from "./outlook";
+import { EMAIL_FROM, EMAIL_REPLY_TO } from "@/config/email";
 
 export type SendUserEmailInput = {
   to: string;
@@ -122,16 +124,15 @@ async function sendViaResend(input: SendUserEmailInput): Promise<SendUserEmailRe
   if (!resend) {
     return { ok: false, provider: "none", error: "RESEND_API_KEY not configured" };
   }
-  const adminEmail = process.env.ADMIN_EMAIL || "aw736024@gmail.com";
-  const fromEmail = process.env.FROM_EMAIL || "onboarding@resend.dev";
-  const isTestMode = !process.env.PRODUCTION_EMAIL_MODE;
-  const recipient = isTestMode ? adminEmail : input.to;
-  const subject = isTestMode ? `[Original: ${input.to}] ${input.subject}` : input.subject;
+  if (!input.to || !input.to.trim()) {
+    return { ok: false, provider: "resend", error: "No recipient address" };
+  }
   try {
     const result = await resend.emails.send({
-      from: fromEmail,
-      to: recipient,
-      subject,
+      from: EMAIL_FROM,
+      to: input.to,
+      replyTo: EMAIL_REPLY_TO,
+      subject: input.subject,
       html: input.html,
       headers: input.refId ? { "X-Entity-Ref-ID": input.refId } : undefined,
       attachments: input.attachments,

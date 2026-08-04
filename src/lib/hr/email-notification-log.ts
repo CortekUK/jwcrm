@@ -1,34 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Context recorded for an email whose delivery address was rewritten.
- *
- * The HR notification routes run in test mode: every message is delivered to
- * the admin address instead of the intended employee. The audit log therefore
- * records the admin address as `recipient_email` (what actually happened) and
- * carries the intended address here, so nobody reads the log as proof that the
- * employee was contacted.
- */
-export interface TestModeRedirectMetadata {
-  test_mode_redirect: true;
-  intended_recipient: string;
-  actual_recipient: string;
-  note: string;
-}
-
-export function testModeRedirectMetadata(
-  intendedRecipient: string,
-  actualRecipient: string
-): TestModeRedirectMetadata {
-  return {
-    test_mode_redirect: true,
-    intended_recipient: intendedRecipient,
-    actual_recipient: actualRecipient,
-    note: "Test mode: delivered to the admin address, not the intended recipient.",
-  };
-}
-
-/**
  * Insert an email_notification_logs row.
  *
  * `metadata` was added by migration 20260731000001. Until that migration is

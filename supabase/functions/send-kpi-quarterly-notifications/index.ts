@@ -1,5 +1,6 @@
 import { Resend } from 'npm:resend@6.1.3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -241,7 +242,7 @@ Deno.serve(async (req) => {
       enabled: true,
       send_time: '09:00',
       timezone: 'Asia/Dubai',
-      hr_recipient_email: 'aw736024@gmail.com',
+      hr_recipient_email: '',
       hr_recipient_name: 'HR Manager',
       days_before_quarter_end: 7,
       send_employee_reports: true,
@@ -395,35 +396,37 @@ Deno.serve(async (req) => {
     }
 
     const resend = new Resend(resendApiKey);
-    const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
+    const fromEmail = EMAIL_FROM;
     const appUrl = Deno.env.get('APP_URL') || 'http://localhost:3000';
 
-    // In test mode, all emails go to admin
-    const adminEmail = Deno.env.get('ADMIN_EMAIL') || 'aw736024@gmail.com';
+    // The HR recipient is configured on the HR settings page.
+    const hrRecipientEmail = (settings.hr_recipient_email || '').trim();
 
     let emailsSent = 0;
     let emailsFailed = 0;
 
-    // Send completed reports to employees (via admin in test mode)
+    // Send completed reports to each employee's own address
     if (settings.send_employee_reports) {
       for (const report of completedReports) {
-        const actualRecipient = report.employee.email || 'no-email@employee.com';
-        const subject = `[FOR: ${actualRecipient}] Your Q${currentQuarter} ${currentYear} KPI Performance Report`;
+        // The employee's own address. Without one there is nobody to send to.
+        const actualRecipient = (report.employee.email || '').trim();
+        if (!actualRecipient) {
+          console.warn(`Skipping KPI report for ${report.employee.full_name}: no email address`);
+          emailsFailed++;
+          continue;
+        }
+        const subject = `Your Q${currentQuarter} ${currentYear} KPI Performance Report`;
         const html = generateEmployeeReportHtml(report, currentYear, currentQuarter);
 
         try {
-          console.log(`Sending KPI report to ${actualRecipient} (via ${adminEmail})`);
+          console.log(`Sending KPI report to ${actualRecipient}`);
 
           const { data: emailResult, error: emailError } = await resend.emails.send({
             from: fromEmail,
-            to: adminEmail, // Send to admin in test mode
+            to: actualRecipient,
+            replyTo: EMAIL_REPLY_TO,
             subject: subject,
-            html: `
-              <div style="background-color: #FEF3C7; padding: 10px; margin-bottom: 20px; border-radius: 4px;">
-                <strong>Test Mode:</strong> This email is intended for <strong>${actualRecipient}</strong>
-              </div>
-              ${html}
-            `,
+            html: html,
           });
 
           if (emailError) {
@@ -471,7 +474,7 @@ Deno.serve(async (req) => {
 
     // Send HR reminder about incomplete evaluations
     if (incompleteEmployees.length > 0) {
-      const hrSubject = `[FOR: ${settings.hr_recipient_email}] Action Required: ${incompleteEmployees.length} Incomplete KPI Evaluations for Q${currentQuarter} ${currentYear}`;
+      const hrSubject = `Action Required: ${incompleteEmployees.length} Incomplete KPI Evaluations for Q${currentQuarter} ${currentYear}`;
       const hrHtml = generateHRReminderHtml(
         incompleteEmployees,
         currentYear,
@@ -479,19 +482,18 @@ Deno.serve(async (req) => {
         `${appUrl}/hr/kpis`
       );
 
+      if (!hrRecipientEmail) {
+        console.warn('hr_kpi_notifications.hr_recipient_email is not configured; skipping HR reminder');
+      } else {
       try {
-        console.log(`Sending HR reminder to ${settings.hr_recipient_email} (via ${adminEmail})`);
+        console.log(`Sending HR reminder to ${hrRecipientEmail}`);
 
         const { data: hrEmailResult, error: hrEmailError } = await resend.emails.send({
           from: fromEmail,
-          to: adminEmail, // Send to admin in test mode
+          to: hrRecipientEmail,
+          replyTo: EMAIL_REPLY_TO,
           subject: hrSubject,
-          html: `
-            <div style="background-color: #FEF3C7; padding: 10px; margin-bottom: 20px; border-radius: 4px;">
-              <strong>Test Mode:</strong> This email is intended for <strong>${settings.hr_recipient_email}</strong>
-            </div>
-            ${hrHtml}
-          `,
+          html: hrHtml,
         });
 
         if (hrEmailError) {
@@ -500,7 +502,7 @@ Deno.serve(async (req) => {
 
           await supabase.from('email_notification_logs').insert({
             notification_type: 'kpi_incomplete_reminder',
-            recipient_email: settings.hr_recipient_email,
+            recipient_email: hrRecipientEmail,
             subject: hrSubject,
             documents_included: incompleteEmployees.map((item) => ({
               employee_name: item.employee.full_name,
@@ -516,7 +518,7 @@ Deno.serve(async (req) => {
 
           await supabase.from('email_notification_logs').insert({
             notification_type: 'kpi_incomplete_reminder',
-            recipient_email: settings.hr_recipient_email,
+            recipient_email: hrRecipientEmail,
             subject: hrSubject,
             documents_included: incompleteEmployees.map((item) => ({
               employee_name: item.employee.full_name,
@@ -531,6 +533,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error('Error sending HR reminder:', error);
         emailsFailed++;
+      }
       }
     }
 

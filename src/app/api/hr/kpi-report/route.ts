@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
-import {
-  insertEmailNotificationLog,
-  testModeRedirectMetadata,
-} from '@/lib/hr/email-notification-log';
+import { insertEmailNotificationLog } from '@/lib/hr/email-notification-log';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '@/config/email';
 
 type KPIReportRequest = {
   employeeId: string;
@@ -207,17 +205,13 @@ export async function POST(request: NextRequest) {
     // Initialize Resend
     const resend = new Resend(resendApiKey);
 
-    // Test mode: all emails go to admin
-    const adminEmail = process.env.ADMIN_EMAIL || 'aw736024@gmail.com';
-    const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
-
     console.log(`Sending KPI report for ${employee.full_name} (${monthName} ${year})`);
 
-    // Send email to admin (test mode) with original recipient in subject
     const emailResult = await resend.emails.send({
-      from: fromEmail,
-      to: adminEmail, // TEST: always admin | PROD: replace with employee.email
-      subject: `[Original: ${employee.email}] KPI Performance Report - ${monthName} ${year}`,
+      from: EMAIL_FROM,
+      to: employee.email,
+      replyTo: EMAIL_REPLY_TO,
+      subject: `KPI Performance Report - ${monthName} ${year}`,
       html: emailHtml,
     });
 
@@ -232,10 +226,8 @@ export async function POST(request: NextRequest) {
     try {
       await insertEmailNotificationLog(supabase, {
         notification_type: 'kpi_quarterly_report',
-        // Record where the email ACTUALLY went — test mode delivers to the
-        // admin address, so logging the employee claimed a delivery that
-        // never happened.
-        recipient_email: adminEmail,
+        // Record where the email ACTUALLY went.
+        recipient_email: employee.email,
         subject: `KPI Performance Report - ${monthName} ${year}`,
         documents_included: assignedEvaluations.map((evaluation) => {
           const kpi = evaluation.kpi as { id: string; name: string; target_value: number; unit: string; weighting: number };
@@ -247,7 +239,6 @@ export async function POST(request: NextRequest) {
             weighting: kpi.weighting,
           };
         }),
-        metadata: testModeRedirectMetadata(employee.email, adminEmail),
         status: 'sent',
         resend_email_id: emailResult.data?.id,
         sent_at: new Date().toISOString(),

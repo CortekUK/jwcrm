@@ -1,5 +1,6 @@
 import { Resend } from 'npm:resend@6.1.3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -167,26 +168,19 @@ Deno.serve(async (req) => {
       if (resendApiKey) {
         try {
           const resend = new Resend(resendApiKey);
-          const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
+          const fromEmail = EMAIL_FROM;
           const portalUrl = 'https://willsgenerator.vercel.app';
-
-          // Send to admin for testing/verification
-          const adminEmail = 'aw736024@gmail.com';
 
           console.log('=== EMAIL DEBUG INFO ===');
           console.log('Sending welcome email to:', email);
-          console.log('Also sending to admin:', adminEmail);
-          console.log('FROM_EMAIL env var:', fromEmail);
+          console.log('Sending from:', fromEmail);
           console.log('RESEND_API_KEY configured:', resendApiKey ? 'YES (length: ' + resendApiKey.length + ')' : 'NO');
           console.log('========================');
 
-          if (fromEmail === 'onboarding@resend.dev') {
-            console.warn('⚠️ Using test email domain - email will only be sent to verified addresses');
-          }
-
           const { data: emailData, error: sendError } = await resend.emails.send({
             from: fromEmail,
-            to: adminEmail, // Send to admin only for testing (same as support-email function)
+            to: email,
+            replyTo: EMAIL_REPLY_TO,
             subject: 'Welcome to Just Wills - Your Account Has Been Created',
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

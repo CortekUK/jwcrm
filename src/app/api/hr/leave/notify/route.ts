@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
-import {
-  insertEmailNotificationLog,
-  testModeRedirectMetadata,
-} from '@/lib/hr/email-notification-log';
+import { insertEmailNotificationLog } from '@/lib/hr/email-notification-log';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '@/config/email';
 
 interface LeaveNotificationRequest {
   employeeName: string;
@@ -85,10 +83,6 @@ export async function POST(request: NextRequest) {
 
     // Initialize Resend
     const resend = new Resend(resendApiKey);
-
-    // Test mode: all emails go to admin (must match Resend registered email for unverified domains)
-    const adminEmail = process.env.ADMIN_EMAIL || 'aw736024@gmail.com';
-    const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 
     console.log(`Sending leave ${status} notification for:`, employeeName);
 
@@ -178,12 +172,11 @@ export async function POST(request: NextRequest) {
       </div>
     `;
 
-    // Send email to admin (test mode) with original recipient in subject
     const emailResult = await resend.emails.send({
-      from: fromEmail,
-      to: adminEmail, // TEST: always admin | PROD: replace with employeeEmail
-      // replyTo: employeeEmail, // Commented out for test mode
-      subject: `[Original: ${employeeEmail}] ${statusEmoji} Leave Request ${statusText} - ${leaveTypeDisplay}`,
+      from: EMAIL_FROM,
+      to: employeeEmail,
+      replyTo: EMAIL_REPLY_TO,
+      subject: `${statusEmoji} Leave Request ${statusText} - ${leaveTypeDisplay}`,
       html: emailHtml,
     });
 
@@ -198,10 +191,8 @@ export async function POST(request: NextRequest) {
     try {
       await insertEmailNotificationLog(supabase, {
         notification_type: status === 'approved' ? 'leave_approval' : 'leave_denial',
-        // Record where the email ACTUALLY went. This used to log the employee's
-        // address even though test mode always delivers to the admin, so the
-        // audit trail claimed a delivery that never happened.
-        recipient_email: adminEmail,
+        // Record where the email ACTUALLY went.
+        recipient_email: employeeEmail,
         subject: `Leave Request ${statusText} - ${leaveTypeDisplay}`,
         documents_included: [{
           employee_name: employeeName,
@@ -210,7 +201,6 @@ export async function POST(request: NextRequest) {
           end_date: endDate,
           total_days: totalDays,
         }],
-        metadata: testModeRedirectMetadata(employeeEmail, adminEmail),
         status: 'sent',
         resend_email_id: emailResult.data?.id,
         sent_at: new Date().toISOString(),

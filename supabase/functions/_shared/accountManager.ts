@@ -7,16 +7,13 @@
 // wrong one.
 //
 // When the will is unassigned, or the message isn't about a specific will,
-// this falls back to the general admin address.
-//
-// NOTE ON THE TEST-MODE SWAP: the Resend account in use is a trial that can
-// only deliver to one verified address. So the *real* recipient is resolved
-// and reported here, but `applyTestModeSwap` redirects the actual send until
-// PRODUCTION_EMAIL_MODE is set. The intended address is preserved in the
-// subject line so routing can be verified before go-live. This mirrors
-// src/lib/integrations/sendUserEmail.ts.
+// this falls back to the general monitored inbox (ADMIN_EMAIL, defaulting to
+// info@justwills.ae). Mail is always delivered to the resolved recipient —
+// there is no test-mode redirect.
 
 // deno-lint-ignore-file no-explicit-any
+
+import { EMAIL_REPLY_TO } from './email.ts';
 
 export interface StaffRecipient {
   email: string;
@@ -26,7 +23,7 @@ export interface StaffRecipient {
 }
 
 export function getAdminFallbackEmail(): string {
-  return Deno.env.get('ADMIN_EMAIL') || 'aw736024@gmail.com';
+  return (Deno.env.get('ADMIN_EMAIL') || '').trim() || EMAIL_REPLY_TO;
 }
 
 /**
@@ -78,23 +75,4 @@ export async function resolveStaffRecipient(
     console.error('resolveStaffRecipient failed, falling back to admin:', err);
     return fallback;
   }
-}
-
-/**
- * Redirect the send to the Resend-verified inbox until production mode is on,
- * preserving the address the message was actually addressed to.
- */
-export function applyTestModeSwap(
-  intendedEmail: string,
-  subject: string
-): { to: string; subject: string; isTestMode: boolean } {
-  const isTestMode = !Deno.env.get('PRODUCTION_EMAIL_MODE');
-  if (!isTestMode) {
-    return { to: intendedEmail, subject, isTestMode: false };
-  }
-  return {
-    to: getAdminFallbackEmail(),
-    subject: `[Original: ${intendedEmail}] ${subject}`,
-    isTestMode: true,
-  };
 }

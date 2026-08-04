@@ -1,5 +1,6 @@
 import { Resend } from 'npm:resend@6.1.3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -269,7 +270,7 @@ Deno.serve(async (req) => {
       if (resendApiKey) {
         try {
           const resend = new Resend(resendApiKey);
-          const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
+          const fromEmail = EMAIL_FROM;
           const portalUrl = 'https://willsgenerator.vercel.app';
 
           const roleDisplay = userRolesToAssign.map(r => roleDisplayNames[r] || r).join(', ');
@@ -279,19 +280,12 @@ Deno.serve(async (req) => {
           console.log('Roles:', userRolesToAssign.join(', '), '- Display name:', roleDisplay);
           console.log('========================');
 
-          // The Resend account in use is a trial that only delivers to one
-          // verified address, so until PRODUCTION_EMAIL_MODE is set the send
-          // is redirected there with the intended recipient preserved in the
-          // subject. Mirrors src/lib/integrations/sendUserEmail.ts.
-          const adminEmail = Deno.env.get('ADMIN_EMAIL') || 'aw736024@gmail.com';
-          const isTestMode = !Deno.env.get('PRODUCTION_EMAIL_MODE');
-          const welcomeSubject = `Welcome to Just Wills - Your ${roleDisplay} Account Has Been Created`;
-          const recipient = isTestMode ? adminEmail : email;
-          const subject = isTestMode ? `[Original: ${email}] ${welcomeSubject}` : welcomeSubject;
+          const subject = `Welcome to Just Wills - Your ${roleDisplay} Account Has Been Created`;
 
           const { data: emailData, error: sendError } = await resend.emails.send({
             from: fromEmail,
-            to: recipient,
+            to: email,
+            replyTo: EMAIL_REPLY_TO,
             subject,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

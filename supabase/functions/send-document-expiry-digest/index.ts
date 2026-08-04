@@ -1,5 +1,6 @@
 import { Resend } from 'npm:resend@6.1.3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -152,7 +153,7 @@ Deno.serve(async (req) => {
       enabled: true,
       send_time: '08:00',
       timezone: 'Asia/Dubai',
-      recipient_email: 'aw736024@gmail.com',
+      recipient_email: '',
       recipient_name: 'HR Manager',
       include_expired: true,
       include_critical: true,
@@ -277,8 +278,22 @@ Deno.serve(async (req) => {
     }
 
     const resend = new Resend(resendApiKey);
-    const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
+    const fromEmail = EMAIL_FROM;
     const appUrl = Deno.env.get('APP_URL') || 'http://localhost:3000';
+
+    // The recipient is configured on the HR settings page. With no address
+    // configured there is nobody to send to — do not guess one.
+    const recipientEmail = (settings.recipient_email || '').trim();
+    if (!recipientEmail) {
+      console.warn('hr_document_notifications.recipient_email is not configured; skipping send');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: 'No recipient_email configured for hr_document_notifications',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Determine subject based on highest urgency
     let subjectEmoji = '';
@@ -310,7 +325,8 @@ Deno.serve(async (req) => {
     // Send email
     const { data: emailResult, error: emailError } = await resend.emails.send({
       from: fromEmail,
-      to: settings.recipient_email,
+      to: recipientEmail,
+      replyTo: EMAIL_REPLY_TO,
       subject: subject,
       html: emailHtml,
     });

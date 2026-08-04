@@ -78,7 +78,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const resend = new Resend(resendApiKey);
 
     const adminEmail = 'ilyasghulam32@gmail.com';
-    const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+    const fromEmail = process.env.FROM_EMAIL || 'Just Wills <noreply@justwills.ae>';
 
     console.log('Sending edit request email for will:', willId);
 

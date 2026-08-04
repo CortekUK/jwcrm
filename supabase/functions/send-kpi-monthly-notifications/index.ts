@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Resend } from 'npm:resend@6.1.3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -174,7 +175,7 @@ Deno.serve(async (req) => {
       enabled: true,
       send_time: '09:00',
       timezone: 'Asia/Dubai',
-      hr_recipient_email: 'aw736024@gmail.com',
+      hr_recipient_email: '',
       hr_recipient_name: 'HR Manager',
       days_before_month_end: 7,
     };
@@ -295,11 +296,22 @@ Deno.serve(async (req) => {
     }
 
     const resend = new Resend(resendApiKey);
-    const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
+    const fromEmail = EMAIL_FROM;
     const appUrl = Deno.env.get('APP_URL') || 'http://localhost:3000';
 
-    // Send to admin for testing (same pattern as other edge functions)
-    const adminEmail = 'aw736024@gmail.com';
+    // The HR recipient is configured on the HR settings page. With no address
+    // configured there is nobody to send to — do not guess one.
+    const hrRecipientEmail = (settings.hr_recipient_email || '').trim();
+    if (!hrRecipientEmail) {
+      console.warn('hr_kpi_monthly_notifications.hr_recipient_email is not configured; skipping send');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: 'No hr_recipient_email configured for hr_kpi_monthly_notifications',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     let emailsSent = 0;
     let emailsFailed = 0;
@@ -316,15 +328,12 @@ Deno.serve(async (req) => {
     );
 
     try {
-      console.log(`Sending monthly HR reminder to ${settings.hr_recipient_email} (via ${adminEmail})`);
-
-      if (fromEmail === 'onboarding@resend.dev') {
-        console.warn('Using test email domain - email will only be sent to verified addresses');
-      }
+      console.log(`Sending monthly HR reminder to ${hrRecipientEmail}`);
 
       const { data: hrEmailResult, error: hrEmailError } = await resend.emails.send({
         from: fromEmail,
-        to: adminEmail, // Send to admin for testing
+        to: hrRecipientEmail,
+        replyTo: EMAIL_REPLY_TO,
         subject: hrSubject,
         html: hrHtml,
       });
@@ -335,7 +344,7 @@ Deno.serve(async (req) => {
 
         await supabase.from('email_notification_logs').insert({
           notification_type: 'kpi_monthly_reminder',
-          recipient_email: settings.hr_recipient_email,
+          recipient_email: hrRecipientEmail,
           subject: hrSubject,
           documents_included: incompleteEmployees.map((item) => ({
             employee_name: item.employee.full_name,
@@ -351,7 +360,7 @@ Deno.serve(async (req) => {
 
         await supabase.from('email_notification_logs').insert({
           notification_type: 'kpi_monthly_reminder',
-          recipient_email: settings.hr_recipient_email,
+          recipient_email: hrRecipientEmail,
           subject: hrSubject,
           documents_included: incompleteEmployees.map((item) => ({
             employee_name: item.employee.full_name,

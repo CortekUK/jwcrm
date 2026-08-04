@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Resend } from 'npm:resend@6.1.3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
+import { getAdminFallbackEmail } from '../_shared/accountManager.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -307,12 +309,11 @@ Deno.serve(async (req) => {
     }
 
     const resend = new Resend(resendApiKey);
-    const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
+    const fromEmail = EMAIL_FROM;
     const appUrl = Deno.env.get('APP_URL') || 'http://localhost:3000';
 
-    // Test-mode swap, same pattern as the other edge functions.
-    const adminEmail = Deno.env.get('ADMIN_EMAIL') || 'aw736024@gmail.com';
-    const isTestMode = !Deno.env.get('PRODUCTION_EMAIL_MODE');
+    // Fallback only for reminders whose salesperson has no auth email.
+    const adminEmail = getAdminFallbackEmail();
 
     let emailsSent = 0;
     let emailsFailed = 0;
@@ -360,20 +361,15 @@ Deno.serve(async (req) => {
             )
           : generateReminderEmailHtml(reminder as LeadReminder, salespersonName, appUrl);
 
-        if (fromEmail === 'onboarding@resend.dev') {
-          console.warn('Using test email domain - email will only be sent to verified addresses');
-        }
-
         let emailState: string = emailPlan;
 
         if (emailPlan === 'sent') {
           console.log(`Sending reminder email for lead "${leadName}" to ${salespersonEmail}`);
-          // Trial Resend account delivers to one verified address; the intended
-          // recipient is preserved in the subject until PRODUCTION_EMAIL_MODE.
           const { data: emailResult, error: emailError } = await resend.emails.send({
             from: fromEmail,
-            to: isTestMode ? adminEmail : salespersonEmail,
-            subject: isTestMode ? `[Original: ${salespersonEmail}] ${subject}` : subject,
+            to: salespersonEmail,
+            replyTo: EMAIL_REPLY_TO,
+            subject: subject,
             html: html,
           });
 

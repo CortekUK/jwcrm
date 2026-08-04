@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Resend } from 'npm:resend@6.1.3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -400,9 +401,8 @@ Deno.serve(async (req) => {
 
     // Initialize Resend
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
+    const fromEmail = EMAIL_FROM;
     const appUrl = Deno.env.get('APP_URL') || 'http://localhost:3000';
-    const adminEmail = 'aw736024@gmail.com'; // For testing
 
     let resend: Resend | null = null;
     if (resendApiKey) {
@@ -473,9 +473,7 @@ Deno.serve(async (req) => {
       const escalatedFrom = ROLE_LABELS[currentRole];
       const escalatedTo = ROLE_LABELS[escalationRole];
 
-      // Who this escalation is actually for. Test-mode routing below still
-      // sends everything to the admin address, with these addresses recorded in
-      // the subject as [Original: ...].
+      // Who this escalation is for — these are the addresses it is sent to.
       const targetRecipients = await recipientsForRole(
         supabase,
         escalationRole,
@@ -535,16 +533,26 @@ Deno.serve(async (req) => {
           `${appUrl}/hr/leave`
         );
 
-        const intended = targetRecipients.map((r) => r.email).join(', ') || 'no-recipient';
-        // Test-mode routing, unchanged: everything goes to the admin address,
-        // with the intended recipients recorded in the subject.
+        // Real recipients: the approvers at the next step of this request's
+        // chain. If the chain resolves to nobody there is no one to notify.
+        const escalationRecipients = targetRecipients
+          .map((r) => r.email)
+          .filter((e): e is string => !!e && e.trim().length > 0);
         const subject =
-          `[Original: ${intended}] Escalation to ${escalatedTo}: Leave Request from ${employeeName} (${totalDaysPending} days pending)`;
+          `Escalation to ${escalatedTo}: Leave Request from ${employeeName} (${totalDaysPending} days pending)`;
+
+        if (escalationRecipients.length === 0) {
+          console.warn(
+            `No recipient resolved for escalation to ${escalatedTo} on request ${request.id}; skipping email`
+          );
+          continue;
+        }
 
         try {
           await resend.emails.send({
             from: fromEmail,
-            to: adminEmail, // Use admin for testing
+            to: escalationRecipients,
+            replyTo: EMAIL_REPLY_TO,
             subject,
             html,
           });
@@ -555,7 +563,7 @@ Deno.serve(async (req) => {
           // Log the notification
           await supabase.from('email_notification_logs').insert({
             notification_type: 'leave_escalation',
-            recipient_email: adminEmail,
+            recipient_email: escalationRecipients.join(', '),
             subject,
             status: 'sent',
             metadata: {
@@ -564,7 +572,7 @@ Deno.serve(async (req) => {
               escalated_to: escalatedTo,
               current_step: currentStep,
               total_steps: totalSteps,
-              intended_recipients: targetRecipients.map((r) => r.email),
+              recipients: escalationRecipients,
               days_pending: totalDaysPending,
             },
           });
@@ -573,7 +581,7 @@ Deno.serve(async (req) => {
 
           await supabase.from('email_notification_logs').insert({
             notification_type: 'leave_escalation',
-            recipient_email: adminEmail,
+            recipient_email: escalationRecipients.join(', '),
             subject,
             status: 'failed',
             error_message: emailError instanceof Error ? emailError.message : 'Unknown error',
@@ -586,35 +594,39 @@ Deno.serve(async (req) => {
     if (escalations.length > 0 && resend) {
       const digestHtml = generateHRDigestHtml(escalations, `${appUrl}/hr/leave`);
 
-      // The digest has always been an HR-team summary. Recipients are unchanged
-      // (admin address only, test mode); the intended HR addresses are now
-      // recorded in the subject, matching the convention everywhere else.
-      const digestRecipients = await recipientsForAppRoles(supabase, ['hr']);
-      const digestIntended =
-        digestRecipients.map((r) => r.email).join(', ') || 'no-recipient';
+      // The digest is an HR-team summary: it goes to everyone holding the
+      // 'hr' app role. No HR user means nobody to send it to.
+      const digestRecipients = (await recipientsForAppRoles(supabase, ['hr']))
+        .map((r) => r.email)
+        .filter((e): e is string => !!e && e.trim().length > 0);
       const digestSubject =
-        `[Original: ${digestIntended}] Leave Escalation Digest: ${escalations.length} request(s) escalated`;
+        `Leave Escalation Digest: ${escalations.length} request(s) escalated`;
 
+      if (digestRecipients.length === 0) {
+        console.warn('No HR recipients resolved for escalation digest; skipping');
+      } else {
       try {
         await resend.emails.send({
           from: fromEmail,
-          to: adminEmail,
+          to: digestRecipients,
+          replyTo: EMAIL_REPLY_TO,
           subject: digestSubject,
           html: digestHtml,
         });
 
         await supabase.from('email_notification_logs').insert({
           notification_type: 'leave_escalation_digest',
-          recipient_email: adminEmail,
+          recipient_email: digestRecipients.join(', '),
           subject: digestSubject,
           status: 'sent',
           metadata: {
             escalation_count: escalations.length,
-            intended_recipients: digestRecipients.map((r) => r.email),
+            recipients: digestRecipients,
           },
         });
       } catch (emailError) {
         console.error('Failed to send escalation digest:', emailError);
+      }
       }
     }
 

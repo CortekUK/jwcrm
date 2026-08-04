@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '@/config/email';
 
 interface SupportEmailRequest {
   name: string;
@@ -80,8 +81,8 @@ export async function POST(request: NextRequest) {
     // Initialize Resend
     const resend = new Resend(resendApiKey);
 
-    const adminEmail = 'ilyasghulam32@gmail.com';
-    const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+    const adminEmail = EMAIL_REPLY_TO;
+    const fromEmail = EMAIL_FROM;
 
     console.log('Sending support email from:', email);
 
@@ -164,13 +165,16 @@ export async function POST(request: NextRequest) {
 
     console.log('Support email sent to admin, ID:', adminResult.data?.id);
 
-    // Send confirmation email to client
-    const clientEmailAddress = adminEmail; // Change to 'email' after domain verification
+    // Send confirmation email to client. This used to be redirected to the
+    // staff inbox while the sending domain was unverified, so the client who
+    // raised the request received nothing.
+    const clientEmailAddress = email;
 
     const clientResult = await resend.emails.send({
       from: fromEmail,
       to: clientEmailAddress,
-      subject: `[Client Confirmation - Original: ${email}] We received your support request`,
+      replyTo: EMAIL_REPLY_TO,
+      subject: `We received your support request`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #0C5536; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">

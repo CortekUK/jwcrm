@@ -27,6 +27,7 @@
 
 import { Resend } from 'npm:resend@6.1.3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -205,18 +206,14 @@ Deno.serve(async (req) => {
     const team = (byKey.get('lead_team') || {}) as TeamSettings;
     const frequency: Frequency = notifications.notificationFrequency ?? 'immediate';
 
-    // Test-mode swap, identical to every other function here: everything goes
-    // to ADMIN_EMAIL with the intended recipient preserved in the subject
-    // until PRODUCTION_EMAIL_MODE is set.
-    const adminEmail = Deno.env.get('ADMIN_EMAIL') || 'aw736024@gmail.com';
-    const fromEmail = Deno.env.get('FROM_EMAIL') || 'onboarding@resend.dev';
-    const isTestMode = !Deno.env.get('PRODUCTION_EMAIL_MODE');
+    const fromEmail = EMAIL_FROM;
 
     const deliver = async (to: string, subject: string, html: string) => {
       const { error } = await resend.emails.send({
         from: fromEmail,
-        to: isTestMode ? adminEmail : to,
-        subject: isTestMode ? `[Original: ${to}] ${subject}` : subject,
+        to,
+        replyTo: EMAIL_REPLY_TO,
+        subject,
         html,
       });
       if (error) throw new Error(error.message);
@@ -304,7 +301,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      return json({ success: true, mode, sent, failed, raced, testMode: isTestMode });
+      return json({ success: true, mode, sent, failed, raced });
     }
 
     /* ---------------- daily / weekly digests ---------------- */
@@ -403,7 +400,7 @@ Deno.serve(async (req) => {
     // stops one bad address replaying the same events into every future
     // digest.
 
-    return json({ success: true, mode, recipients: byRecipient.size, sent, failed, events: events.length, testMode: isTestMode });
+    return json({ success: true, mode, recipients: byRecipient.size, sent, failed, events: events.length });
   } catch (error) {
     console.error('send-lead-notification-digest failed:', error);
     return new Response(

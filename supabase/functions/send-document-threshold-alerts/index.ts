@@ -1,5 +1,6 @@
 import { Resend } from 'npm:resend@6.1.3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -371,8 +372,9 @@ Deno.serve(async (req) => {
     const subject = `Document Expiry Alert: ${alertsToSend.length} document${alertsToSend.length !== 1 ? 's' : ''} reaching threshold`;
 
     const { data: emailData, error: emailError } = await resend.emails.send({
-      from: Deno.env.get('RESEND_FROM_EMAIL') || 'HR System <noreply@resend.dev>',
+      from: EMAIL_FROM,
       to: settings.recipient_email,
+      replyTo: EMAIL_REPLY_TO,
       subject: subject,
       html: emailHtml,
     });
