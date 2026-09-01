@@ -1,7 +1,8 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { companyDetails } from "@/config/company";
-import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "./invoiceLineItems";
+import { lineItemCostLabel, type InvoiceLineItem } from "./invoiceLineItems";
+import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
 import fs from "fs";
 import path from "path";
 
@@ -17,6 +18,12 @@ export type InvoiceData = {
   currency: string;
   description?: string;
   lineItems?: InvoiceLineItem[];
+  // VAT is editable per invoice; both may be absent, in which case the company
+  // default rate applies. See computeInvoiceAmounts for the precedence rules.
+  vatRate?: number | null;
+  vatAmount?: number | null;
+  // Everything already received against this invoice, used for BALANCE AMOUNT.
+  amountPaid?: number;
 };
 
 // Grayscale palette to match the official JW Legal Consultants tax invoice
@@ -56,8 +63,11 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
     console.warn("Logo not loaded:", error);
   }
 
-  const page = pdfDoc.addPage([595.28, 841.89]); // A4 in points
+  // `let` because a long item list can overflow onto a continuation page; every
+  // helper below draws onto whichever page is current.
+  let page = pdfDoc.addPage([595.28, 841.89]); // A4 in points
   const { width, height } = page.getSize();
+  const pageHeightMm = height / MM;
 
   const ML = mm(12);
   const RIGHTX = width - ML;
@@ -102,11 +112,61 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
     });
   };
 
+  // Greedy word wrap for a cell of `maxWidthMm`. widthOfTextAtSize returns
+  // points, so the budget is converted with the same mm() used for every other
+  // measurement in this file. Honours hard "\n" breaks in the description first.
+  const wrap = (
+    text: string,
+    maxWidthMm: number,
+    size: number,
+    useFont: typeof font
+  ): string[] => {
+    const maxPt = mm(maxWidthMm);
+    const out: string[] = [];
+    text.split("\n").forEach((hardLine) => {
+      const words = hardLine.trim().split(/\s+/).filter(Boolean);
+      if (words.length === 0) {
+        out.push("");
+        return;
+      }
+      let line = words[0];
+      for (let i = 1; i < words.length; i++) {
+        const candidate = `${line} ${words[i]}`;
+        if (useFont.widthOfTextAtSize(candidate, size) <= maxPt) line = candidate;
+        else {
+          out.push(line);
+          line = words[i];
+        }
+      }
+      out.push(line);
+    });
+    return out;
+  };
+
   // ----- totals -----
-  const items = normalizeLineItems(data.lineItems, data.amount);
-  const subtotal = lineItemsSubtotal(items);
-  const vatAmount = subtotal * (companyDetails.vatRate / 100);
-  const total = subtotal + vatAmount;
+  // Single source of truth for the money, shared with the English PDF, the
+  // email renderer and the payment link, so a per-invoice VAT override cannot
+  // reach only some of them.
+  const {
+    items,
+    subtotal,
+    vatAmount,
+    vatLabel,
+    invoiceTotal: total,
+  } = computeInvoiceAmounts(
+    {
+      amount: data.amount,
+      line_items: data.lineItems,
+      vat_rate: data.vatRate,
+      vat_amount: data.vatAmount,
+    },
+    companyDetails.vatRate
+  );
+
+  // BALANCE AMOUNT is what is still owed, so it is the total minus what has
+  // already been received — unlike TOTAL / PAYMENT REQUIRED, which always show
+  // the full invoice. Clamped: overlapping payments can exceed the total.
+  const balance = Math.max(0, total - (Number(data.amountPaid) || 0));
 
   // =========================================================================
   // TITLE
@@ -206,37 +266,68 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
   txt("COST", costMid, tableTop + 6, { size: 9, bold: true, align: "center" });
   txt("NET PRICE AED", priceMid, tableTop + 6, { size: 9, bold: true, align: "center" });
 
-  // Itemised rows (one per line item)
-  const itemRowH = 11;
+  // Itemised rows (one per line item). Row height is measured, not fixed:
+  // descriptions may carry hard line breaks and long text has to wrap inside
+  // the DESCRIPTION cell rather than run under the COST column.
+  const DESC_PAD = 4; // mm of padding either side of the description text
+  const ITEM_LINE_H = 5; // mm per rendered description line
+  const MAX_ITEM_LINES = 6; // beyond this a pathological description is clipped
+  const MIN_ROW_H = 11; // the original fixed row height
+  // The hardcoded Notarization Fee block used to pad this table out; it is now
+  // an ordinary priced line item, so a filler row keeps the signed-off height.
+  const MIN_BODY_H = 55;
+  const ROW_LIMIT = pageHeightMm - 90; // below this the totals block will not fit
+
   let rowTop = tableTop + thH;
+  let usedH = 0; // body height drawn on the CURRENT page
+
   items.forEach((item) => {
-    box(12, rowTop, descW, itemRowH);
-    box(costX, rowTop, costW, itemRowH);
-    box(priceX, rowTop, priceW, itemRowH);
-    txt(item.description, ML + mm(4), rowTop + 7, { size: 10, bold: true });
-    txt("X", costMid, rowTop + 7, { size: 10, bold: true, align: "center" });
-    txt(fmt(item.amount), priceMid, rowTop + 7, { size: 10, align: "center" });
-    rowTop += itemRowH;
+    const lines = wrap(item.description, descW - DESC_PAD * 2, 10, fontBold).slice(
+      0,
+      MAX_ITEM_LINES
+    );
+    const rowH = Math.max(MIN_ROW_H, lines.length * ITEM_LINE_H + 6);
+
+    // Overflow guard: start a continuation page rather than draw off the sheet.
+    if (rowTop + rowH > ROW_LIMIT) {
+      page = pdfDoc.addPage([595.28, 841.89]);
+      rowTop = 20;
+      usedH = 0;
+    }
+
+    box(12, rowTop, descW, rowH);
+    box(costX, rowTop, costW, rowH);
+    box(priceX, rowTop, priceW, rowH);
+    // Descriptions stay LTR here even though the rest of the document is
+    // bilingual — unchanged from the previous behaviour.
+    const firstBaseline = rowTop + (rowH - lines.length * ITEM_LINE_H) / 2 + 4;
+    lines.forEach((ln, i) => {
+      txt(ln, ML + mm(DESC_PAD), firstBaseline + i * ITEM_LINE_H, { size: 10, bold: true });
+    });
+    txt(lineItemCostLabel(item), costMid, rowTop + rowH / 2 + 1.5, {
+      size: 10,
+      bold: true,
+      align: "center",
+    });
+    txt(fmt(item.amount), priceMid, rowTop + rowH / 2 + 1.5, { size: 10, align: "center" });
+    rowTop += rowH;
+    usedH += rowH;
   });
 
-  // Notarization Fee (informational)
-  const noteH = 26;
-  box(12, rowTop, descW, noteH);
-  box(costX, rowTop, costW, noteH);
-  box(priceX, rowTop, priceW, noteH);
-  txt("Notarization Fee", ML + mm(4), rowTop + 8, { size: 9.5, bold: true });
-  txt("(Includes legalization, PRO Services)", ML + mm(38), rowTop + 8, { size: 8.5, italic: true, color: GRAY });
-  let ny = rowTop + 14;
-  companyDetails.notarizationNote.forEach((line) => {
-    txt(line, ML + mm(4), ny, { size: 8.5 });
-    ny += 5;
-  });
-  txt("X", costMid, rowTop + 9, { size: 10, bold: true, align: "center" });
+  // Empty filler spanning the three columns so a short invoice keeps roughly
+  // the table height the client signed off on.
+  const fillerH = Math.max(0, MIN_BODY_H - usedH);
+  if (fillerH > 0) {
+    box(12, rowTop, descW, fillerH);
+    box(costX, rowTop, costW, fillerH);
+    box(priceX, rowTop, priceW, fillerH);
+    rowTop += fillerH;
+  }
 
   // =========================================================================
   // BANK DETAILS + TOTALS
   // =========================================================================
-  const lowerTop = rowTop + noteH;
+  const lowerTop = rowTop;
   const totLabelMid = mm(costX + costW / 2);
   const totValMid = mm(priceX + priceW / 2);
 
@@ -258,10 +349,10 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
   };
 
   drawTotal(lowerTop, tr1, ["SUB-TOTAL"], fmt(subtotal));
-  drawTotal(lowerTop + tr1, tr2, [`${companyDetails.vatRate}% VAT`], fmt(vatAmount));
+  drawTotal(lowerTop + tr1, tr2, [vatLabel], fmt(vatAmount));
   drawTotal(lowerTop + tr1 + tr2, tr3, ["TOTAL"], `${fmt(total)} AED`);
   drawTotal(lowerTop + tr1 + tr2 + tr3, tr4, ["PAYMENT", "REQUIRED INCL", "VAT"], `${fmt(total)} AED`, true);
-  drawTotal(lowerTop + tr1 + tr2 + tr3 + tr4, tr5, ["BALANCE", "AMOUNT"], `${fmt(total)} AED`, true);
+  drawTotal(lowerTop + tr1 + tr2 + tr3 + tr4, tr5, ["BALANCE", "AMOUNT"], `${fmt(balance)} AED`, true);
 
   // Bank details box (left)
   const bankH = tr1 + tr2 + tr3;

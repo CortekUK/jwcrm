@@ -1,0 +1,12 @@
+-- New pipeline stage between Pending and Won.
+--
+-- A client who has paid the will-drafting fee has work underway but still owes
+-- the court fees, so "Won" is wrong (the invoice is not settled) and "Pending"
+-- is wrong (we are drafting). The lead is moved here automatically the moment
+-- the upfront line items are covered, by card or by a recorded bank transfer.
+--
+-- ALTER TYPE ... ADD VALUE cannot run inside a transaction, and a DO block
+-- counts as one and silently no-ops. This statement must stay alone in this
+-- file. It is also irreversible: removing an enum value requires recreating the
+-- type and rewriting every column that uses it.
+ALTER TYPE public.lead_status ADD VALUE IF NOT EXISTS 'drafting' AFTER 'pending';

@@ -8,11 +8,24 @@ import { normalizeLineItems, lineItemsSubtotal } from "@/lib/pdf/invoiceLineItem
 import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
 import { companyDetails } from "@/config/company";
 import { paymentResolverUrl } from "@/lib/finance/paymentLink";
+import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
+import { outstandingBalanceForProposal } from "@/lib/finance/balanceCheckout";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+/**
+ * VAT overrides are optional and 0 is a legitimate rate (zero-rated matters),
+ * so "absent" has to be distinguished from "zero" — undefined leaves the
+ * column NULL and every reader falls back to companyDetails.vatRate.
+ */
+function optionalRate(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === "") return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,6 +40,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { leadId, amount, currency = "AED", description, line_items } = body;
+    const vatRate = optionalRate(body.vat_rate);
+    const vatAmount = optionalRate(body.vat_amount);
 
     if (!leadId || !amount) {
       return NextResponse.json(
@@ -40,12 +55,21 @@ export async function POST(request: NextRequest) {
     const items = normalizeLineItems(line_items, amount);
     const subtotalAmount = lineItemsSubtotal(items);
 
-    // What the client actually owes, VAT included. The invoice PDF and the
-    // balance tracking both work in this figure, so the Stripe charge must
-    // too — charging the bare subtotal would collect the fees but silently
-    // drop the VAT, leaving the invoice permanently short.
-    const totalAmountWithVat =
-      subtotalAmount + subtotalAmount * (companyDetails.vatRate / 100);
+    // What the client actually owes, VAT included — at THIS invoice's rate,
+    // not the company default. The invoice PDF and the balance tracking both
+    // work in this figure, so the Stripe charge must too — charging the bare
+    // subtotal would collect the fees but silently drop the VAT, leaving the
+    // invoice permanently short.
+    const amounts = computeInvoiceAmounts(
+      {
+        amount: subtotalAmount,
+        line_items: items,
+        vat_rate: vatRate,
+        vat_amount: vatAmount,
+      },
+      companyDetails.vatRate
+    );
+    const totalAmountWithVat = amounts.invoiceTotal;
 
     // 1. Get lead details
     const { data: lead, error: leadError } = await supabaseAdmin
@@ -81,6 +105,8 @@ export async function POST(request: NextRequest) {
       amount: subtotalAmount,
       currency,
       lineItems: items,
+      vatRate,
+      vatAmount,
     });
 
     // 3. Create Stripe Checkout Session
@@ -135,6 +161,15 @@ export async function POST(request: NextRequest) {
     // NOTE: Does NOT update lead status — invoice-only shouldn't change pipeline status
 
     // 5. Generate Invoice PDF
+    //
+    // Read what has already been received against this proposal FIRST: this
+    // route also runs when an invoice is re-sent to a lead who has already
+    // part-paid (upsertLeadDeal reuses the same row), and without it the
+    // BALANCE AMOUNT row would re-bill money the client has handed over.
+    // A brand-new invoice simply has no payments, so this is 0.
+    const balance = await outstandingBalanceForProposal(supabaseAdmin, proposal.id);
+    const amountPaid = balance.ok ? balance.totalPaid : 0;
+
     const invoicePDFBase64 = await generateInvoicePDFArabic({
       invoiceNumber: proposal.invoice_number,
       invoiceDate: now,
@@ -147,6 +182,9 @@ export async function POST(request: NextRequest) {
       currency: currency,
       description: description || "خدمات صياغة الوصايا الاحترافية",
       lineItems: items,
+      vatRate,
+      vatAmount,
+      amountPaid,
     });
 
     // Persist the PDF so the existing View/Download PDF menu in the admin UI
@@ -199,6 +237,9 @@ export async function POST(request: NextRequest) {
         amount: subtotalAmount,
         paymentUrl: payUrl,
         lineItems: items,
+        vatRate,
+        vatAmount,
+        amountPaid,
       }),
     });
     if (!emailResult.ok) {

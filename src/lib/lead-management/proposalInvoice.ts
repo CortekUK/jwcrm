@@ -18,6 +18,14 @@ export type UpsertLeadDealParams = {
   currency: string;
   lineItems?: InvoiceLineItem[];
   proposalContent?: string | null;
+  /**
+   * Per-invoice VAT override (percent). Left undefined the column stays NULL
+   * and every reader falls back to companyDetails.vatRate, so legacy rows and
+   * callers that do not collect a rate keep behaving exactly as before.
+   */
+  vatRate?: number | null;
+  /** Absolute VAT override; wins over vatRate wherever the money is computed. */
+  vatAmount?: number | null;
 };
 
 const ALLOWED_LEAD_DEAL_ROLES = new Set([
@@ -37,7 +45,16 @@ export async function upsertLeadDeal(
   supabaseAdmin: SupabaseClient,
   params: UpsertLeadDealParams
 ) {
-  const { leadId, mode, amount, currency, lineItems, proposalContent } = params;
+  const {
+    leadId,
+    mode,
+    amount,
+    currency,
+    lineItems,
+    proposalContent,
+    vatRate,
+    vatAmount,
+  } = params;
 
   const { data: existing, error: findError } = await supabaseAdmin
     .from("proposals")
@@ -59,6 +76,11 @@ export async function upsertLeadDeal(
   };
   if (lineItems) baseFields.line_items = lineItems;
   if (proposalContent !== undefined) baseFields.proposal_content = proposalContent;
+  // Only written when supplied — an omitted override must stay NULL rather
+  // than being stamped with a default, which is what keeps legacy invoices
+  // resolving through companyDetails.vatRate.
+  if (vatRate !== undefined) baseFields.vat_rate = vatRate;
+  if (vatAmount !== undefined) baseFields.vat_amount = vatAmount;
   if (mode === "invoice") baseFields.invoiced_at = now;
 
   if (existing) {

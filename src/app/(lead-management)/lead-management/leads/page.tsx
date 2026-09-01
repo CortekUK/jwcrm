@@ -440,6 +440,7 @@ function LeadsPageContent() {
         qualified: t("qualified"),
         negotiation: t("negotiation"),
         pending: t("pending"),
+        drafting: t("drafting", "Drafting"),
         won: t("won"),
         lost: t("lost"),
       };

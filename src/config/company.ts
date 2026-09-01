@@ -28,11 +28,21 @@ export const companyDetails = {
     iban: "AE730340003708477481501",
   },
 
-  // Standard notarization fee note printed on the invoice
-  notarizationNote: [
-    "AUH - Will – AED 1500 Per person/document.",
-    "POA – DXB – AED 1000 Per person/document.",
-  ],
+  // Standard notarization charge, offered as a one-click row in the invoice
+  // line-item editor.
+  //
+  // This used to be printed on every invoice as a fixed, unpriced note. The
+  // client asked for it to be removed, because notarization is not always
+  // charged and when it is it belongs in the totals like any other fee. So the
+  // wording survives here as a preset the team inserts as a real priced line.
+  notarizationPreset: {
+    description: [
+      "Notarization Fee (Includes legalization, PRO Services)",
+      "AUH - Will – AED 1500 Per person/document.",
+      "POA – DXB – AED 1000 Per person/document.",
+    ].join("\n"),
+    quantity: 2,
+  },
 
   // Default point of contact shown on client-facing emails when no account
   // manager is assigned to the lead.

@@ -84,13 +84,16 @@ const STATUS_COLORS: Record<LeadStatus, string> = {
   not_started: "#6B6B6B",
   contacted: "#0C5536",
   consultation: "#0369A1",
+  consultation_completed: "#0E7490",
   meeting: "#2563EB",
   hold: "#D97706",
   qualified: "#7C3AED",
   negotiation: "#4F46E5",
   pending: "#C6A03B",
+  drafting: "#0369A1",
   won: "#22c55e",
   lost: "#ef4444",
+  unreachable: "#737373",
 };
 
 const SOURCE_COLORS = [
@@ -297,13 +300,16 @@ export function SalesAnalyticsCharts({
       not_started: 0,
       contacted: 0,
       consultation: 0,
+      consultation_completed: 0,
       meeting: 0,
       hold: 0,
       qualified: 0,
       negotiation: 0,
       pending: 0,
+      drafting: 0,
       won: 0,
       lost: 0,
+      unreachable: 0,
     };
 
     leads.forEach((lead) => {

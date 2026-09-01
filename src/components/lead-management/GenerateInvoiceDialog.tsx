@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Dialog,
@@ -11,13 +11,24 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { LineItemsEditor, DEFAULT_LINE_ITEM_ROWS, type LineItemRow } from "./LineItemsEditor";
+import {
+  LineItemsEditor,
+  DEFAULT_LINE_ITEM_ROWS,
+  parseLineItemRows,
+  toLineItemRows,
+  type LineItemRow,
+} from "./LineItemsEditor";
 import { Loader2, FileText, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
+import { formatMoney } from "@/lib/finance/outstandingBalance";
+import { companyDetails } from "@/config/company";
+import type { InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 
 interface GenerateInvoiceDialogProps {
   open: boolean;
@@ -38,17 +49,63 @@ export function GenerateInvoiceDialog({
   const [items, setItems] = useState<LineItemRow[]>(DEFAULT_LINE_ITEM_ROWS);
   const [currency] = useState("AED");
   const [description, setDescription] = useState("Legal services");
+  // VAT is per-invoice now (some matters are zero-rated), seeded with the
+  // configured company default so the common case needs no thought.
+  const [vatRate, setVatRate] = useState<string>(String(companyDetails.vatRate));
   const [sendEmail, setSendEmail] = useState(true);
+
+  // Start from what has already been agreed with this lead rather than blank
+  // defaults: retyping the figures is how the "Due upfront" marks were being
+  // lost between the proposal and the invoice.
+  useEffect(() => {
+    if (!open || !leadId) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("proposals")
+          .select("line_items, vat_rate")
+          .eq("lead_id", leadId)
+          .not("status", "in", "(paid,cancelled)")
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (error) throw error;
+        if (cancelled) return;
+
+        const existing = data?.[0];
+        if (existing) {
+          setItems(toLineItemRows((existing.line_items ?? null) as InvoiceLineItem[] | null));
+          setVatRate(
+            existing.vat_rate != null
+              ? String(existing.vat_rate)
+              : String(companyDetails.vatRate)
+          );
+        }
+      } catch (err) {
+        // Never block invoicing on this — fall back to the defaults.
+        console.error("Could not load the existing deal for this lead:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, leadId]);
   const [submitting, setSubmitting] = useState(false);
   const [lastResult, setLastResult] = useState<{
     invoiceNumber: string;
     paymentUrl: string | null;
   } | null>(null);
 
-  const parsedItems = items
-    .filter((it) => it.description.trim())
-    .map((it) => ({ description: it.description.trim(), amount: parseFloat(it.amount) || 0 }));
-  const total = parsedItems.reduce((s, it) => s + it.amount, 0);
+  const parsedItems = parseLineItemRows(items);
+  // Same helper the PDF, the email and the payment link use, so what the
+  // salesperson reads here is exactly what the client will be charged.
+  const amounts = computeInvoiceAmounts(
+    { amount: 0, line_items: parsedItems, vat_rate: Number(vatRate) },
+    companyDetails.vatRate
+  );
+  const total = amounts.subtotal;
 
   const handleGenerate = async () => {
     if (parsedItems.length === 0 || total <= 0) {
@@ -74,6 +131,7 @@ export function GenerateInvoiceDialog({
           line_items: parsedItems,
           currency,
           description,
+          vat_rate: Number(vatRate),
           sendEmail,
         }),
       });
@@ -98,6 +156,7 @@ export function GenerateInvoiceDialog({
       // Reset on close
       setItems(DEFAULT_LINE_ITEM_ROWS);
       setDescription("Legal services");
+      setVatRate(String(companyDetails.vatRate));
       setSendEmail(true);
       setLastResult(null);
     }
@@ -135,7 +194,41 @@ export function GenerateInvoiceDialog({
           </div>
         ) : (
           <div className="space-y-4 py-2">
-            <LineItemsEditor items={items} onChange={setItems} />
+            <LineItemsEditor
+              items={items}
+              onChange={setItems}
+              vatRate={vatRate}
+              currency={currency}
+            />
+            <div className="space-y-1">
+              <Label htmlFor="invoice-vat-rate">{t("vatPercent", "VAT %")}</Label>
+              <Input
+                id="invoice-vat-rate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={vatRate}
+                onChange={(e) => setVatRate(e.target.value)}
+                className="w-28"
+              />
+            </div>
+            {total > 0 && (
+              <div className="space-y-1 rounded-lg border border-[#E6E6E4] bg-[#FAFAF8] p-3 text-sm">
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>{t("subtotal", "Subtotal")}</span>
+                  <span>{formatMoney(amounts.subtotal, currency)}</span>
+                </div>
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>{amounts.vatLabel}</span>
+                  <span>{formatMoney(amounts.vatAmount, currency)}</span>
+                </div>
+                <div className="flex items-center justify-between font-semibold">
+                  <span>{t("invoiceTotal")}</span>
+                  <span>{formatMoney(amounts.invoiceTotal, currency)}</span>
+                </div>
+              </div>
+            )}
             <div className="space-y-1">
               <Label htmlFor="invoice-description">{t("description")}</Label>
               <Textarea

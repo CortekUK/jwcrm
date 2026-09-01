@@ -93,7 +93,6 @@
   "levelInterimGuardian": "Level {{level}} Interim Guardian:",
   "levelPermanentGuardian": "Level {{level}} Permanent Guardian:",
   "contact": "Contact:",
-  "email": "Email:",
   "scheduleOfAssets": "SCHEDULE OF ASSETS",
   "nonExhaustiveListText": "The following is a non-exhaustive list of my principal assets:",
   "estimatedValue": "Estimated Value",
@@ -112,7 +111,6 @@
   "bequeathTo": "Bequeathed to:",
   "distributedAmongBeneficiaries": "To be distributed among beneficiaries according to their percentages",
   "specificWillText": "This is a specific will. I give, devise and bequeath my assets as specifically detailed in Section IV (Assets) to the beneficiaries listed below. Any assets not specifically mentioned shall be distributed according to the percentages indicated.",
-
   "proposal": {
     "title": "SERVICE PROPOSAL",
     "proposalNumber": "Proposal #",
@@ -135,7 +133,6 @@
     "companyName": "Just Wills",
     "companyTagline": "Professional Will Drafting Services"
   },
-
   "invoice": {
     "title": "INVOICE",
     "invoiceNumber": "Invoice #",
@@ -171,6 +168,12 @@
     "footer": "If you have any questions about this invoice, please contact us.",
     "companyName": "Just Wills",
     "companyAddress": "Dubai, United Arab Emirates",
-    "companyEmail": "support@justwills.ae"
+    "companyEmail": "support@justwills.ae",
+    "cost": "Cost",
+    "subTotal": "Sub-Total",
+    "payableUpfront": "Payable upfront",
+    "payableAtCourt": "At court appointment stage",
+    "payableNow": "Payable now to begin drafting: {{amount}}",
+    "payableLater": "The remaining {{amount}} is payable at the court appointment stage."
   }
 }

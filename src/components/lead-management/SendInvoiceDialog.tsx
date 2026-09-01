@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -20,13 +21,23 @@ import {
 } from "@/components/ui/collapsible";
 import { Lead } from "./LeadTable";
 import { InvoicePDFTemplate } from "./InvoicePDFTemplate";
-import { LineItemsEditor, DEFAULT_LINE_ITEM_ROWS, type LineItemRow } from "./LineItemsEditor";
+import {
+  LineItemsEditor,
+  DEFAULT_LINE_ITEM_ROWS,
+  parseLineItemRows,
+  toLineItemRows,
+  type LineItemRow,
+} from "./LineItemsEditor";
 import { Loader2, Receipt, ChevronDown, ChevronUp, FileText, User, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
+import type { InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { companyDetails } from "@/config/company";
 
 type ItemRow = LineItemRow;
 const INITIAL_ITEMS: ItemRow[] = DEFAULT_LINE_ITEM_ROWS;
+const CURRENCY = "AED";
 
 interface SendInvoiceDialogProps {
   lead: Lead | null;
@@ -44,17 +55,74 @@ export function SendInvoiceDialog({
   const { t } = useTranslation("leadManagement");
   const [items, setItems] = useState<ItemRow[]>(INITIAL_ITEMS);
   const [description, setDescription] = useState<string>("");
+  // VAT is per-invoice now (some matters are zero-rated), seeded with the
+  // configured company default so the common case needs no thought.
+  const [vatRate, setVatRate] = useState<string>(String(companyDetails.vatRate));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(false);
 
-  const parsedItems = items
-    .filter((it) => it.description.trim())
-    .map((it) => ({ description: it.description.trim(), amount: parseFloat(it.amount) || 0 }));
-  const total = parsedItems.reduce((s, it) => s + it.amount, 0);
+  // Load whatever has already been agreed with this lead.
+  //
+  // This dialog used to open on blank default rows, so invoicing a lead whose
+  // proposal was already sent meant retyping the figures — and retyping them
+  // silently dropped the "Due upfront" marks, which is how an invoice that
+  // should have billed the drafting fee ended up billing the whole amount.
+  useEffect(() => {
+    if (!open || !lead) return;
+    let cancelled = false;
+
+    (async () => {
+      setIsLoadingExisting(true);
+      try {
+        const { data, error } = await supabase
+          .from("proposals")
+          .select("line_items, vat_rate")
+          .eq("lead_id", lead.id)
+          .not("status", "in", "(paid,cancelled)")
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (error) throw error;
+        if (cancelled) return;
+
+        const existing = data?.[0];
+        if (existing) {
+          setItems(toLineItemRows((existing.line_items ?? null) as InvoiceLineItem[] | null));
+          setVatRate(
+            existing.vat_rate != null
+              ? String(existing.vat_rate)
+              : String(companyDetails.vatRate)
+          );
+        } else {
+          setItems(DEFAULT_LINE_ITEM_ROWS);
+          setVatRate(String(companyDetails.vatRate));
+        }
+      } catch (err) {
+        // A failed lookup must not block invoicing — fall back to the defaults.
+        console.error("Could not load the existing deal for this lead:", err);
+      } finally {
+        if (!cancelled) setIsLoadingExisting(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, lead]);
+
+  const parsedItems = parseLineItemRows(items);
+  // Same helper the PDF, the email and the payment link use, so the preview
+  // below and the totals cannot drift from what the client is charged.
+  const amounts = computeInvoiceAmounts(
+    { amount: 0, line_items: parsedItems, vat_rate: Number(vatRate) },
+    companyDetails.vatRate
+  );
+  const total = amounts.subtotal;
 
   const resetForm = () => {
     setItems(INITIAL_ITEMS);
     setDescription("");
+    setVatRate(String(companyDetails.vatRate));
     setShowPreview(false);
   };
 
@@ -80,7 +148,8 @@ export function SendInvoiceDialog({
           leadId: lead.id,
           amount: total,
           line_items: parsedItems,
-          currency: "AED",
+          currency: CURRENCY,
+          vat_rate: Number(vatRate),
           description: description.trim() || undefined,
         }),
       });
@@ -108,11 +177,13 @@ export function SendInvoiceDialog({
   };
 
   const formattedAmount = total;
+  // The summary shows what the client owes, VAT included — the subtotal alone
+  // was reading lower than the figure on the PDF they receive.
   const displayPrice = new Intl.NumberFormat("en-AE", {
     style: "decimal",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(formattedAmount);
+  }).format(amounts.invoiceTotal);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -148,7 +219,27 @@ export function SendInvoiceDialog({
           </div>
 
           {/* Line Items */}
-          <LineItemsEditor items={items} onChange={setItems} />
+          <LineItemsEditor
+            items={items}
+            onChange={setItems}
+            vatRate={vatRate}
+            currency={CURRENCY}
+          />
+
+          {/* VAT rate — editable per invoice */}
+          <div className="space-y-2">
+            <Label htmlFor="invoice-vat-rate">{t("vatPercent", "VAT %")}</Label>
+            <Input
+              id="invoice-vat-rate"
+              type="number"
+              min="0"
+              max="100"
+              step="0.5"
+              value={vatRate}
+              onChange={(e) => setVatRate(e.target.value)}
+              className="w-28 border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-[#C6A03B]/20"
+            />
+          </div>
 
           {/* Description Input */}
           <div className="space-y-2">
@@ -199,10 +290,14 @@ export function SendInvoiceDialog({
                       clientPhone: lead.phone,
                       clientCompany: lead.company_name,
                       amount: formattedAmount,
-                      currency: "AED",
+                      currency: CURRENCY,
                       status: "draft",
                       createdAt: new Date().toISOString(),
                       lineItems: parsedItems,
+                      vatRate: Number(vatRate),
+                      // Nothing can have been paid against an invoice that has
+                      // not been sent yet, so the BALANCE row shows the total.
+                      amountPaid: 0,
                     }}
                   />
                 )}

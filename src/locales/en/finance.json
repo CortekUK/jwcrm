@@ -233,5 +233,7 @@
   "digestEnabledHint": "Turn off to stop the weekly email. The dashboard list stays either way.",
   "digestRecipientSaved": "The weekly digest will go to this address.",
   "settingsSaved": "Settings saved",
-  "invalidEmail": "Please enter a valid email address."
+  "invalidEmail": "Please enter a valid email address.",
+  "draftingFeeUnpaid": "Drafting fee unpaid",
+  "courtFeesPending": "Court fees pending"
 }

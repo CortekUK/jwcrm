@@ -6,6 +6,10 @@ import {
   formatCurrencyDisplay,
   formatDocumentDate,
 } from "@/lib/format-utils";
+import { companyDetails } from "@/config/company";
+import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
+import { lineItemCostLabel, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { FEE_TABLE_TOKEN } from "@/lib/proposal-content";
 
 export type ProposalPDFData = {
   invoiceNumber: string;
@@ -18,6 +22,9 @@ export type ProposalPDFData = {
   proposalContent: string;
   createdAt: string | Date;
   validUntil?: string | Date;
+  lineItems?: InvoiceLineItem[]; // itemised charges (drafting, court fee, MOJ stamps, etc.)
+  vatRate?: number | null; // per-proposal VAT override (percent); null/undefined = company default
+  vatAmount?: number | null; // absolute VAT override; wins over vatRate
 };
 
 type ProposalPDFTemplateProps = {
@@ -54,13 +61,165 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
       proposalContent,
       createdAt,
       validUntil,
+      lineItems,
+      vatRate,
+      vatAmount,
     } = data;
 
-    const formattedAmount = formatCurrencyDisplay(amount, locale, currency);
+    // One source of truth for the money — the same helper the emailed PDF and
+    // the payment link use, so a per-proposal VAT override can never make the
+    // downloaded copy disagree with what is charged.
+    const amounts = computeInvoiceAmounts(
+      {
+        amount,
+        line_items: lineItems,
+        vat_rate: vatRate,
+        vat_amount: vatAmount,
+      },
+      companyDetails.vatRate
+    );
+
+    const money = (value: number) => formatCurrencyDisplay(value, locale, currency);
     const formattedDate = formatDocumentDate(createdAt, locale);
     const formattedValidUntil = validUntil
       ? formatDocumentDate(validUntil, locale)
       : formatDocumentDate(new Date(new Date(createdAt).getTime() + 30 * 24 * 60 * 60 * 1000), locale);
+
+    // Alignment follows the document's direction rather than being pinned to
+    // LTR: this is the only proposal renderer that runs in Arabic.
+    const startAlign = isRtl ? "right" : "left";
+    const endAlign = isRtl ? "left" : "right";
+
+    const cell = {
+      padding: "8px 12px",
+      borderBottom: "1px solid #E6E6E4",
+      fontSize: "13px",
+      color: "#222222",
+    } as const;
+
+    const feeTable = (
+      <div style={{ margin: "20px 0" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: startAlign, padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536" }}>
+                {t("pdf:invoice.description", { defaultValue: "Description" })}
+              </th>
+              <th style={{ textAlign: "center", padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536", width: "60px" }}>
+                {t("pdf:invoice.cost", { defaultValue: "Cost" })}
+              </th>
+              <th style={{ textAlign: endAlign, padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536", width: "120px" }}>
+                {t("pdf:invoice.amount", { defaultValue: "Amount" })}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {amounts.items.map((item, index) => (
+              <tr key={index}>
+                {/* Descriptions may carry hard line breaks, so newlines must
+                    survive rather than collapsing into one run of text. */}
+                <td style={{ ...cell, textAlign: startAlign, whiteSpace: "pre-line" }}>
+                  {item.description}
+                  {/* When the invoice is split, say when each charge falls due —
+                      otherwise the client only sees one total and cannot tell
+                      which part actually starts the work. */}
+                  {amounts.staged && (
+                    <div
+                      style={{
+                        marginTop: "4px",
+                        fontSize: "11px",
+                        fontStyle: "italic",
+                        color: item.stage === "upfront" ? "#0C5536" : "#8a8a8a",
+                      }}
+                    >
+                      {item.stage === "upfront"
+                        ? t("pdf:invoice.payableUpfront", { defaultValue: "Payable upfront" })
+                        : t("pdf:invoice.payableAtCourt", {
+                            defaultValue: "At court appointment stage",
+                          })}
+                    </div>
+                  )}
+                </td>
+                <td style={{ ...cell, textAlign: "center" }}>{lineItemCostLabel(item)}</td>
+                <td style={{ ...cell, textAlign: endAlign }}>{money(item.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "10px" }}>
+          <tbody>
+            <tr>
+              <td style={{ padding: "4px 12px", color: "#666666", fontSize: "13px", textAlign: startAlign }}>
+                {t("pdf:invoice.subTotal", { defaultValue: "Sub-Total" })}
+              </td>
+              <td style={{ padding: "4px 12px", color: "#222222", fontSize: "13px", textAlign: endAlign }}>
+                {money(amounts.subtotal)}
+              </td>
+            </tr>
+            <tr>
+              {/* vatLabel already reads "5% VAT" or plain "VAT" for an absolute
+                  override — render it verbatim, never re-derive the rate. */}
+              <td style={{ padding: "4px 12px", color: "#666666", fontSize: "13px", textAlign: startAlign }}>
+                {amounts.vatLabel}
+              </td>
+              <td style={{ padding: "4px 12px", color: "#222222", fontSize: "13px", textAlign: endAlign }}>
+                {money(amounts.vatAmount)}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: "8px 12px", color: "#0C5536", fontWeight: "bold", fontSize: "15px", borderTop: "1px solid #E6E6E4", textAlign: startAlign }}>
+                {t("pdf:proposal.totalAmount")}
+              </td>
+              <td style={{ padding: "8px 12px", color: "#0C5536", fontWeight: "bold", fontSize: "15px", borderTop: "1px solid #E6E6E4", textAlign: endAlign }}>
+                {money(amounts.invoiceTotal)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        {amounts.staged && amounts.laterTotal > 0 && (
+          <div
+            style={{
+              marginTop: "14px",
+              backgroundColor: "#F4F8F5",
+              [isRtl ? "borderRight" : "borderLeft"]: "3px solid #0C5536",
+              borderRadius: "4px",
+              padding: "12px 14px",
+              textAlign: startAlign,
+            }}
+          >
+            <div style={{ color: "#0C5536", fontWeight: "bold", fontSize: "14px" }}>
+              {t("pdf:invoice.payableNow", {
+                defaultValue: "Payable now to begin drafting: {{amount}}",
+                amount: money(amounts.upfrontTotal),
+              })}
+            </div>
+            <div style={{ color: "#6B6B6B", fontSize: "12px", marginTop: "4px" }}>
+              {t("pdf:invoice.payableLater", {
+                defaultValue:
+                  "The remaining {{amount}} is payable at the court appointment stage.",
+                amount: money(amounts.laterTotal),
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+
+    // The body cannot hold a real table (the TipTap editor has no table
+    // extension), so it carries a placeholder token instead and each renderer
+    // draws its own table there. The body is injected with
+    // dangerouslySetInnerHTML, so the split has to happen on the HTML string
+    // BEFORE injection — there is no DOM to splice into afterwards.
+    const styledContent = getStyledProposalContent(proposalContent);
+    const tokenIndex = styledContent.indexOf(FEE_TABLE_TOKEN);
+    const bodyBefore =
+      tokenIndex === -1 ? styledContent : styledContent.slice(0, tokenIndex);
+    // Proposals saved before the token existed have none; they render whole and
+    // the table follows, which is the same order the jsPDF renderer falls back to.
+    const bodyAfter =
+      tokenIndex === -1
+        ? ""
+        : styledContent.slice(tokenIndex + FEE_TABLE_TOKEN.length);
 
     return (
       <div
@@ -202,38 +361,9 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
             </div>
           </div>
 
-          {/* Amount Box */}
-          <div
-            style={{
-              backgroundColor: "#0C5536",
-              padding: "20px 25px",
-              borderRadius: "8px",
-              marginBottom: "25px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <p
-              style={{
-                margin: 0,
-                color: "#E6E6E4",
-                fontSize: "14px",
-              }}
-            >
-              {t("pdf:proposal.totalAmount")}
-            </p>
-            <p
-              style={{
-                margin: 0,
-                color: "#C6A03B",
-                fontSize: "28px",
-                fontWeight: "bold",
-              }}
-            >
-              {formattedAmount}
-            </p>
-          </div>
+          {/* The standalone "Total Amount" box was removed: the fee table below
+              now states the total (and it was showing the pre-VAT amount, so
+              the two would have contradicted each other). */}
 
           {/* Service Agreement */}
           <div style={{ marginBottom: "25px" }}>
@@ -255,8 +385,19 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
                 lineHeight: "1.6",
                 color: "#222222",
               }}
-              dangerouslySetInnerHTML={{ __html: getStyledProposalContent(proposalContent) }}
+              dangerouslySetInnerHTML={{ __html: bodyBefore }}
             />
+            {feeTable}
+            {bodyAfter && (
+              <div
+                style={{
+                  fontSize: "14px",
+                  lineHeight: "1.6",
+                  color: "#222222",
+                }}
+                dangerouslySetInnerHTML={{ __html: bodyAfter }}
+              />
+            )}
           </div>
 
           {/* Payment Terms */}

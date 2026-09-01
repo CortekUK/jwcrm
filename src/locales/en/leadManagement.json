@@ -449,7 +449,8 @@
     "lost": "Lost",
     "meeting": "Meeting",
     "pending": "Pending",
-    "unreachable": "Unreachable"
+    "unreachable": "Unreachable",
+    "drafting": "Drafting"
   },
   "leadVelocity": "Lead Velocity",
   "leadVelocityDescription": "Leads created vs closed over time",
@@ -634,5 +635,13 @@
   },
   "partiallyPaid": "Part paid",
   "outstanding": "Outstanding",
-  "eventPaymentRecordedDescription": "Payment received for {{invoiceNumber}} via {{method}}."
+  "eventPaymentRecordedDescription": "Payment received for {{invoiceNumber}} via {{method}}.",
+  "drafting": "Drafting",
+  "dueUpfront": "Due upfront (payable before work starts)",
+  "itemQuantity": "Quantity shown in the COST column",
+  "addNotarizationFee": "Add notarization fee",
+  "stagedSplitSummary": "Payable now {{now}} · At court stage {{later}}",
+  "requestPayment": "Request {{amount}}",
+  "paymentRequestSent": "Payment request for {{amount}} sent to {{email}}",
+  "failedToRequestPayment": "Failed to send payment request"
 }

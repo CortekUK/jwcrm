@@ -10,16 +10,37 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { stripe } from "@/integrations/stripe/server";
-import { invoiceTotalFor } from "@/lib/finance/outstandingBalance";
+import { invoiceAmountsFor } from "@/lib/finance/outstandingBalance";
+import {
+  resolvePaymentStage,
+  sumPayments,
+  BALANCE_EPSILON,
+  type PaymentStage,
+  type StageState,
+} from "@/lib/finance/invoiceAmounts";
 import { appBaseUrl } from "@/lib/finance/paymentLink";
 
-/** Sub-cent remainders are rounding noise, not a debt. */
-export const BALANCE_EPSILON = 0.01;
+export { BALANCE_EPSILON };
+
+type StageFigures = {
+  stage: PaymentStage;
+  /** What this checkout charges — the stage cost, not the whole balance. */
+  amountDue: number;
+  upfrontTotal: number;
+  laterTotal: number;
+};
 
 export type BalanceCheckout =
   | { ok: false; status: number; error: string }
-  | { ok: true; settled: true; balanceDue: number; currency: string; invoiceTotal: number; totalPaid: number }
-  | {
+  | ({
+      ok: true;
+      settled: true;
+      balanceDue: number;
+      currency: string;
+      invoiceTotal: number;
+      totalPaid: number;
+    } & StageFigures)
+  | ({
       ok: true;
       settled: false;
       url: string;
@@ -28,7 +49,7 @@ export type BalanceCheckout =
       currency: string;
       invoiceTotal: number;
       totalPaid: number;
-    };
+    } & StageFigures);
 
 /**
  * Outstanding balance for a single proposal: the VAT-inclusive invoice total
@@ -40,11 +61,22 @@ export async function outstandingBalanceForProposal(
   proposalId: string
 ): Promise<
   | { ok: false; status: number; error: string }
-  | { ok: true; proposal: Record<string, unknown>; invoiceTotal: number; totalPaid: number; balanceDue: number }
+  | {
+      ok: true;
+      proposal: Record<string, unknown>;
+      invoiceTotal: number;
+      totalPaid: number;
+      balanceDue: number;
+      stageState: StageState;
+    }
 > {
   const { data: proposal, error: proposalError } = await supabaseAdmin
     .from("proposals")
-    .select("id, amount, currency, line_items, status, invoice_number, lead_id")
+    // vat_rate/vat_amount are required: without them this would price the
+    // invoice at the default 5% and charge something different from the PDF.
+    .select(
+      "id, amount, currency, line_items, status, invoice_number, lead_id, vat_rate, vat_amount"
+    )
     .eq("id", proposalId)
     .single();
 
@@ -67,25 +99,26 @@ export async function outstandingBalanceForProposal(
     return { ok: false, status: 500, error: "Could not read payment history" };
   }
 
-  const invoiceTotal = invoiceTotalFor({
+  const amounts = invoiceAmountsFor({
     id: proposal.id,
     amount: proposal.amount,
     currency: proposal.currency,
     line_items: proposal.line_items,
     status: proposal.status,
+    vat_rate: proposal.vat_rate,
+    vat_amount: proposal.vat_amount,
   });
 
-  const totalPaid = (payments || []).reduce(
-    (sum: number, p: { amount: number | string | null }) => sum + (Number(p.amount) || 0),
-    0
-  );
+  const totalPaid = sumPayments(payments);
+  const stageState = resolvePaymentStage(amounts, totalPaid);
 
   return {
     ok: true,
     proposal,
-    invoiceTotal,
+    invoiceTotal: amounts.invoiceTotal,
     totalPaid,
-    balanceDue: invoiceTotal - totalPaid,
+    balanceDue: stageState.balanceDue,
+    stageState,
   };
 }
 
@@ -111,31 +144,37 @@ export async function createBalanceCheckoutSession(
     lead_id: string | null;
   };
   const currency = proposal.currency || "AED";
+  const { stageState } = balance;
+  const { amounts } = stageState;
 
-  if (balance.balanceDue <= BALANCE_EPSILON) {
-    return {
-      ok: true,
-      settled: true,
-      balanceDue: 0,
-      currency,
-      invoiceTotal: balance.invoiceTotal,
-      totalPaid: balance.totalPaid,
-    };
-  }
+  const stageFigures: StageFigures = {
+    stage: stageState.stage,
+    amountDue: stageState.amountDue,
+    upfrontTotal: amounts.upfrontTotal,
+    laterTotal: amounts.laterTotal,
+  };
 
+  const settledResult = {
+    ok: true as const,
+    settled: true as const,
+    balanceDue: 0,
+    currency,
+    invoiceTotal: balance.invoiceTotal,
+    totalPaid: balance.totalPaid,
+    ...stageFigures,
+    amountDue: 0,
+  };
+
+  if (stageState.fullySettled) return settledResult;
+
+  // Charge the CURRENT STAGE, not the whole outstanding balance: on a staged
+  // invoice the client pays the drafting fee now and the court fees later.
+  // On an unstaged invoice amountDue is the full balance, exactly as before.
+  //
   // Smallest currency unit. Round once, here, so the figure Stripe charges and
   // the figure we later compare against the invoice total agree to the cent.
-  const unitAmount = Math.round(balance.balanceDue * 100);
-  if (unitAmount <= 0) {
-    return {
-      ok: true,
-      settled: true,
-      balanceDue: 0,
-      currency,
-      invoiceTotal: balance.invoiceTotal,
-      totalPaid: balance.totalPaid,
-    };
-  }
+  const unitAmount = Math.round(stageState.amountDue * 100);
+  if (unitAmount <= 0) return settledResult;
 
   const { data: lead } = proposal.lead_id
     ? await supabaseAdmin
@@ -151,6 +190,16 @@ export async function createBalanceCheckoutSession(
   const partial = balance.totalPaid > 0;
   const baseUrl = appBaseUrl();
 
+  // Say which stage this payment covers, so the client can see on the Stripe
+  // page that they are being asked for the drafting fee rather than the lot.
+  const invoiceRef = proposal.invoice_number ?? "";
+  const description =
+    stageState.stage === "upfront"
+      ? `Invoice ${invoiceRef} — will drafting fee (payable now)`.trim()
+      : partial
+        ? `Invoice ${invoiceRef} — remaining balance`.trim()
+        : `Invoice ${invoiceRef} for ${leadName || "client"}`.trim();
+
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "payment",
@@ -161,9 +210,7 @@ export async function createBalanceCheckoutSession(
           currency: currency.toLowerCase(),
           product_data: {
             name: "Just Wills - Legal Services",
-            description: partial
-              ? `Invoice ${proposal.invoice_number ?? ""} — remaining balance`.trim()
-              : `Invoice ${proposal.invoice_number ?? ""} for ${leadName || "client"}`.trim(),
+            description,
           },
           unit_amount: unitAmount,
         },
@@ -189,9 +236,12 @@ export async function createBalanceCheckoutSession(
     settled: false,
     url: session.url,
     sessionId: session.id,
-    balanceDue: unitAmount / 100,
+    balanceDue: stageState.balanceDue,
     currency,
     invoiceTotal: balance.invoiceTotal,
     totalPaid: balance.totalPaid,
+    ...stageFigures,
+    // Report exactly what Stripe was told to charge, post-rounding.
+    amountDue: unitAmount / 100,
   };
 }

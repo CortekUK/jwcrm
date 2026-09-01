@@ -31,10 +31,11 @@ import { ProposalPDFTemplate, ProposalPDFData } from "./ProposalPDFTemplate";
 import { InvoicePDFTemplate, InvoicePDFData } from "./InvoicePDFTemplate";
 import { supabase } from "@/integrations/supabase/client";
 import { companyDetails } from "@/config/company";
-import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { computeInvoiceAmounts, resolvePaymentStage } from "@/lib/finance/invoiceAmounts";
 import { paymentResolverPath, paymentResolverUrl } from "@/lib/finance/paymentLink";
 import { format } from "date-fns";
-import { Download, FileText, Receipt, Loader2, ExternalLink, Eye, ChevronDown, CircleDollarSign, Plus } from "lucide-react";
+import { Download, FileText, Receipt, Loader2, ExternalLink, Eye, ChevronDown, CircleDollarSign, Plus, Send } from "lucide-react";
 import { toast } from "sonner";
 
 interface Proposal {
@@ -50,7 +51,10 @@ interface Proposal {
   paid_at: string | null;
   created_at: string;
   invoiced_at: string | null;
-  line_items: InvoiceLineItem[] | null;
+  // Arrives as Json from the generated row type; cast where it is read.
+  line_items: unknown;
+  vat_rate?: number | null;
+  vat_amount?: number | null;
 }
 
 interface ProposalPayment {
@@ -94,6 +98,7 @@ export function ViewProposalDialog({
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+  const [requestingPaymentFor, setRequestingPaymentFor] = useState<string | null>(null);
 
   // Refs for PDF templates
   const proposalRef = useRef<HTMLDivElement>(null);
@@ -132,15 +137,30 @@ export function ViewProposalDialog({
   };
 
   const balanceFor = (proposal: Proposal) => {
-    const items = normalizeLineItems(proposal.line_items ?? undefined, proposal.amount);
-    const subtotal = lineItemsSubtotal(items);
-    const vatAmount = subtotal * (companyDetails.vatRate / 100);
-    const invoiceTotal = subtotal + vatAmount;
+    const amounts = computeInvoiceAmounts(
+      {
+        amount: proposal.amount,
+        line_items: proposal.line_items as InvoiceLineItem[] | null,
+        vat_rate: proposal.vat_rate,
+        vat_amount: proposal.vat_amount,
+      },
+      companyDetails.vatRate
+    );
     const totalPaid = (paymentsByProposal[proposal.id] || []).reduce(
       (sum, p) => sum + Number(p.amount),
       0
     );
-    return { invoiceTotal, totalPaid, balanceDue: Math.max(0, invoiceTotal - totalPaid) };
+    const stageState = resolvePaymentStage(amounts, totalPaid);
+    return {
+      invoiceTotal: amounts.invoiceTotal,
+      totalPaid,
+      balanceDue: Math.max(0, stageState.balanceDue),
+      // What the payment link would charge right now: on a staged invoice the
+      // drafting fee, not the whole balance.
+      amountDue: stageState.amountDue,
+      stage: stageState.stage,
+      amounts,
+    };
   };
 
   // Status shown on the card. Only a display concern — the stored
@@ -184,6 +204,19 @@ export function ViewProposalDialog({
       if (!res.ok) throw new Error(json.error || "Failed to record payment");
 
       toast.success(t("paymentRecorded", "Payment recorded"));
+
+      // Recording the drafting fee opens the client portal and moves the lead
+      // to Drafting, so say so rather than leaving it to be discovered.
+      if (json.portal === "created" || json.portal === "linked_existing") {
+        toast.success(
+          t("portalOpened", "Client portal account created and welcome email sent")
+        );
+      } else if (json.portal === "failed") {
+        toast.error(
+          t("portalFailed", "Payment saved, but the portal account could not be created")
+        );
+      }
+
       resetPaymentForm();
       await fetchProposals();
     } catch (error) {
@@ -191,6 +224,45 @@ export function ViewProposalDialog({
       toast.error(error instanceof Error ? error.message : t("failedToRecordPayment", "Failed to record payment"));
     } finally {
       setIsRecordingPayment(false);
+    }
+  };
+
+  // Emails the client a request for whatever is payable right now. Needed
+  // because the two stages of a staged invoice are weeks apart — asking the
+  // client to dig out the original invoice email and press its button again is
+  // not a reasonable way to collect the second instalment.
+  const handleRequestPayment = async (proposal: Proposal) => {
+    setRequestingPaymentFor(proposal.id);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch(
+        `/api/lead-management/proposals/${proposal.id}/request-payment`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({}),
+        }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to send payment request");
+
+      toast.success(
+        t("paymentRequestSent", "Payment request for {{amount}} sent to {{email}}", {
+          amount: formatCurrency(json.amountRequested, json.currency),
+          email: json.sentTo,
+        })
+      );
+    } catch (error) {
+      console.error("Error requesting payment:", error);
+      toast.error(
+        error instanceof Error ? error.message : t("failedToRequestPayment", "Failed to send payment request")
+      );
+    } finally {
+      setRequestingPaymentFor(null);
     }
   };
 
@@ -206,7 +278,17 @@ export function ViewProposalDialog({
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setProposals(data || []);
+      // Normalise the nullable columns once here rather than guarding every
+      // render site: created_at/invoice_number have DB defaults (the latter via
+      // a trigger) and proposal_content is only null on a bare draft.
+      setProposals(
+        (data || []).map((p) => ({
+          ...p,
+          proposal_content: p.proposal_content ?? "",
+          invoice_number: p.invoice_number ?? "",
+          created_at: p.created_at ?? new Date().toISOString(),
+        })) as Proposal[]
+      );
       await fetchPayments((data || []).map((p) => p.id));
     } catch (error) {
       console.error("Error fetching proposals:", error);
@@ -240,6 +322,17 @@ export function ViewProposalDialog({
     }).format(amount);
   };
 
+  // Button labels sit in a crowded action row, so drop the ".00" that a whole
+  // amount always carries — "AED 3,150" reads the same and costs three fewer
+  // characters in a row that was already overflowing.
+  const formatCurrencyCompact = (amount: number, currency: string) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+
   // Generate and download proposal PDF
   const handleDownloadProposal = async (proposal: Proposal) => {
     if (!lead) return;
@@ -256,6 +349,9 @@ export function ViewProposalDialog({
       clientCompany: lead.company_name,
       amount: proposal.amount,
       currency: proposal.currency,
+      lineItems: (proposal.line_items as InvoiceLineItem[] | null) ?? undefined,
+      vatRate: proposal.vat_rate,
+      vatAmount: proposal.vat_amount,
       proposalContent: proposal.proposal_content,
       createdAt: proposal.created_at,
     });
@@ -306,6 +402,10 @@ export function ViewProposalDialog({
       clientCompany: lead.company_name,
       amount: proposal.amount,
       currency: proposal.currency,
+      lineItems: (proposal.line_items as InvoiceLineItem[] | null) ?? undefined,
+      vatRate: proposal.vat_rate,
+      vatAmount: proposal.vat_amount,
+      amountPaid: balanceFor(proposal).totalPaid,
       status: proposal.status,
       createdAt: proposal.created_at,
       paidAt: proposal.paid_at,
@@ -363,7 +463,7 @@ export function ViewProposalDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[820px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("proposalsFor", { name: lead?.full_name })}</DialogTitle>
             <DialogDescription>
@@ -431,7 +531,7 @@ export function ViewProposalDialog({
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex items-center gap-2 pt-3 border-t">
+                    <div className="flex flex-wrap items-center gap-2 pt-3 border-t">
                       {/* Proposal Dropdown */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -507,15 +607,44 @@ export function ViewProposalDialog({
                         </Button>
                       )}
 
+                      {proposal.invoiced_at &&
+                        proposal.status !== "paid" &&
+                        proposal.status !== "cancelled" &&
+                        balanceFor(proposal).amountDue > 0.01 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={requestingPaymentFor === proposal.id}
+                            onClick={() => handleRequestPayment(proposal)}
+                          >
+                            {requestingPaymentFor === proposal.id ? (
+                              <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Send className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
+                            )}
+                            {t("requestPayment", "Request {{amount}}", {
+                              amount: formatCurrencyCompact(
+                                balanceFor(proposal).amountDue,
+                                proposal.currency
+                              ),
+                            })}
+                          </Button>
+                        )}
+
                       {proposal.invoiced_at && proposal.status !== "paid" && proposal.status !== "cancelled" && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() =>
+                          onClick={() => {
+                            // Prefill what is actually due at this stage — the
+                            // drafting fee on a staged invoice, otherwise the
+                            // whole balance.
+                            const due = balanceFor(proposal).amountDue;
+                            setPaymentAmount(due > 0 ? due.toFixed(2) : "");
                             setRecordingPaymentFor(
                               recordingPaymentFor === proposal.id ? null : proposal.id
-                            )
-                          }
+                            );
+                          }}
                         >
                           <CircleDollarSign className="ltr:mr-2 rtl:ml-2 h-4 w-4" />
                           {t("recordPayment", "Record Payment")}
@@ -525,11 +654,12 @@ export function ViewProposalDialog({
 
                     {/* Balance / payment history — only for real, payable invoices */}
                     {proposal.invoiced_at && (() => {
-                      const { invoiceTotal, totalPaid, balanceDue } = balanceFor(proposal);
+                      const { invoiceTotal, totalPaid, balanceDue, amountDue, stage, amounts } =
+                        balanceFor(proposal);
                       const payments = paymentsByProposal[proposal.id] || [];
                       return (
                         <div className="pt-3 border-t space-y-2">
-                          <div className="flex items-center justify-between text-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
                             <span className="text-muted-foreground">
                               {t("balanceSummary", "{{paid}} of {{total}} paid", {
                                 paid: formatCurrency(totalPaid, proposal.currency),
@@ -550,6 +680,29 @@ export function ViewProposalDialog({
                                 : t("fullyPaid", "Fully paid")}
                             </span>
                           </div>
+
+                          {/* Staged invoice: the drafting fee is collected before
+                              work starts, the court fees at the court date. */}
+                          {amounts.staged && balanceDue > 0.01 && (
+                            <p className="text-xs text-muted-foreground">
+                              {stage === "upfront"
+                                ? t(
+                                    "stageDueUpfront",
+                                    "Drafting fee {{amount}} due now · {{later}} at court stage",
+                                    {
+                                      amount: formatCurrency(amountDue, proposal.currency),
+                                      later: formatCurrency(amounts.laterTotal, proposal.currency),
+                                    }
+                                  )
+                                : t(
+                                    "stageDueRemainder",
+                                    "Drafting fee paid · {{amount}} due at court stage",
+                                    {
+                                      amount: formatCurrency(amountDue, proposal.currency),
+                                    }
+                                  )}
+                            </p>
+                          )}
 
                           {payments.length > 0 && (
                             <div className="space-y-1">
@@ -656,6 +809,9 @@ export function ViewProposalDialog({
                                 clientCompany: lead?.company_name,
                                 amount: proposal.amount,
                                 currency: proposal.currency,
+                                lineItems: (proposal.line_items as InvoiceLineItem[] | null) ?? undefined,
+                                vatRate: proposal.vat_rate,
+                                vatAmount: proposal.vat_amount,
                                 proposalContent: proposal.proposal_content,
                                 createdAt: proposal.created_at,
                               }}
@@ -670,6 +826,11 @@ export function ViewProposalDialog({
                                 clientCompany: lead?.company_name,
                                 amount: proposal.amount,
                                 currency: proposal.currency,
+                                lineItems:
+                                  (proposal.line_items as InvoiceLineItem[] | null) ?? undefined,
+                                vatRate: proposal.vat_rate,
+                                vatAmount: proposal.vat_amount,
+                                amountPaid: balanceFor(proposal).totalPaid,
                                 status: proposal.status,
                                 createdAt: proposal.created_at,
                                 paidAt: proposal.paid_at,

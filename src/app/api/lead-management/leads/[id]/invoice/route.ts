@@ -14,11 +14,24 @@ import { buildInvoiceEmailHTML } from "@/lib/email/invoiceEmailTemplate";
 import { normalizeLineItems, lineItemsSubtotal } from "@/lib/pdf/invoiceLineItems";
 import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
 import { paymentResolverUrl } from "@/lib/finance/paymentLink";
+import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
+import { outstandingBalanceForProposal } from "@/lib/finance/balanceCheckout";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+/**
+ * VAT overrides are optional and 0 is a legitimate rate (zero-rated matters),
+ * so "absent" has to be distinguished from "zero" — undefined leaves the
+ * column NULL and every reader falls back to companyDetails.vatRate.
+ */
+function optionalRate(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === "") return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
 
 export async function POST(
   request: NextRequest,
@@ -45,10 +58,20 @@ export async function POST(
     const currency = (body.currency || "AED").toString().toUpperCase();
     const description = (body.description || "Legal services").toString();
     const sendEmail = body.sendEmail !== false; // default true
+    const vatRate = optionalRate(body.vat_rate);
+    const vatAmount = optionalRate(body.vat_amount);
 
     // Itemised charges → subtotal is their sum (falls back to the flat amount).
     const items = normalizeLineItems(body.line_items, rawAmount);
     const amount = lineItemsSubtotal(items);
+
+    // Single source of truth for the money on this invoice (VAT override,
+    // rounding, stage split). Everything below — Stripe, the PDF, the email —
+    // must price from this or they will disagree with each other.
+    const amounts = computeInvoiceAmounts(
+      { amount, line_items: items, vat_rate: vatRate, vat_amount: vatAmount },
+      companyDetails.vatRate
+    );
 
     if (!leadId || !Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json(
@@ -82,6 +105,8 @@ export async function POST(
       amount,
       currency,
       lineItems: items,
+      vatRate,
+      vatAmount,
     });
 
     // 2. Stripe checkout session (best effort).
@@ -99,12 +124,11 @@ export async function POST(
                 name: `${companyDetails.legalName} - Legal Services`,
                 description: `Invoice ${proposal.invoice_number} for ${lead.full_name}`,
               },
-              // VAT included — must match the invoice PDF and the balance
-              // tracking, or the payment link collects the fees but drops
-              // the VAT and the invoice can never be settled in full.
-              unit_amount: Math.round(
-                (amount + amount * (companyDetails.vatRate / 100)) * 100
-              ),
+              // VAT included, at this invoice's own rate — must match the
+              // invoice PDF and the balance tracking, or the payment link
+              // collects the fees but drops the VAT and the invoice can
+              // never be settled in full.
+              unit_amount: Math.round(amounts.invoiceTotal * 100),
             },
             quantity: 1,
           },
@@ -135,6 +159,15 @@ export async function POST(
     }
 
     // 3. Generate the invoice PDF.
+    //
+    // Read what has already been received against this proposal FIRST: this
+    // route also runs when an invoice is re-issued for a lead who has already
+    // part-paid (upsertLeadDeal reuses the same row), and without it the
+    // BALANCE AMOUNT row would re-bill money the client has handed over.
+    // A brand-new invoice simply has no payments, so this is 0.
+    const balance = await outstandingBalanceForProposal(supabaseAdmin, proposal.id);
+    const amountPaid = balance.ok ? balance.totalPaid : 0;
+
     const now = new Date();
     const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const pdfBase64 = generateInvoicePDF({
@@ -149,6 +182,9 @@ export async function POST(
       currency,
       description,
       lineItems: items,
+      vatRate,
+      vatAmount,
+      amountPaid,
     });
 
     // Persist the PDF so the existing View/Download PDF menu in the admin UI
@@ -195,6 +231,9 @@ export async function POST(
           amount,
           lineItems: items,
           paymentUrl,
+          vatRate,
+          vatAmount,
+          amountPaid,
         }),
         attachments: [
           { content: pdfBase64, filename: `Invoice-${proposal.invoice_number}.pdf` },

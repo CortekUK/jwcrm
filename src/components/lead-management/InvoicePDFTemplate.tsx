@@ -5,7 +5,8 @@ import { useTranslation } from "react-i18next";
 import justWillsLogo from "@/assets/justwills.png";
 import { companyDetails } from "@/config/company";
 import { formatDocumentDate } from "@/lib/format-utils";
-import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { lineItemCostLabel, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
 
 export type InvoicePDFData = {
   invoiceNumber: string;
@@ -20,6 +21,11 @@ export type InvoicePDFData = {
   paidAt?: string | Date | null;
   paymentLink?: string | null;
   lineItems?: InvoiceLineItem[];
+  /** Per-invoice VAT overrides; absent falls back to companyDetails.vatRate. */
+  vatRate?: number | null;
+  vatAmount?: number | null;
+  /** Everything received against this invoice so far, for BALANCE AMOUNT. */
+  amountPaid?: number;
 };
 
 type InvoicePDFTemplateProps = {
@@ -54,10 +60,28 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
       paymentLink,
     } = data;
 
-    const items = normalizeLineItems(data.lineItems, amount);
-    const subtotal = lineItemsSubtotal(items);
-    const vat = subtotal * (companyDetails.vatRate / 100);
-    const total = subtotal + vat;
+    // Single source of truth for the money (VAT precedence, rounding) so this
+    // preview, the emailed HTML and the payment link can never disagree.
+    const {
+      items,
+      subtotal,
+      vatAmount: vat,
+      vatLabel,
+      invoiceTotal: total,
+    } = computeInvoiceAmounts(
+      {
+        amount,
+        line_items: data.lineItems,
+        vat_rate: data.vatRate,
+        vat_amount: data.vatAmount,
+      },
+      companyDetails.vatRate
+    );
+
+    // BALANCE AMOUNT is what is still owed, which is NOT the invoice total once
+    // the client has part-paid: a re-sent invoice used to show the full amount
+    // as outstanding. TOTAL and PAYMENT REQUIRED stay at the invoice value.
+    const balance = Math.max(0, total - (Number(data.amountPaid) || 0));
 
     const formattedDate = formatDocumentDate(createdAt, locale);
     const isPaid = status === "paid";
@@ -166,26 +190,16 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
           <tbody>
             {items.map((item, i) => (
               <tr key={i}>
-                <td style={{ ...cellPad, border: BORDER, fontWeight: "bold" }}>{item.description}</td>
-                <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>X</td>
+                {/* pre-line so hard line breaks typed into a description survive */}
+                <td style={{ ...cellPad, border: BORDER, fontWeight: "bold", whiteSpace: "pre-line" }}>
+                  {item.description}
+                </td>
+                <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>
+                  {lineItemCostLabel(item)}
+                </td>
                 <td style={{ ...cellPad, border: BORDER, textAlign: "center" }}>{fmt(item.amount)}</td>
               </tr>
             ))}
-            <tr>
-              <td style={{ ...cellPad, border: BORDER, height: "56px" }}>
-                <span style={{ fontWeight: "bold" }}>Notarization Fee </span>
-                <span style={{ fontStyle: "italic", color: GRAY, fontSize: "11px" }}>
-                  (Includes legalization, PRO Services)
-                </span>
-                <div style={{ marginTop: "6px", fontSize: "11px" }}>
-                  {companyDetails.notarizationNote.map((line, i) => (
-                    <div key={i}>{line}</div>
-                  ))}
-                </div>
-              </td>
-              <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>X</td>
-              <td style={{ ...cellPad, border: BORDER }} />
-            </tr>
           </tbody>
         </table>
 
@@ -213,7 +227,7 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
             </tr>
             <tr>
               <td style={{ ...cellPad, border: BORDER, backgroundColor: LABEL_FILL, textAlign: "center", fontWeight: "bold" }}>
-                {companyDetails.vatRate}% VAT
+                {vatLabel}
               </td>
               <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>{fmt(vat)}</td>
             </tr>
@@ -233,7 +247,7 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
               <td style={{ ...cellPad, border: BORDER, backgroundColor: LABEL_FILL, textAlign: "center", fontWeight: "bold" }}>
                 BALANCE AMOUNT
               </td>
-              <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>{fmt(total)} AED</td>
+              <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>{fmt(balance)} AED</td>
             </tr>
           </tbody>
         </table>

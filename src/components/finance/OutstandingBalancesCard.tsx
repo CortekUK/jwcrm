@@ -112,6 +112,19 @@ export function OutstandingBalancesCard() {
                             {t("finance:partiallyPaid", "Part paid")}
                           </Badge>
                         )}
+                        {/* A staged invoice whose drafting fee is unpaid means work
+                            has not started — a different, more urgent chase than one
+                            simply waiting on the court date. */}
+                        {inv.awaitingUpfront && (
+                          <Badge className="border-0 bg-[rgba(192,57,43,0.12)] px-1.5 py-0 text-[10px] font-medium text-[#9B2C2C]">
+                            {t("finance:draftingFeeUnpaid", "Drafting fee unpaid")}
+                          </Badge>
+                        )}
+                        {inv.staged && !inv.awaitingUpfront && (
+                          <Badge className="border-0 bg-[rgba(37,99,235,0.12)] px-1.5 py-0 text-[10px] font-medium text-[#2563EB]">
+                            {t("finance:courtFeesPending", "Court fees pending")}
+                          </Badge>
+                        )}
                       </div>
                     </td>
                     <td className="py-2.5 px-3 text-[#777777]">{inv.invoiceNumber || "—"}</td>

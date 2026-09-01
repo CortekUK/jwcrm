@@ -94,7 +94,7 @@ export function EditLeadDialog({
         lead_type: z.enum(["individual", "corporate"]),
         source_id: z.string().optional(),
         notes: z.string().optional(),
-        status: z.enum(["not_started", "contacted", "consultation", "consultation_completed", "meeting", "hold", "qualified", "negotiation", "pending", "won", "lost"]),
+        status: z.enum(["not_started", "contacted", "consultation", "consultation_completed", "meeting", "hold", "qualified", "negotiation", "pending", "drafting", "won", "lost"]),
         assigned_to: z.string().optional(),
       })
     : z.object({
@@ -108,7 +108,7 @@ export function EditLeadDialog({
         lead_type: z.enum(["individual", "corporate"]),
         source_id: z.string().optional(),
         notes: z.string().optional(),
-        status: z.enum(["not_started", "contacted", "consultation", "consultation_completed", "meeting", "hold", "qualified", "negotiation", "pending", "won", "lost"]),
+        status: z.enum(["not_started", "contacted", "consultation", "consultation_completed", "meeting", "hold", "qualified", "negotiation", "pending", "drafting", "won", "lost"]),
         assigned_to: z.string().optional(),
       });
 
@@ -121,6 +121,7 @@ export function EditLeadDialog({
     { value: "hold", label: t("hold") },
     { value: "qualified", label: t("qualified") },
     { value: "negotiation", label: t("negotiation") },
+    { value: "drafting", label: t("drafting", "Drafting") },
     { value: "pending", label: t("pending") },
     { value: "won", label: t("won") },
     { value: "lost", label: t("lost") },

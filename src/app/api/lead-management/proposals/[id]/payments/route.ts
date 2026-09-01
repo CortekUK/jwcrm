@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { companyDetails } from "@/config/company";
-import { normalizeLineItems, lineItemsSubtotal } from "@/lib/pdf/invoiceLineItems";
 import { assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
+import { applyPaymentSideEffects } from "@/lib/finance/applyPaymentSideEffects";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -75,47 +74,40 @@ export async function POST(
       return NextResponse.json({ error: "Failed to record payment" }, { status: 500 });
     }
 
-    // Recompute balance: invoice total INCLUDING VAT (matches how the
-    // invoice PDF/email already compute the client's real amount due) minus
-    // everything paid so far.
-    const items = normalizeLineItems(
-      (proposal as any).line_items,
-      (proposal as any).amount
-    );
-    const subtotal = lineItemsSubtotal(items);
-    const vatAmount = subtotal * (companyDetails.vatRate / 100);
-    const invoiceTotal = subtotal + vatAmount;
+    // Settling the invoice, moving the lead and opening the client portal are
+    // shared with the Stripe webhook, so a bank transfer recorded here produces
+    // exactly the same outcome as a card payment — including creating the
+    // portal account once the drafting fee is covered.
+    const result = await applyPaymentSideEffects(supabaseAdmin, proposalId, {
+      trigger: "manual",
+    });
 
-    const { data: allPayments, error: sumError } = await supabaseAdmin
-      .from("proposal_payments")
-      .select("amount")
-      .eq("proposal_id", proposalId);
-    if (sumError) {
-      console.error("Error summing payments:", sumError);
+    if (!result.ok) {
+      // The payment row is already saved; only the follow-on work failed.
+      console.error("Post-payment processing failed:", result.error);
+      return NextResponse.json(
+        { error: result.error, payment, paymentRecorded: true },
+        { status: result.status }
+      );
     }
-    const totalPaid = (allPayments || []).reduce(
-      (sum: number, p: { amount: number }) => sum + Number(p.amount),
-      0
-    );
-    const balanceDue = Math.max(0, invoiceTotal - totalPaid);
 
-    // Fully covered (small epsilon for floating-point rounding) -> mark paid.
-    let newStatus = (proposal as any).status;
-    if (balanceDue < 0.01) {
-      newStatus = "paid";
-      await supabaseAdmin
-        .from("proposals")
-        .update({ status: "paid", paid_at: new Date().toISOString() })
-        .eq("id", proposalId);
-    }
+    const { stageState, provisioned } = result;
 
     return NextResponse.json({
       success: true,
       payment,
-      invoiceTotal,
-      totalPaid,
-      balanceDue,
-      status: newStatus,
+      invoiceTotal: stageState.amounts.invoiceTotal,
+      totalPaid: stageState.totalPaid,
+      balanceDue: Math.max(0, stageState.balanceDue),
+      status: result.proposalStatus,
+      leadStatus: result.leadStatus,
+      stage: stageState.stage,
+      upfrontTotal: stageState.amounts.upfrontTotal,
+      amountDue: stageState.amountDue,
+      // Surfaced so the dialog can tell the user the portal was opened — and so
+      // a provisioning failure is visible rather than silently logged.
+      portal: provisioned.status,
+      portalError: provisioned.status === "failed" ? provisioned.error : undefined,
     });
   } catch (error) {
     console.error("Error in record payment:", error);

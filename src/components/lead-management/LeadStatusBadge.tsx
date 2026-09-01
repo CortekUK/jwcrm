@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export type LeadStatus = "not_started" | "contacted" | "consultation" | "consultation_completed" | "meeting" | "hold" | "qualified" | "negotiation" | "pending" | "won" | "lost" | "unreachable";
+export type LeadStatus = "not_started" | "contacted" | "consultation" | "consultation_completed" | "meeting" | "hold" | "qualified" | "negotiation" | "pending" | "drafting" | "won" | "lost" | "unreachable";
 
 interface LeadStatusBadgeProps {
   status: LeadStatus;
@@ -49,6 +49,10 @@ const statusConfig: Record<
   pending: {
     label: "Pending",
     className: "bg-[#FFF9E6] text-[#C6A03B] border-0",
+  },
+  drafting: {
+    label: "Drafting",
+    className: "bg-[#E0F2FE] text-[#0369A1] border-0",
   },
   won: {
     label: "Won",

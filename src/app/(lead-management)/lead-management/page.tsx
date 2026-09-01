@@ -85,6 +85,7 @@ const STATUS_COLORS: Record<LeadStatus, string> = {
   qualified: "#7C3AED",
   negotiation: "#4F46E5",
   pending: "#C6A03B",
+  drafting: "#0369A1",
   won: "#16A34A",
   lost: "#DC2626",
   hold: "#F59E0B",

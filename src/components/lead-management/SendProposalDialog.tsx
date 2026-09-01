@@ -15,7 +15,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProposalEditor } from "./ProposalEditor";
 import { ProposalPDFTemplate, ProposalPDFData } from "./ProposalPDFTemplate";
-import { LineItemsEditor, DEFAULT_LINE_ITEM_ROWS, type LineItemRow } from "./LineItemsEditor";
+import {
+  LineItemsEditor,
+  DEFAULT_LINE_ITEM_ROWS,
+  parseLineItemRows,
+  toLineItemRows,
+  type LineItemRow,
+} from "./LineItemsEditor";
+import { DEFAULT_PROPOSAL_CONTENT } from "@/lib/proposal-content";
+import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
+import { companyDetails } from "@/config/company";
+import type { InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 import { Lead } from "./LeadTable";
 import { Loader2, Send, Pencil, Lock, Save, Eye } from "lucide-react";
 import { toast } from "sonner";
@@ -25,10 +35,13 @@ interface Proposal {
   id: string;
   amount: number;
   currency: string;
-  proposal_content: string;
+  proposal_content: string | null;
   status: string;
-  created_at: string;
-  line_items?: { description: string; amount: number }[] | null;
+  created_at: string | null;
+  // Arrives as Json from the generated row type; cast where it is read.
+  line_items?: unknown;
+  vat_rate?: number | null;
+  vat_amount?: number | null;
 }
 
 interface SendProposalDialogProps {
@@ -39,25 +52,9 @@ interface SendProposalDialogProps {
   onLeadUpdate?: (id: string, data: Partial<Lead>) => Promise<void>;
 }
 
-const defaultProposalContent = `
-<p>Dear <strong>[Client Name]</strong>,</p>
-<p>Thank you for your interest in our legal services. We are pleased to present this proposal for your consideration.</p>
-<p><strong>Scope of Services:</strong></p>
-<ul>
-  <li>Professional will drafting services</li>
-  <li>Legal consultation and guidance</li>
-  <li>Document preparation and review</li>
-  <li>Secure storage and management</li>
-</ul>
-<p><strong>Terms and Conditions:</strong></p>
-<ol>
-  <li>Payment is due upon acceptance of this proposal</li>
-  <li>Services will commence upon receipt of payment</li>
-  <li>All information provided will be kept strictly confidential</li>
-</ol>
-<p>We look forward to serving you.</p>
-<p>Best regards,<br/>Just Wills Team</p>
-`;
+// The client's standard UAE Will wording lives in one module so the PDF
+// renderers can find the fee-table token in it. Editable before sending.
+const defaultProposalContent = DEFAULT_PROPOSAL_CONTENT;
 
 export function SendProposalDialog({
   lead,
@@ -68,6 +65,8 @@ export function SendProposalDialog({
 }: SendProposalDialogProps) {
   const { t } = useTranslation("leadManagement");
   const [items, setItems] = useState<LineItemRow[]>(DEFAULT_LINE_ITEM_ROWS);
+  // VAT is per invoice now; blank falls back to the configured default.
+  const [vatRate, setVatRate] = useState<string>(String(companyDetails.vatRate));
   const [proposalContent, setProposalContent] = useState(defaultProposalContent);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProposal, setIsLoadingProposal] = useState(false);
@@ -82,10 +81,14 @@ export function SendProposalDialog({
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
-  const parsedItems = items
-    .filter((it) => it.description.trim())
-    .map((it) => ({ description: it.description.trim(), amount: parseFloat(it.amount) || 0 }));
-  const total = parsedItems.reduce((s, it) => s + it.amount, 0);
+  const parsedItems = parseLineItemRows(items);
+  // Totals come from the shared calculator so the preview, the PDF and the
+  // amount the payment link charges can never disagree.
+  const amounts = computeInvoiceAmounts(
+    { amount: 0, line_items: parsedItems, vat_rate: vatRate === "" ? null : Number(vatRate) },
+    companyDetails.vatRate
+  );
+  const total = amounts.subtotal;
 
   // Fetch existing proposal and initialize form when dialog opens
   useEffect(() => {
@@ -122,17 +125,12 @@ export function SendProposalDialog({
       if (data && data.length > 0) {
         const proposal = data[0];
         setExistingProposal(proposal);
-        setProposalContent(proposal.proposal_content);
-        const existingItems = (proposal.line_items ?? null) as
-          | { description: string; amount: number }[]
-          | null;
-        setItems(
-          existingItems && existingItems.length > 0
-            ? existingItems.map((it) => ({
-                description: it.description,
-                amount: it.amount ? it.amount.toString() : "",
-              }))
-            : DEFAULT_LINE_ITEM_ROWS
+        setProposalContent(proposal.proposal_content ?? defaultProposalContent);
+        // toLineItemRows carries the stage + quantity back into the editor;
+        // rebuilding the rows by hand used to silently unstage a re-sent invoice.
+        setItems(toLineItemRows((proposal.line_items ?? null) as InvoiceLineItem[] | null));
+        setVatRate(
+          proposal.vat_rate != null ? String(proposal.vat_rate) : String(companyDetails.vatRate)
         );
       } else {
         // No existing proposal, use default
@@ -141,6 +139,7 @@ export function SendProposalDialog({
           defaultProposalContent.replace("[Client Name]", lead.full_name)
         );
         setItems(DEFAULT_LINE_ITEM_ROWS);
+        setVatRate(String(companyDetails.vatRate));
       }
     } catch (error) {
       console.error("Error:", error);
@@ -206,6 +205,7 @@ export function SendProposalDialog({
           leadId: lead.id,
           amount: total,
           line_items: parsedItems,
+          vat_rate: vatRate === "" ? null : Number(vatRate),
           currency: "AED",
           proposalContent,
           // Pass updated lead info to ensure email goes to correct address
@@ -224,6 +224,7 @@ export function SendProposalDialog({
       onSuccess();
       // Reset form
       setItems(DEFAULT_LINE_ITEM_ROWS);
+      setVatRate(String(companyDetails.vatRate));
       setProposalContent(defaultProposalContent);
       setExistingProposal(null);
       setIsEditingLead(false);
@@ -273,6 +274,7 @@ export function SendProposalDialog({
           .update({
             amount: total,
             line_items: parsedItems,
+            vat_rate: vatRate === "" ? null : Number(vatRate),
             proposal_content: proposalContent,
             updated_at: new Date().toISOString(),
           })
@@ -287,6 +289,7 @@ export function SendProposalDialog({
             lead_id: lead.id,
             amount: total,
             line_items: parsedItems,
+            vat_rate: vatRate === "" ? null : Number(vatRate),
             currency: "AED",
             proposal_content: proposalContent,
             status: "draft",
@@ -320,6 +323,8 @@ export function SendProposalDialog({
         clientCompany: editedLead.company_name || null,
         amount: total,
         currency: "AED",
+        lineItems: parsedItems,
+        vatRate: vatRate === "" ? null : Number(vatRate),
         proposalContent: proposalContent,
         createdAt: new Date(),
       }
@@ -427,7 +432,34 @@ export function SendProposalDialog({
             items={items}
             onChange={setItems}
             label={t("proposalItems", "Estimated Charges")}
+            vatRate={vatRate}
+            currency="AED"
           />
+
+          {/* VAT is set per invoice — leave blank to fall back to the default. */}
+          <div className="flex items-end gap-3">
+            <div className="w-32 space-y-2">
+              <Label htmlFor="proposal-vat-rate">{t("vatRate", "VAT %")}</Label>
+              <Input
+                id="proposal-vat-rate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={vatRate}
+                onChange={(e) => setVatRate(e.target.value)}
+                className="border-[#E6E6E4] focus:border-[#C6A03B]"
+              />
+            </div>
+            <p className="pb-2 text-sm text-muted-foreground">
+              {t("proposalTotalsSummary", "Subtotal {{subtotal}} · {{vatLabel}} {{vat}} · Total {{total}}", {
+                subtotal: amounts.subtotal.toFixed(2),
+                vatLabel: amounts.vatLabel,
+                vat: amounts.vatAmount.toFixed(2),
+                total: amounts.invoiceTotal.toFixed(2),
+              })}
+            </p>
+          </div>
 
           {/* Proposal Content */}
           <div className="space-y-2">

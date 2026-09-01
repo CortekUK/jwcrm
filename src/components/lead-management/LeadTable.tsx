@@ -255,6 +255,7 @@ export function LeadTable({
     { value: "hold", label: t("hold") },
     { value: "qualified", label: t("qualified") },
     { value: "negotiation", label: t("negotiation") },
+    { value: "drafting", label: t("drafting", "Drafting") },
     { value: "pending", label: t("pending") },
     { value: "won", label: t("won") },
     { value: "lost", label: t("lost") },
@@ -1010,6 +1011,7 @@ export function LeadTable({
                                   lead.status === "hold" ? "bg-[#D97706]" :
                                   lead.status === "qualified" ? "bg-[#7C3AED]" :
                                   lead.status === "negotiation" ? "bg-[#4F46E5]" :
+                                  lead.status === "drafting" ? "bg-[#0369A1]" :
                                   lead.status === "pending" ? "bg-[#C6A03B]" :
                                   lead.status === "won" ? "bg-[#0C5536]" :
                                   "bg-[#C0392B]"
@@ -1040,6 +1042,7 @@ export function LeadTable({
                                     option.value === "hold" ? "bg-[#D97706]" :
                                     option.value === "qualified" ? "bg-[#7C3AED]" :
                                     option.value === "negotiation" ? "bg-[#4F46E5]" :
+                                    option.value === "drafting" ? "bg-[#0369A1]" :
                                     option.value === "pending" ? "bg-[#C6A03B]" :
                                     option.value === "won" ? "bg-[#0C5536]" :
                                     "bg-[#C0392B]"

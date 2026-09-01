@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { companyDetails } from "@/config/company";
-import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "./invoiceLineItems";
+import { lineItemCostLabel, type InvoiceLineItem } from "./invoiceLineItems";
+import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
 import fs from "fs";
 import path from "path";
 
@@ -16,6 +17,9 @@ export type InvoiceData = {
   currency: string;
   description?: string;
   lineItems?: InvoiceLineItem[];
+  vatRate?: number | null;
+  vatAmount?: number | null;
+  amountPaid?: number;
 };
 
 // Grayscale palette to match the official JW Legal Consultants tax invoice
@@ -60,10 +64,22 @@ export function generateInvoicePDF(data: InvoiceData): string {
   };
 
   // ----- line items + totals -----
-  const items = normalizeLineItems(data.lineItems, data.amount);
-  const subtotal = lineItemsSubtotal(items);
-  const vatAmount = subtotal * (companyDetails.vatRate / 100);
-  const total = subtotal + vatAmount;
+  // Single source of truth for the money (VAT override, rounding, staging) so
+  // this PDF cannot disagree with the payment link or the Arabic invoice.
+  const { items, subtotal, vatAmount, invoiceTotal: total, vatLabel } =
+    computeInvoiceAmounts(
+      {
+        amount: data.amount,
+        line_items: data.lineItems,
+        vat_rate: data.vatRate,
+        vat_amount: data.vatAmount,
+      },
+      companyDetails.vatRate
+    );
+
+  // BALANCE AMOUNT is what is still owed; TOTAL / PAYMENT REQUIRED stay the
+  // full invoice figures. Clamped because overlapping payments can overshoot.
+  const balance = Math.max(0, total - (Number(data.amountPaid) || 0));
 
   // =========================================================================
   // TITLE
@@ -193,54 +209,64 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.text("COST", costMid, tableY + 6, { align: "center" });
   doc.text("NET PRICE AED", priceMid, tableY + 6, { align: "center" });
 
-  // Itemised rows (one per line item), then a Notarization Fee note row
-  const itemRowH = 11;
+  // Itemised rows (one per line item), then a filler row
+  const TOP_MARGIN = 14; // where the table resumes on a continuation page
+  const MIN_BODY_H = 55; // keeps the signed-off table proportions
+  const MAX_ITEM_LINES = 6; // bounds one runaway description
   let rowY = tableY + thH;
+  let bodyTop = rowY; // start of the item rows on the CURRENT page
   items.forEach((item) => {
-    box(colDescX, rowY, descW, itemRowH);
-    box(colCostX, rowY, costW, itemRowH);
-    box(colPriceX, rowY, priceW, itemRowH);
+    // Descriptions are multi-line now (hard breaks plus wrapping), so the row
+    // has to be measured — taking [0] silently dropped every line but the first.
+    const lines = item.description
+      .split("\n")
+      .flatMap((l) => doc.splitTextToSize(l, descW - 8) as string[])
+      .slice(0, MAX_ITEM_LINES);
+    const h = Math.max(11, 6 + lines.length * 4.6);
+
+    // Nothing here paginated before; without this a long invoice ran off the
+    // page and took the totals/bank/TRN block with it.
+    if (rowY + h > pageHeight - 90) {
+      doc.addPage();
+      rowY = TOP_MARGIN;
+      bodyTop = rowY;
+    }
+
+    box(colDescX, rowY, descW, h);
+    box(colCostX, rowY, costW, h);
+    box(colPriceX, rowY, priceW, h);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(...TEXT);
-    doc.text(
-      doc.splitTextToSize(item.description, descW - 8)[0],
-      colDescX + 4,
-      rowY + 7
-    );
-    doc.text("X", costMid, rowY + 7, { align: "center" });
+    let ly = rowY + 6;
+    lines.forEach((line) => {
+      doc.text(line, colDescX + 4, ly);
+      ly += 4.6;
+    });
+    doc.text(lineItemCostLabel(item), costMid, rowY + 6, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.text(fmt(item.amount), priceMid, rowY + 7, { align: "center" });
-    rowY += itemRowH;
+    doc.text(fmt(item.amount), priceMid, rowY + 6, { align: "center" });
+    rowY += h;
   });
 
-  // Notarization Fee (informational — no price)
-  const noteH = 26;
-  box(colDescX, rowY, descW, noteH);
-  box(colCostX, rowY, costW, noteH);
-  box(colPriceX, rowY, priceW, noteH);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
-  doc.setTextColor(...TEXT);
-  doc.text("Notarization Fee", colDescX + 4, rowY + 8);
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(8.5);
-  doc.setTextColor(...GRAY);
-  doc.text("(Includes legalization, PRO Services)", colDescX + 38, rowY + 8);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...TEXT);
-  let ny = rowY + 14;
-  companyDetails.notarizationNote.forEach((line) => {
-    doc.text(line, colDescX + 4, ny);
-    ny += 5;
-  });
-  doc.setFont("helvetica", "bold");
-  doc.text("X", costMid, rowY + 9, { align: "center" });
+  // Filler row: the old hardcoded Notarization Fee block was padding the table
+  // to its signed-off height. Notarization is now entered as a priced line
+  // item, so an empty row takes over the padding job.
+  const fillerH = Math.max(
+    0,
+    Math.min(MIN_BODY_H - (rowY - bodyTop), pageHeight - 90 - rowY)
+  );
+  if (fillerH > 0) {
+    box(colDescX, rowY, descW, fillerH);
+    box(colCostX, rowY, costW, fillerH);
+    box(colPriceX, rowY, priceW, fillerH);
+    rowY += fillerH;
+  }
 
   // =========================================================================
   // BANK DETAILS + TOTALS
   // =========================================================================
-  const lowerY = rowY + noteH; // start of bank box / totals
+  const lowerY = rowY; // start of bank box / totals
   const bankW = descW; // left block under description column
   const totLabelX = colCostX;
   const totLabelW = costW;
@@ -276,10 +302,10 @@ export function generateInvoicePDF(data: InvoiceData): string {
   };
 
   drawTotal(lowerY, tr1, ["SUB-TOTAL"], fmt(subtotal));
-  drawTotal(lowerY + tr1, tr2, [`${companyDetails.vatRate}% VAT`], fmt(vatAmount));
+  drawTotal(lowerY + tr1, tr2, [vatLabel], fmt(vatAmount));
   drawTotal(lowerY + tr1 + tr2, tr3, ["TOTAL"], `${fmt(total)} AED`);
   drawTotal(lowerY + tr1 + tr2 + tr3, tr4, ["PAYMENT", "REQUIRED INCL", "VAT"], `${fmt(total)} AED`, true);
-  drawTotal(lowerY + tr1 + tr2 + tr3 + tr4, tr5, ["BALANCE", "AMOUNT"], `${fmt(total)} AED`, true);
+  drawTotal(lowerY + tr1 + tr2 + tr3 + tr4, tr5, ["BALANCE", "AMOUNT"], `${fmt(balance)} AED`, true);
 
   // Bank details box (left) — aligned with SUB-TOTAL..TOTAL
   const bankH = tr1 + tr2 + tr3;

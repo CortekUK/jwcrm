@@ -93,7 +93,6 @@
   "levelInterimGuardian": "وصي مؤقت المستوى {{level}}:",
   "levelPermanentGuardian": "وصي دائم المستوى {{level}}:",
   "contact": "الاتصال:",
-  "email": "البريد الإلكتروني:",
   "scheduleOfAssets": "جدول الأصول",
   "nonExhaustiveListText": "فيما يلي قائمة غير شاملة بأصولي الرئيسية:",
   "estimatedValue": "القيمة المقدرة:",
@@ -112,7 +111,6 @@
   "bequeathTo": "موروث لـ:",
   "distributedAmongBeneficiaries": "سيتم توزيعها بين المستفيدين حسب نسبهم",
   "specificWillText": "هذه وصية محددة. أعطي وأورث وأوصي بممتلكاتي على النحو المفصل تحديداً في القسم الرابع (الأصول) إلى المستفيدين المذكورين أدناه. وبموجبه فإن أي أصول لم تذكر على وجه التحديد، وبموجبه يتم توزيعها وفقاً للنسب المئوية المبينة.",
-
   "proposal": {
     "title": "عرض الخدمة",
     "proposalNumber": "رقم العرض",
@@ -135,7 +133,6 @@
     "companyName": "جست ويلز",
     "companyTagline": "خدمات صياغة الوصايا الاحترافية"
   },
-
   "invoice": {
     "title": "فاتورة",
     "invoiceNumber": "رقم الفاتورة",
@@ -171,6 +168,12 @@
     "footer": "إذا كان لديك أي استفسارات حول هذه الفاتورة، يرجى الاتصال بنا.",
     "companyName": "جست ويلز",
     "companyAddress": "دبي، الإمارات العربية المتحدة",
-    "companyEmail": "support@justwills.ae"
+    "companyEmail": "support@justwills.ae",
+    "cost": "التكلفة",
+    "subTotal": "المجموع الفرعي",
+    "payableUpfront": "مستحق مقدماً",
+    "payableAtCourt": "في مرحلة موعد المحكمة",
+    "payableNow": "المستحق الآن لبدء الصياغة: {{amount}}",
+    "payableLater": "المبلغ المتبقي {{amount}} مستحق في مرحلة موعد المحكمة."
   }
 }

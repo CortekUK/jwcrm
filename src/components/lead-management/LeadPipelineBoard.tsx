@@ -87,6 +87,9 @@ const PIPELINE_COLUMNS: { status: LeadStatus; label: string; color: string; bgCo
   // `hold` is a real lead_status value; leaving it out of the columns meant
   // every lead paused on hold was grouped into a bucket the board never rendered.
   { status: "hold", label: "On Hold", color: "#D97706", bgColor: "#FFF4E6", borderColor: "#D97706" },
+  // Drafting fee paid, work underway, court fees still outstanding. Leads land
+  // here automatically when the upfront line items are covered.
+  { status: "drafting", label: "Drafting", color: "#0369A1", bgColor: "#E0F2FE", borderColor: "#0369A1" },
   { status: "won", label: "Won", color: "#0C5536", bgColor: "#D4EDDA", borderColor: "#0C5536" },
   { status: "lost", label: "Lost", color: "#C0392B", bgColor: "#FEECEC", borderColor: "#C0392B" },
   { status: "unreachable", label: "Unreachable", color: "#737373", bgColor: "#E5E5E5", borderColor: "#737373" },
@@ -121,6 +124,7 @@ export function LeadPipelineBoard({
       qualified: [],
       negotiation: [],
       pending: [],
+      drafting: [],
       won: [],
       lost: [],
       hold: [],

@@ -449,7 +449,8 @@
     "lost": "خسارة",
     "meeting": "اجتماع",
     "pending": "قيد الانتظار",
-    "unreachable": "يتعذر الوصول إليه"
+    "unreachable": "يتعذر الوصول إليه",
+    "drafting": "الصياغة"
   },
   "leadVelocity": "سرعة العملاء المحتملين",
   "leadVelocityDescription": "العملاء المحتملون الجدد مقابل المغلقين عبر الزمن",
@@ -634,5 +635,13 @@
   },
   "partiallyPaid": "مدفوع جزئياً",
   "outstanding": "المبلغ المستحق",
-  "eventPaymentRecordedDescription": "تم استلام دفعة للفاتورة {{invoiceNumber}} عبر {{method}}."
+  "eventPaymentRecordedDescription": "تم استلام دفعة للفاتورة {{invoiceNumber}} عبر {{method}}.",
+  "drafting": "الصياغة",
+  "dueUpfront": "مستحق مقدماً (يُدفع قبل بدء العمل)",
+  "itemQuantity": "الكمية المعروضة في عمود التكلفة",
+  "addNotarizationFee": "إضافة رسوم التوثيق",
+  "stagedSplitSummary": "مستحق الآن {{now}} · في مرحلة المحكمة {{later}}",
+  "requestPayment": "طلب {{amount}}",
+  "paymentRequestSent": "تم إرسال طلب دفع بقيمة {{amount}} إلى {{email}}",
+  "failedToRequestPayment": "تعذر إرسال طلب الدفع"
 }

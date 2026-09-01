@@ -1,5 +1,6 @@
 import { companyDetails } from "@/config/company";
-import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { lineItemCostLabel, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { computeInvoiceAmounts, resolvePaymentStage } from "@/lib/finance/invoiceAmounts";
 
 export type InvoiceEmailData = {
   invoiceNumber: string;
@@ -16,6 +17,11 @@ export type InvoiceEmailData = {
    */
   paymentUrl?: string | null;
   lineItems?: InvoiceLineItem[];
+  /** Per-invoice VAT overrides; absent falls back to companyDetails.vatRate. */
+  vatRate?: number | null;
+  vatAmount?: number | null;
+  /** Everything received against this invoice so far, for BALANCE AMOUNT. */
+  amountPaid?: number;
 };
 
 const fmt = (n: number) =>
@@ -35,10 +41,42 @@ const esc = (s: string) =>
 // JW Legal Consultants PDF / in-app preview. Designed to render in Gmail,
 // Outlook and Apple Mail.
 export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
-  const items = normalizeLineItems(data.lineItems, data.amount);
-  const subtotal = lineItemsSubtotal(items);
-  const vat = subtotal * (companyDetails.vatRate / 100);
-  const total = subtotal + vat;
+  // Single source of truth for the money (VAT precedence, rounding) so this
+  // email, the PDF and the payment link can never disagree.
+  const amounts = computeInvoiceAmounts(
+    {
+      amount: data.amount,
+      line_items: data.lineItems,
+      vat_rate: data.vatRate,
+      vat_amount: data.vatAmount,
+    },
+    companyDetails.vatRate
+  );
+  const {
+    items,
+    subtotal,
+    vatAmount: vat,
+    vatLabel,
+    invoiceTotal: total,
+  } = amounts;
+
+  // BALANCE AMOUNT is what is still owed, which is NOT the invoice total once
+  // the client has part-paid: a re-sent invoice used to show the full amount
+  // as outstanding. TOTAL and PAYMENT REQUIRED stay at the invoice value.
+  const balance = Math.max(0, total - (Number(data.amountPaid) || 0));
+
+  // What the button will ACTUALLY charge when clicked. On a staged invoice the
+  // client pays the drafting fee first, so advertising the full total here was
+  // wrong twice over: it contradicted the Stripe page they land on, and it made
+  // a 6,300 request look like a 9,450 one.
+  const stageState = resolvePaymentStage(amounts, Number(data.amountPaid) || 0);
+  const payNowAmount = stageState.amountDue;
+  const payNowNote =
+    stageState.stage === "upfront"
+      ? "Secure payment via Stripe. This covers the will drafting fee so we can begin work — the remaining balance for court and notarization fees is payable at the court appointment stage. A PDF copy of this invoice is attached."
+      : stageState.totalPaid > 0
+        ? "Secure payment via Stripe. This is the remaining balance on your invoice. A PDF copy of this invoice is attached."
+        : "Secure payment via Stripe. If you have already paid part of this invoice, you will only be charged the remaining balance. A PDF copy of this invoice is attached.";
 
   const cell = "padding:7px 9px;border:1px solid #000000;font-size:13px;color:#141414;";
   const cellC = cell + "text-align:center;";
@@ -46,10 +84,6 @@ export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
   const labelCellC = labelCell + "text-align:center;";
 
   const addressLines = companyDetails.invoiceAddressLines
-    .map((l) => `<div>${esc(l)}</div>`)
-    .join("");
-
-  const notarization = companyDetails.notarizationNote
     .map((l) => `<div>${esc(l)}</div>`)
     .join("");
 
@@ -110,23 +144,17 @@ export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
               <td width="22%" style="${labelCellC}">NET PRICE AED</td>
             </tr>
             ${items
+              // esc() FIRST, then newline -> <br/>. The other order escapes the
+              // <br/> we just inserted, and any order that builds tags before
+              // escaping is the classic HTML-injection hole.
               .map(
                 (item) => `<tr>
-              <td style="${cell}font-weight:bold;vertical-align:top;">${esc(item.description)}</td>
-              <td style="${cellC}font-weight:bold;vertical-align:top;">X</td>
+              <td style="${cell}font-weight:bold;vertical-align:top;">${esc(item.description).replace(/\n/g, "<br/>")}</td>
+              <td style="${cellC}font-weight:bold;vertical-align:top;">${lineItemCostLabel(item)}</td>
               <td style="${cellC}vertical-align:top;">${fmt(item.amount)}</td>
             </tr>`
               )
               .join("")}
-            <tr>
-              <td style="${cell}height:44px;vertical-align:top;">
-                <span style="font-weight:bold;">Notarization Fee </span>
-                <span style="font-style:italic;color:#5a5a5a;font-size:11px;">(Includes legalization, PRO Services)</span>
-                <div style="margin-top:6px;font-size:11px;">${notarization}</div>
-              </td>
-              <td style="${cellC}font-weight:bold;vertical-align:top;">X</td>
-              <td style="${cell}"></td>
-            </tr>
           </table>
 
           <!-- Bank details + totals -->
@@ -147,7 +175,7 @@ export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
               <td width="22%" style="${cellC}font-weight:bold;">${fmt(subtotal)}</td>
             </tr>
             <tr>
-              <td style="${labelCellC}">${companyDetails.vatRate}% VAT</td>
+              <td style="${labelCellC}">${esc(vatLabel)}</td>
               <td style="${cellC}font-weight:bold;">${fmt(vat)}</td>
             </tr>
             <tr>
@@ -160,7 +188,7 @@ export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
             </tr>
             <tr>
               <td style="${labelCellC}">BALANCE AMOUNT</td>
-              <td style="${cellC}font-weight:bold;">${fmt(total)} AED</td>
+              <td style="${cellC}font-weight:bold;">${fmt(balance)} AED</td>
             </tr>
           </table>
 
@@ -175,12 +203,17 @@ export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
           </table>
 
           ${
-            data.paymentUrl
+            // A settled invoice must not offer a "Pay 0.00 AED Now" button.
+            data.paymentUrl && !stageState.fullySettled
               ? `<div style="text-align:center;margin:26px 0 6px;">
-                  <a href="${data.paymentUrl}" style="background-color:#0C5536;color:#ffffff;padding:14px 38px;text-decoration:none;border-radius:5px;display:inline-block;font-size:16px;font-weight:bold;">Pay ${fmt(total)} AED Now</a>
-                  <div style="color:#6B6B6B;font-size:12px;margin-top:10px;">Secure payment via Stripe. If you have already paid part of this invoice, you will only be charged the remaining balance. A PDF copy of this invoice is attached.</div>
+                  <a href="${data.paymentUrl}" style="background-color:#0C5536;color:#ffffff;padding:14px 38px;text-decoration:none;border-radius:5px;display:inline-block;font-size:16px;font-weight:bold;">Pay ${fmt(payNowAmount)} AED Now</a>
+                  <div style="color:#6B6B6B;font-size:12px;margin-top:10px;">${payNowNote}</div>
                 </div>`
-              : `<div style="text-align:center;color:#6B6B6B;font-size:12px;margin-top:20px;">A PDF copy of this invoice is attached.</div>`
+              : `<div style="text-align:center;color:#6B6B6B;font-size:12px;margin-top:20px;">${
+                  stageState.fullySettled && Number(data.amountPaid) > 0
+                    ? "This invoice has been paid in full — thank you. A PDF copy is attached."
+                    : "A PDF copy of this invoice is attached."
+                }</div>`
           }
         </td>
       </tr>

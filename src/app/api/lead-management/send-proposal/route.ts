@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { generateProposalPDF } from "@/lib/pdf/generateProposalPDF";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 import { companyDetails } from "@/config/company";
-import { normalizeLineItems, lineItemsSubtotal, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
 import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
 import { getLeadEmailTemplates } from "@/lib/lead-management/settingsServer";
 import { resolveLeadTemplate, type RenderedLeadEmail } from "@/lib/lead-management/leadEmailTemplates";
@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       leadEmail,
       leadName,
       line_items,
+      vat_rate,
     } = body;
 
     if (!leadId || !amount || !proposalContent) {
@@ -89,10 +90,26 @@ export async function POST(request: NextRequest) {
 
     // Itemised charges (drafting / court fee / MOJ stamps etc). Subtotal is
     // their sum; falls back to the flat amount when no items are supplied.
-    const items: InvoiceLineItem[] = normalizeLineItems(line_items, amount);
-    const subtotalAmount = lineItemsSubtotal(items);
-    const vatAmount = subtotalAmount * (companyDetails.vatRate / 100);
-    const totalAmount = subtotalAmount + vatAmount;
+    // Resolved through the shared helper so the PDF, the email and the later
+    // payment link can never disagree about the VAT or the total.
+    const {
+      items,
+      subtotal: subtotalAmount,
+      vatAmount,
+      vatLabel,
+      invoiceTotal: totalAmount,
+      staged,
+      upfrontTotal,
+      laterTotal,
+    } = computeInvoiceAmounts(
+      { amount, line_items, vat_rate },
+      companyDetails.vatRate
+    );
+
+    // Undefined means "no override" — the column must stay NULL so every
+    // reader keeps falling back to companyDetails.vatRate.
+    const vatRateOverride: number | null | undefined =
+      vat_rate === undefined ? undefined : vat_rate === null || vat_rate === "" ? null : Number(vat_rate);
 
     // 2. Create or update this lead's active proposal record. A proposal is
     //    purely informational — no Stripe session, no payment capability.
@@ -104,6 +121,7 @@ export async function POST(request: NextRequest) {
       currency,
       lineItems: items,
       proposalContent,
+      vatRate: vatRateOverride,
     });
 
     // 3. Update lead status to pending
@@ -131,6 +149,7 @@ export async function POST(request: NextRequest) {
       currency: currency,
       proposalContent: proposalContent,
       lineItems: items,
+      vatRate: vatRateOverride ?? null,
     });
 
     // Persist the PDF so the existing View/Download PDF menu in the admin UI
@@ -165,11 +184,32 @@ export async function POST(request: NextRequest) {
       currency: currency,
     }).format(totalAmount);
 
+    // Descriptions are multi-line now (the notarization row carries its fee
+    // breakdown on its own lines), so escape first and only then turn the hard
+    // line breaks into <br/> — the other order would let markup through.
+    const fmtCurrency = (n: number) =>
+      new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n);
+
+    const escHtml = (v: string) =>
+      v
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+
     const itemRows = items
       .map(
         (item) => `
                   <tr>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E6E6E4; color: #222222; font-size: 13px;">${item.description}</td>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #E6E6E4; color: #222222; font-size: 13px;">${escHtml(item.description).replace(/\n/g, "<br/>")}${
+                      // Say when each charge falls due, so the client can see
+                      // which part of the total actually starts the work.
+                      staged
+                        ? `<div style="margin-top:4px;font-size:11px;font-style:italic;color:${
+                            item.stage === "upfront" ? "#0C5536" : "#8a8a8a"
+                          };">${item.stage === "upfront" ? "Payable upfront" : "At court appointment stage"}</div>`
+                        : ""
+                    }</td>
                     <td style="padding: 8px 12px; border-bottom: 1px solid #E6E6E4; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(item.amount)}</td>
                   </tr>`
       )
@@ -222,7 +262,9 @@ export async function POST(request: NextRequest) {
                     <td style="padding: 4px 12px; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(subtotalAmount)}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 4px 12px; color: #666666; font-size: 13px;">VAT (${companyDetails.vatRate}%)</td>
+                    <!-- vatLabel is already "5% VAT", or plain "VAT" when an
+                         absolute override is in force — never re-derive it. -->
+                    <td style="padding: 4px 12px; color: #666666; font-size: 13px;">${vatLabel}</td>
                     <td style="padding: 4px 12px; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(vatAmount)}</td>
                   </tr>
                   <tr>
@@ -230,6 +272,16 @@ export async function POST(request: NextRequest) {
                     <td style="padding: 8px 12px; text-align: right; color: #0C5536; font-weight: bold; font-size: 15px; border-top: 1px solid #E6E6E4;">${formattedAmount}</td>
                   </tr>
                 </table>
+                ${
+                  // The figure the client decides on: what it costs to start,
+                  // versus what waits until the court date.
+                  staged && laterTotal > 0
+                    ? `<div style="margin-top:14px;background-color:#F4F8F5;border-left:3px solid #0C5536;border-radius:4px;padding:12px 14px;">
+                        <div style="color:#0C5536;font-weight:bold;font-size:14px;">Payable now to begin drafting: ${fmtCurrency(upfrontTotal)}</div>
+                        <div style="color:#6B6B6B;font-size:12px;margin-top:4px;">The remaining ${fmtCurrency(laterTotal)} is payable at the court appointment stage.</div>
+                      </div>`
+                    : ""
+                }
               </div>
               <p style="color: #6B6B6B; font-size: 13px; text-align: center;">
                 This is a proposal only — no payment is required at this stage.<br/>
@@ -284,62 +336,9 @@ export async function POST(request: NextRequest) {
                 Thank you for your interest in our services. Please find attached your <strong>Proposal</strong> for your review.
               </p>
 
-              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <td style="padding: 8px 0; color: #666666;">Reference Number:</td>
-                    <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #222222;">${proposal.invoice_number}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; color: #666666;">Account Manager:</td>
-                    <td style="padding: 8px 0; text-align: right; color: #222222;">
-                      <span style="font-weight: bold;">${accountManagerName}</span><br/>
-                      <a href="mailto:${accountManagerEmail}" style="color: #0C5536; font-size: 13px; text-decoration: none;">${accountManagerEmail}</a>
-                    </td>
-                  </tr>
-                </table>
-              </div>
-
-              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <h3 style="color: #0C5536; margin: 0 0 12px 0; font-size: 14px;">Estimated Charges</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                  <thead>
-                    <tr>
-                      <th style="text-align: left; padding: 8px 12px; border-bottom: 2px solid #0C5536; font-size: 12px; color: #0C5536;">Description</th>
-                      <th style="text-align: right; padding: 8px 12px; border-bottom: 2px solid #0C5536; font-size: 12px; color: #0C5536;">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${itemRows}
-                  </tbody>
-                </table>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-                  <tr>
-                    <td style="padding: 4px 12px; color: #666666; font-size: 13px;">Sub-Total</td>
-                    <td style="padding: 4px 12px; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(subtotalAmount)}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 4px 12px; color: #666666; font-size: 13px;">VAT (${companyDetails.vatRate}%)</td>
-                    <td style="padding: 4px 12px; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(vatAmount)}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 12px; color: #0C5536; font-weight: bold; font-size: 15px; border-top: 1px solid #E6E6E4;">Total Estimated Amount</td>
-                    <td style="padding: 8px 12px; text-align: right; color: #0C5536; font-weight: bold; font-size: 15px; border-top: 1px solid #E6E6E4;">${formattedAmount}</td>
-                  </tr>
-                </table>
-              </div>
-
-              <p style="color: #6B6B6B; font-size: 13px; text-align: center;">
-                This is a proposal only — no payment is required at this stage.<br/>
-                Once you're ready to proceed, we'll send you a formal invoice with a secure payment link.
-              </p>
-
-              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 25px 0 10px 0;">
-                <h3 style="color: #0C5536; margin: 0 0 12px 0; font-size: 16px;">What to Expect — Process Timeline</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                  ${timelineRows}
-                </table>
-              </div>
+              <!-- Same structured blocks the template path is given, rendered
+                   from one builder so the two can never drift apart. -->
+              ${proposalStructuredHtml}
 
               <p style="color: #444444; font-size: 14px; line-height: 1.6; margin: 18px 0 0 0;">
                 If you have any questions, please contact <strong>${accountManagerName}</strong> at

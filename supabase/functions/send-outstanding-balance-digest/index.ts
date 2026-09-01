@@ -12,29 +12,13 @@
 import { Resend } from 'npm:resend@6.1.3';
 import { EMAIL_FROM, EMAIL_REPLY_TO } from '../_shared/email.ts';
 import { getAdminFallbackEmail } from '../_shared/accountManager.ts';
+import { computeInvoiceAmounts, DEFAULT_VAT_RATE } from '../_shared/invoiceAmounts.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// Kept in step with src/config/company.ts.
-const VAT_RATE = 5;
-
-interface LineItem {
-  description?: string;
-  amount?: number | string;
-}
-
-function subtotalOf(lineItems: unknown, fallbackAmount: number): number {
-  if (Array.isArray(lineItems)) {
-    const items = lineItems as LineItem[];
-    const sum = items.reduce((acc, item) => acc + (Number(item?.amount) || 0), 0);
-    if (sum > 0) return sum;
-  }
-  return Number(fallbackAmount) || 0;
-}
 
 function money(amount: number, currency: string): string {
   return `${currency} ${amount.toLocaleString('en-US', {
@@ -85,7 +69,9 @@ Deno.serve(async (req) => {
     // so nobody owes anything on it yet.
     const { data: proposals, error: proposalError } = await supabase
       .from('proposals')
-      .select('id, amount, currency, line_items, status, invoice_number, invoiced_at, lead:leads(full_name, email)')
+      // vat_rate/vat_amount are required: VAT is set per invoice now, so
+      // assuming the default here would quote a balance the client never saw.
+      .select('id, amount, currency, line_items, status, invoice_number, invoiced_at, vat_rate, vat_amount, lead:leads(full_name, email)')
       .not('invoiced_at', 'is', null)
       .not('status', 'in', '(paid,cancelled)');
     if (proposalError) throw proposalError;
@@ -105,17 +91,28 @@ Deno.serve(async (req) => {
 
     const outstanding = (proposals || [])
       .map((proposal: any) => {
-        const subtotal = subtotalOf(proposal.line_items, proposal.amount);
-        const invoiceTotal = subtotal + subtotal * (VAT_RATE / 100);
+        const amounts = computeInvoiceAmounts(proposal, DEFAULT_VAT_RATE);
         const totalPaid = paidByProposal.get(proposal.id) || 0;
+        // Whether the drafting fee itself is still unpaid decides how urgent
+        // this row is: work has not started, versus work underway and only the
+        // court fees pending.
+        const awaitingUpfront =
+          amounts.staged && totalPaid < amounts.upfrontTotal - 0.01;
         return {
           invoiceNumber: proposal.invoice_number || '—',
           clientName: proposal.lead?.full_name || 'Unknown client',
           currency: proposal.currency || 'AED',
-          invoiceTotal,
+          invoiceTotal: amounts.invoiceTotal,
           totalPaid,
-          balanceDue: invoiceTotal - totalPaid,
+          balanceDue: amounts.invoiceTotal - totalPaid,
           partiallyPaid: totalPaid > 0,
+          staged: amounts.staged,
+          awaitingUpfront,
+          // What we would ask for right now, which on a staged invoice is the
+          // drafting fee rather than the whole balance.
+          amountDueNow: awaitingUpfront
+            ? amounts.upfrontTotal - totalPaid
+            : amounts.invoiceTotal - totalPaid,
         };
       })
       // Sub-cent remainders are rounding noise, not a debt.
@@ -140,6 +137,8 @@ Deno.serve(async (req) => {
           <td style="padding:10px 8px;border-bottom:1px solid #EEE;color:#222;">
             ${i.clientName}
             ${i.partiallyPaid ? '<span style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:10px;background:#F6EBD0;color:#8B6914;font-size:11px;">part paid</span>' : ''}
+            ${i.awaitingUpfront ? '<span style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:10px;background:#FDE8E8;color:#9B2C2C;font-size:11px;">drafting fee unpaid</span>' : ''}
+            ${i.staged && !i.awaitingUpfront ? '<span style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:10px;background:#E6F0FF;color:#2563EB;font-size:11px;">court fees pending</span>' : ''}
           </td>
           <td style="padding:10px 8px;border-bottom:1px solid #EEE;color:#777;">${i.invoiceNumber}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #EEE;text-align:right;color:#555;">${money(i.invoiceTotal, i.currency)}</td>
@@ -174,7 +173,7 @@ Deno.serve(async (req) => {
             <tbody>${rows}</tbody>
           </table>
           <p style="margin:18px 0 0;color:#777;font-size:11px;">
-            Totals include ${VAT_RATE}% VAT, matching the amount shown on the client's invoice.
+            Totals include VAT at the rate set on each invoice, matching the amount shown on the client's copy.
             This is an internal summary — no reminder has been sent to any client.
           </p>
         </div>

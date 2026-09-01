@@ -10,11 +10,12 @@
 // digest so all three can never disagree about who owes what.
 
 import { companyDetails } from "@/config/company";
+import { type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 import {
-  normalizeLineItems,
-  lineItemsSubtotal,
-  type InvoiceLineItem,
-} from "@/lib/pdf/invoiceLineItems";
+  computeInvoiceAmounts,
+  resolvePaymentStage,
+  type InvoiceAmounts,
+} from "@/lib/finance/invoiceAmounts";
 
 export type ProposalLike = {
   id: string;
@@ -26,6 +27,11 @@ export type ProposalLike = {
   invoiced_at?: string | null;
   invoice_number?: string | null;
   created_at?: string;
+  // Per-invoice VAT override. NULL/absent = use companyDetails.vatRate.
+  // Any query feeding this type MUST select both columns, or the total it
+  // computes will silently disagree with the invoice the client was sent.
+  vat_rate?: number | string | null;
+  vat_amount?: number | string | null;
   lead?: { full_name?: string | null; email?: string | null } | null;
 };
 
@@ -45,13 +51,30 @@ export type OutstandingInvoice = {
   balanceDue: number;
   /** True once some — but not all — of the invoice has been paid. */
   partiallyPaid: boolean;
+  /** True when the invoice is split into an upfront stage and a later one. */
+  staged: boolean;
+  /**
+   * The drafting fee itself is still unpaid, so no work has started. Chasing
+   * this is more urgent than an invoice whose court fees are merely pending.
+   */
+  awaitingUpfront: boolean;
+  /** What we would ask for right now — the stage cost, not the whole balance. */
+  amountDueNow: number;
 };
+
+/**
+ * Every figure on the invoice, with the stored VAT override applied.
+ *
+ * The real work now lives in invoiceAmounts.ts so the payment stages and the
+ * balance can never be computed from different numbers.
+ */
+export function invoiceAmountsFor(proposal: ProposalLike): InvoiceAmounts {
+  return computeInvoiceAmounts(proposal, companyDetails.vatRate);
+}
 
 /** Invoice total including VAT, matching what the invoice PDF shows. */
 export function invoiceTotalFor(proposal: ProposalLike): number {
-  const items = normalizeLineItems(proposal.line_items, Number(proposal.amount) || 0);
-  const subtotal = lineItemsSubtotal(items);
-  return subtotal + subtotal * (companyDetails.vatRate / 100);
+  return invoiceAmountsFor(proposal).invoiceTotal;
 }
 
 /**
@@ -77,12 +100,15 @@ export function computeOutstandingInvoices(
     if (!proposal.invoiced_at) continue;
     if (proposal.status === "paid" || proposal.status === "cancelled") continue;
 
-    const invoiceTotal = invoiceTotalFor(proposal);
+    const amounts = invoiceAmountsFor(proposal);
+    const invoiceTotal = amounts.invoiceTotal;
     const totalPaid = paidByProposal.get(proposal.id) || 0;
     const balanceDue = invoiceTotal - totalPaid;
 
     // Sub-cent remainders are rounding noise, not a debt.
     if (balanceDue < 0.01) continue;
+
+    const stageState = resolvePaymentStage(amounts, totalPaid);
 
     results.push({
       proposalId: proposal.id,
@@ -94,6 +120,9 @@ export function computeOutstandingInvoices(
       totalPaid,
       balanceDue,
       partiallyPaid: totalPaid > 0,
+      staged: amounts.staged,
+      awaitingUpfront: amounts.staged && !stageState.upfrontCovered,
+      amountDueNow: stageState.amountDue,
     });
   }
 

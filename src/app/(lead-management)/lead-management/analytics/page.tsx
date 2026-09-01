@@ -212,13 +212,16 @@ export default function LeadAnalyticsPage() {
       not_started: 0,
       contacted: 0,
       consultation: 0,
+      consultation_completed: 0,
       meeting: 0,
       qualified: 0,
       negotiation: 0,
       pending: 0,
+      drafting: 0,
       won: 0,
       lost: 0,
       hold: 0,
+      unreachable: 0,
     };
 
     filteredLeads.forEach(lead => {
