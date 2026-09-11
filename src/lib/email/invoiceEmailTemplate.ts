@@ -58,12 +58,21 @@ export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
     vatAmount: vat,
     vatLabel,
     invoiceTotal: total,
+    staged,
+    upfrontTotal,
+    laterTotal,
   } = amounts;
 
-  // BALANCE AMOUNT is what is still owed, which is NOT the invoice total once
-  // the client has part-paid: a re-sent invoice used to show the full amount
-  // as outstanding. TOTAL and PAYMENT REQUIRED stay at the invoice value.
-  const balance = Math.max(0, total - (Number(data.amountPaid) || 0));
+// The two bottom boxes state the agreed split: what the client pays now to
+  // start the work, and what falls due at the court appointment.
+  //
+  // Both are STATIC by instruction from the client — they keep showing the
+  // agreed figures even after the money has been received, so the invoice
+  // stays a record of the arrangement rather than a live balance. The live
+  // balance lives in the CRM and on the payment link, which prices at click
+  // time. An unstaged invoice defers nothing, so all of it is required now.
+  const payableNow = staged ? upfrontTotal : total;
+  const remainingBalance = staged ? laterTotal : 0;
 
   // What the button will ACTUALLY charge when clicked. On a staged invoice the
   // client pays the drafting fee first, so advertising the full total here was
@@ -183,12 +192,12 @@ export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
               <td style="${cellC}font-weight:bold;">${fmt(total)} AED</td>
             </tr>
             <tr>
-              <td style="${labelCellC}font-size:11px;">PAYMENT REQUIRED INCL VAT</td>
-              <td style="${cellC}font-weight:bold;">${fmt(total)} AED</td>
+              <td style="${labelCellC}font-size:11px;">PAYMENT REQUIRED NOW INCL VAT</td>
+              <td style="${cellC}font-weight:bold;">${fmt(payableNow)} AED</td>
             </tr>
             <tr>
-              <td style="${labelCellC}">BALANCE AMOUNT</td>
-              <td style="${cellC}font-weight:bold;">${fmt(balance)} AED</td>
+              <td style="${labelCellC}">REMAINING BALANCE AMOUNT</td>
+              <td style="${cellC}font-weight:bold;">${fmt(remainingBalance)} AED</td>
             </tr>
           </table>
 

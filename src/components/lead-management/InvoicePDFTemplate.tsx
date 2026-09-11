@@ -68,6 +68,9 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
       vatAmount: vat,
       vatLabel,
       invoiceTotal: total,
+      staged,
+      upfrontTotal,
+      laterTotal,
     } = computeInvoiceAmounts(
       {
         amount,
@@ -78,10 +81,16 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
       companyDetails.vatRate
     );
 
-    // BALANCE AMOUNT is what is still owed, which is NOT the invoice total once
-    // the client has part-paid: a re-sent invoice used to show the full amount
-    // as outstanding. TOTAL and PAYMENT REQUIRED stay at the invoice value.
-    const balance = Math.max(0, total - (Number(data.amountPaid) || 0));
+    // The two bottom boxes state the agreed split: what the client pays now to
+    // start the work, and what falls due at the court appointment.
+    //
+    // Both are STATIC by instruction from the client — they keep showing the
+    // agreed figures even after the money has been received, so the invoice
+    // stays a record of the arrangement rather than a live balance. The live
+    // balance lives in the CRM and on the payment link, which prices at click
+    // time. An unstaged invoice defers nothing, so all of it is required now.
+    const payableNow = staged ? upfrontTotal : total;
+    const remainingBalance = staged ? laterTotal : 0;
 
     const formattedDate = formatDocumentDate(createdAt, locale);
     const isPaid = status === "paid";
@@ -239,15 +248,15 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
             </tr>
             <tr>
               <td style={{ ...cellPad, border: BORDER, backgroundColor: LABEL_FILL, textAlign: "center", fontWeight: "bold", fontSize: "11px" }}>
-                PAYMENT REQUIRED INCL VAT
+                PAYMENT REQUIRED NOW INCL VAT
               </td>
-              <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>{fmt(total)} AED</td>
+              <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>{fmt(payableNow)} AED</td>
             </tr>
             <tr>
               <td style={{ ...cellPad, border: BORDER, backgroundColor: LABEL_FILL, textAlign: "center", fontWeight: "bold" }}>
-                BALANCE AMOUNT
+                REMAINING BALANCE AMOUNT
               </td>
-              <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>{fmt(balance)} AED</td>
+              <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>{fmt(remainingBalance)} AED</td>
             </tr>
           </tbody>
         </table>

@@ -153,6 +153,9 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
     vatAmount,
     vatLabel,
     invoiceTotal: total,
+    staged,
+    upfrontTotal,
+    laterTotal,
   } = computeInvoiceAmounts(
     {
       amount: data.amount,
@@ -163,10 +166,16 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
     companyDetails.vatRate
   );
 
-  // BALANCE AMOUNT is what is still owed, so it is the total minus what has
-  // already been received — unlike TOTAL / PAYMENT REQUIRED, which always show
-  // the full invoice. Clamped: overlapping payments can exceed the total.
-  const balance = Math.max(0, total - (Number(data.amountPaid) || 0));
+  // The two bottom boxes state the agreed split: what the client pays now to
+  // start the work, and what falls due at the court appointment.
+  //
+  // Both are STATIC by instruction from the client — they keep showing the
+  // agreed figures even after the money has been received, so the invoice
+  // remains a record of the arrangement rather than a live balance. The live
+  // balance lives in the CRM and on the payment link, which prices at click
+  // time. An unstaged invoice defers nothing, so all of it is required now.
+  const payableNow = staged ? upfrontTotal : total;
+  const remainingBalance = staged ? laterTotal : 0;
 
   // =========================================================================
   // TITLE
@@ -351,8 +360,8 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
   drawTotal(lowerTop, tr1, ["SUB-TOTAL"], fmt(subtotal));
   drawTotal(lowerTop + tr1, tr2, [vatLabel], fmt(vatAmount));
   drawTotal(lowerTop + tr1 + tr2, tr3, ["TOTAL"], `${fmt(total)} AED`);
-  drawTotal(lowerTop + tr1 + tr2 + tr3, tr4, ["PAYMENT", "REQUIRED INCL", "VAT"], `${fmt(total)} AED`, true);
-  drawTotal(lowerTop + tr1 + tr2 + tr3 + tr4, tr5, ["BALANCE", "AMOUNT"], `${fmt(balance)} AED`, true);
+  drawTotal(lowerTop + tr1 + tr2 + tr3, tr4, ["PAYMENT", "REQUIRED NOW", "INCL VAT"], `${fmt(payableNow)} AED`, true);
+  drawTotal(lowerTop + tr1 + tr2 + tr3 + tr4, tr5, ["REMAINING", "BALANCE", "AMOUNT"], `${fmt(remainingBalance)} AED`, true);
 
   // Bank details box (left)
   const bankH = tr1 + tr2 + tr3;

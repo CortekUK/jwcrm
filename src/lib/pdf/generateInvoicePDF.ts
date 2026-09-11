@@ -66,8 +66,16 @@ export function generateInvoicePDF(data: InvoiceData): string {
   // ----- line items + totals -----
   // Single source of truth for the money (VAT override, rounding, staging) so
   // this PDF cannot disagree with the payment link or the Arabic invoice.
-  const { items, subtotal, vatAmount, invoiceTotal: total, vatLabel } =
-    computeInvoiceAmounts(
+  const {
+    items,
+    subtotal,
+    vatAmount,
+    invoiceTotal: total,
+    vatLabel,
+    staged,
+    upfrontTotal,
+    laterTotal,
+  } = computeInvoiceAmounts(
       {
         amount: data.amount,
         line_items: data.lineItems,
@@ -277,8 +285,8 @@ export function generateInvoicePDF(data: InvoiceData): string {
   const tr1 = 12; // SUB-TOTAL
   const tr2 = 10; // 5% VAT
   const tr3 = 10; // TOTAL
-  const tr4 = 16; // PAYMENT REQUIRED INCL VAT
-  const tr5 = 16; // BALANCE AMOUNT
+  const tr4 = 16; // PAYMENT REQUIRED NOW INCL VAT
+  const tr5 = 16; // REMAINING BALANCE AMOUNT
 
   const drawTotal = (
     yPos: number,
@@ -304,8 +312,29 @@ export function generateInvoicePDF(data: InvoiceData): string {
   drawTotal(lowerY, tr1, ["SUB-TOTAL"], fmt(subtotal));
   drawTotal(lowerY + tr1, tr2, [vatLabel], fmt(vatAmount));
   drawTotal(lowerY + tr1 + tr2, tr3, ["TOTAL"], `${fmt(total)} AED`);
-  drawTotal(lowerY + tr1 + tr2 + tr3, tr4, ["PAYMENT", "REQUIRED INCL", "VAT"], `${fmt(total)} AED`, true);
-  drawTotal(lowerY + tr1 + tr2 + tr3 + tr4, tr5, ["BALANCE", "AMOUNT"], `${fmt(balance)} AED`, true);
+  // The split the client agreed to, per JW's own invoice format: what is due
+  // now versus what falls due at the court appointment.
+  //
+  // Both boxes are STATIC by design — the client's instruction is that they
+  // keep showing the agreed figures even after the money has been received, so
+  // the invoice stays a record of the arrangement rather than a live balance.
+  // (The live balance lives in the CRM and on the payment link.)
+  //
+  // An unstaged invoice has nothing deferred: everything is required now.
+  drawTotal(
+    lowerY + tr1 + tr2 + tr3,
+    tr4,
+    ["PAYMENT", "REQUIRED NOW", "INCL VAT"],
+    `${fmt(staged ? upfrontTotal : total)} AED`,
+    true
+  );
+  drawTotal(
+    lowerY + tr1 + tr2 + tr3 + tr4,
+    tr5,
+    ["REMAINING", "BALANCE", "AMOUNT"],
+    `${fmt(staged ? laterTotal : 0)} AED`,
+    true
+  );
 
   // Bank details box (left) — aligned with SUB-TOTAL..TOTAL
   const bankH = tr1 + tr2 + tr3;
