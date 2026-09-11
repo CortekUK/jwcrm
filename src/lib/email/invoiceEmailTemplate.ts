@@ -196,7 +196,7 @@ export function buildInvoiceEmailHTML(data: InvoiceEmailData): string {
               <td style="${cellC}font-weight:bold;">${fmt(payableNow)} AED</td>
             </tr>
             <tr>
-              <td style="${labelCellC}">REMAINING BALANCE AMOUNT</td>
+              <td style="${labelCellC}font-size:11px;">REMAINING BALANCE AMOUNT</td>
               <td style="${cellC}font-weight:bold;">${fmt(remainingBalance)} AED</td>
             </tr>
           </table>

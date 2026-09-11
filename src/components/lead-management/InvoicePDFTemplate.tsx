@@ -253,7 +253,10 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
               <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>{fmt(payableNow)} AED</td>
             </tr>
             <tr>
-              <td style={{ ...cellPad, border: BORDER, backgroundColor: LABEL_FILL, textAlign: "center", fontWeight: "bold" }}>
+              {/* Same 11px as PAYMENT REQUIRED NOW above: "REMAINING" is a long
+                  word for this narrow label column and overflows at the
+                  default size. */}
+              <td style={{ ...cellPad, border: BORDER, backgroundColor: LABEL_FILL, textAlign: "center", fontWeight: "bold", fontSize: "11px" }}>
                 REMAINING BALANCE AMOUNT
               </td>
               <td style={{ ...cellPad, border: BORDER, textAlign: "center", fontWeight: "bold" }}>{fmt(remainingBalance)} AED</td>
