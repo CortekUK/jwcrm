@@ -92,6 +92,9 @@ export async function POST(request: NextRequest) {
         trigger: 'stripe',
         leadEmailFallback: leadEmail,
         leadNameFallback: leadName,
+        // A webhook has no signed-in user, so the confirmation goes out from
+        // the shared sender rather than anyone's mailbox.
+        actorUserId: null,
       });
 
       if (!result.ok) {
@@ -107,11 +110,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      if (result.warnings.length > 0) {
+        console.warn(`Payment side-effect warnings for ${proposalId}:`, result.warnings);
+      }
+
       return NextResponse.json({
         received: true,
         fullyCovered: result.stageState.fullySettled,
         stage: result.stageState.stage,
         portal: result.provisioned.status,
+        clientNotified: result.clientNotified,
       });
     } catch (error) {
       console.error('Error processing webhook:', error);

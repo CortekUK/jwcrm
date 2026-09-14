@@ -282,9 +282,6 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
   const ITEM_LINE_H = 5; // mm per rendered description line
   const MAX_ITEM_LINES = 6; // beyond this a pathological description is clipped
   const MIN_ROW_H = 11; // the original fixed row height
-  // The hardcoded Notarization Fee block used to pad this table out; it is now
-  // an ordinary priced line item, so a filler row keeps the signed-off height.
-  const MIN_BODY_H = 55;
   const ROW_LIMIT = pageHeightMm - 90; // below this the totals block will not fit
 
   let rowTop = tableTop + thH;
@@ -323,15 +320,9 @@ export async function generateInvoicePDFArabic(data: InvoiceData): Promise<strin
     usedH += rowH;
   });
 
-  // Empty filler spanning the three columns so a short invoice keeps roughly
-  // the table height the client signed off on.
-  const fillerH = Math.max(0, MIN_BODY_H - usedH);
-  if (fillerH > 0) {
-    box(12, rowTop, descW, fillerH);
-    box(costX, rowTop, costW, fillerH);
-    box(priceX, rowTop, priceW, fillerH);
-    rowTop += fillerH;
-  }
+  // No filler row: the table ends with the last item. Padding it to a minimum
+  // height left a conspicuous empty box on a short invoice, which is what the
+  // removed Notarization Fee block used to occupy.
 
   // =========================================================================
   // BANK DETAILS + TOTALS

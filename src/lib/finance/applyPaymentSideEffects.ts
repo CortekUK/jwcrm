@@ -12,8 +12,14 @@ import { invoiceAmountsFor } from "@/lib/finance/outstandingBalance";
 import { resolvePaymentStage, sumPayments, type StageState } from "@/lib/finance/invoiceAmounts";
 import {
   provisionClientPortalAccount,
+  clientPortalUrl,
   type ProvisionOutcome,
 } from "@/lib/clients/provisionClientPortalAccount";
+import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
+import {
+  buildPaymentReceivedEmailHTML,
+  buildPaymentReceivedSubject,
+} from "@/lib/email/paymentReceivedEmail";
 
 /**
  * Pipeline stages a lead may be automatically advanced OUT OF.
@@ -39,6 +45,16 @@ export type PaymentSideEffects = {
   leadStatus: string | null;
   provisioned: ProvisionOutcome;
   currency: string;
+  /** Whether the client was emailed a confirmation for this payment. */
+  clientNotified: boolean;
+  /** Why it was not sent, when it was not. */
+  clientNotifyError?: string | null;
+  /**
+   * Anything the team should see rather than have buried in a server log —
+   * e.g. a portal account that could not be created because the lead's address
+   * belongs to a staff member.
+   */
+  warnings: string[];
 };
 
 type LeadRow = {
@@ -46,6 +62,8 @@ type LeadRow = {
   full_name: string | null;
   email: string | null;
   status: string | null;
+  /** Set once the client has been told work is starting — keeps that email idempotent. */
+  drafting_notified_at: string | null;
 };
 
 export async function applyPaymentSideEffects(
@@ -55,6 +73,12 @@ export async function applyPaymentSideEffects(
     trigger: "stripe" | "manual";
     leadEmailFallback?: string | null;
     leadNameFallback?: string | null;
+    /**
+     * Whose mailbox the client email is sent from, when they have Outlook
+     * connected. Null for the Stripe webhook, which has no signed-in user, so
+     * that path falls back to the shared sender.
+     */
+    actorUserId?: string | null;
   }
 ): Promise<
   { ok: false; status: number; error: string } | ({ ok: true } & PaymentSideEffects)
@@ -64,7 +88,7 @@ export async function applyPaymentSideEffects(
     // vat_rate/vat_amount are mandatory here — computing the total without them
     // would settle (or fail to settle) the invoice against the wrong figure.
     .select(
-      "id, lead_id, amount, currency, line_items, status, paid_at, vat_rate, vat_amount, lead:leads(id, full_name, email, status)"
+      "id, lead_id, amount, currency, line_items, status, paid_at, invoice_number, vat_rate, vat_amount, lead:leads(id, full_name, email, status, drafting_notified_at)"
     )
     .eq("id", proposalId)
     .single();
@@ -170,6 +194,7 @@ export async function applyPaymentSideEffects(
     currency,
   });
 
+  const warnings: string[] = [];
   if (provisioned.status === "failed") {
     // Loud, but not fatal: the payment is recorded and the invoice state is
     // correct. Callers surface this so it is not silently swallowed the way the
@@ -178,10 +203,69 @@ export async function applyPaymentSideEffects(
       `Portal provisioning failed for proposal ${proposalId} (${opts.trigger}):`,
       provisioned.error
     );
+    warnings.push(`The client portal account could not be created: ${provisioned.error}`);
+  }
+  if (provisioned.status === "skipped" && provisioned.warning) {
+    warnings.push(provisioned.warning);
+  }
+
+  // Tell the client their payment landed and that work is starting.
+  //
+  // This is the primary message and is sent whether or not a portal account
+  // exists — portal credentials ride along inside it when there are any. Before
+  // this, the only email at this moment was the portal welcome, so a skipped
+  // provisioning meant the client heard nothing after paying.
+  let clientNotified = false;
+  let clientNotifyError: string | null = null;
+
+  const alreadyNotified = Boolean(lead?.drafting_notified_at);
+  const recipient = lead?.email || opts.leadEmailFallback || null;
+
+  if (stageState.upfrontCovered && recipient && lead?.id && !alreadyNotified) {
+    const emailData = {
+      clientName: lead.full_name || opts.leadNameFallback || "",
+      clientEmail: recipient,
+      invoiceNumber: ((proposal as { invoice_number?: string | null }).invoice_number) ?? null,
+      currency,
+      stageState,
+      amountReceived: stageState.totalPaid,
+      portal:
+        provisioned.status === "created"
+          ? { url: clientPortalUrl(), password: provisioned.password }
+          : provisioned.status === "linked_existing"
+            ? { url: clientPortalUrl(), recoveryUrl: provisioned.recoveryUrl }
+            : null,
+    };
+
+    const emailResult = await sendUserEmail(opts.actorUserId ?? null, {
+      to: recipient,
+      subject: buildPaymentReceivedSubject(emailData),
+      html: buildPaymentReceivedEmailHTML(emailData),
+      refId: `payment-received-${proposalId}`,
+      log: { kind: "payment_received", leadId: lead.id, proposalId },
+    });
+
+    clientNotified = emailResult.ok;
+    clientNotifyError = emailResult.error ?? null;
+
+    if (emailResult.ok) {
+      // Marked only on success, so a failed send can be retried by recording
+      // the next payment rather than being lost.
+      await supabaseAdmin
+        .from("leads")
+        .update({ drafting_notified_at: nowIso })
+        .eq("id", lead.id);
+    } else {
+      console.error("Payment confirmation email failed:", emailResult.error);
+      warnings.push(`The client was not emailed a payment confirmation: ${emailResult.error}`);
+    }
   }
 
   return {
     ok: true,
+    clientNotified,
+    clientNotifyError,
+    warnings,
     stageState,
     proposalStatus,
     leadStatus,

@@ -645,5 +645,7 @@
   "paymentRequestSent": "تم إرسال طلب دفع بقيمة {{amount}} إلى {{email}}",
   "failedToRequestPayment": "تعذر إرسال طلب الدفع",
   "invoiceCreatedEmailFailed": "تم إنشاء الفاتورة، لكن تعذر إرسال البريد الإلكتروني: {{error}}",
-  "invoiceSentFrom": "تم إرسال الفاتورة من {{sender}}"
+  "invoiceSentFrom": "تم إرسال الفاتورة من {{sender}}",
+  "clientNotified": "تم إشعار العميل: تم استلام الدفعة وبدء الصياغة",
+  "portalOpened": "تم إنشاء حساب بوابة العميل"
 }

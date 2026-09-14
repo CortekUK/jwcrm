@@ -205,16 +205,22 @@ export function ViewProposalDialog({
 
       toast.success(t("paymentRecorded", "Payment recorded"));
 
-      // Recording the drafting fee opens the client portal and moves the lead
-      // to Drafting, so say so rather than leaving it to be discovered.
-      if (json.portal === "created" || json.portal === "linked_existing") {
+      // Whether the client was actually told. Recording the drafting fee is the
+      // moment they get "we have your payment, we're starting your Will", so a
+      // silent failure here is worse than the payment not saving.
+      if (json.clientNotified) {
         toast.success(
-          t("portalOpened", "Client portal account created and welcome email sent")
+          t("clientNotified", "Client emailed: payment received, drafting starting")
         );
-      } else if (json.portal === "failed") {
-        toast.error(
-          t("portalFailed", "Payment saved, but the portal account could not be created")
-        );
+      }
+      if (json.portal === "created" || json.portal === "linked_existing") {
+        toast.success(t("portalOpened", "Client portal account created"));
+      }
+
+      // Anything the team needs to act on — a staff address used as the lead
+      // email, a send failure — shown instead of being left in a server log.
+      for (const warning of (json.warnings || []) as string[]) {
+        toast.warning(warning, { duration: 12000 });
       }
 
       resetPaymentForm();

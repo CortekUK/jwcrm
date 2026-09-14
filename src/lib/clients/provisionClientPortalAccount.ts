@@ -15,16 +15,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import crypto from "crypto";
-import { Resend } from "resend";
-import { EMAIL_FROM, EMAIL_REPLY_TO } from "@/config/email";
-import { paymentResolverUrl } from "@/lib/finance/paymentLink";
-import {
-  buildPortalWelcomeEmailHTML,
-  buildPortalWelcomeSubject,
-} from "@/lib/email/clientPortalWelcomeEmail";
 import type { StageState } from "@/lib/finance/invoiceAmounts";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
  * Every app_role except "client" (verified against the live enum).
@@ -43,13 +34,42 @@ const PRIVILEGED_ROLES = new Set([
   "hr",
 ]);
 
+/**
+ * The portal is switched off until it goes live, so paying clients are not
+ * given an account or emailed credentials — they still get the payment
+ * confirmation. Read from system_settings rather than an env var so it can be
+ * turned on later without a deploy.
+ *
+ * Absent or unreadable settings mean OFF: the safe direction is to withhold an
+ * account, never to email credentials for a portal nobody is supporting yet.
+ */
+async function portalEnabled(supabaseAdmin: SupabaseClient): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("system_settings")
+    .select("setting_value")
+    .eq("setting_key", "client_portal")
+    .maybeSingle();
+  if (error) {
+    console.error("Could not read the client_portal setting; treating as disabled:", error);
+    return false;
+  }
+  return (data?.setting_value as { enabled?: boolean } | null)?.enabled === true;
+}
+
 export type ProvisionOutcome =
-  | { status: "created"; userId: string; emailSent: boolean }
-  | { status: "linked_existing"; userId: string; emailSent: boolean }
+  | { status: "created"; userId: string; password: string }
+  | { status: "linked_existing"; userId: string; recoveryUrl?: string }
   | { status: "already_provisioned"; userId: string }
   | {
       status: "skipped";
-      reason: "upfront_not_covered" | "no_email" | "no_lead" | "privileged_account";
+      reason:
+        | "upfront_not_covered"
+        | "no_email"
+        | "no_lead"
+        | "privileged_account"
+        | "portal_disabled";
+      /** Plain-language explanation, surfaced in the UI rather than only logged. */
+      warning?: string;
     }
   | { status: "failed"; error: string };
 
@@ -66,7 +86,7 @@ function generatePassword(): string {
   return crypto.randomBytes(12).toString("base64url");
 }
 
-function portalUrl(): string {
+export function clientPortalUrl(): string {
   return `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/client`;
 }
 
@@ -111,43 +131,6 @@ async function ensureClientRole(
   }
 }
 
-async function sendWelcome(
-  input: ProvisionInput,
-  opts: { password?: string; recoveryUrl?: string }
-): Promise<boolean> {
-  const { stageState, currency, email, fullName, proposalId } = input;
-  const data = {
-    leadName: fullName || "",
-    leadEmail: email as string,
-    portalUrl: portalUrl(),
-    password: opts.password,
-    recoveryUrl: opts.recoveryUrl,
-    fullySettled: stageState.fullySettled,
-    amountReceived: stageState.totalPaid,
-    balanceDue: Math.max(0, stageState.balanceDue),
-    currency,
-    payBalanceUrl: stageState.fullySettled
-      ? undefined
-      : paymentResolverUrl(proposalId),
-  };
-
-  try {
-    await resend.emails.send({
-      from: EMAIL_FROM,
-      to: email as string,
-      replyTo: EMAIL_REPLY_TO,
-      subject: buildPortalWelcomeSubject(data),
-      html: buildPortalWelcomeEmailHTML(data),
-    });
-    return true;
-  } catch (emailError) {
-    // The account exists and is linked; a failed email must not undo that or
-    // cause a retry to create a second account.
-    console.error("Error sending portal welcome email:", emailError);
-    return false;
-  }
-}
-
 export async function provisionClientPortalAccount(
   supabaseAdmin: SupabaseClient,
   input: ProvisionInput
@@ -160,7 +143,19 @@ export async function provisionClientPortalAccount(
     return { status: "skipped", reason: "upfront_not_covered" };
   }
   if (!leadId) return { status: "skipped", reason: "no_lead" };
-  if (!email) return { status: "skipped", reason: "no_email" };
+
+  // Deliberate configuration, not a problem — so no warning is raised. The
+  // client still receives the payment confirmation, just without credentials.
+  if (!(await portalEnabled(supabaseAdmin))) {
+    return { status: "skipped", reason: "portal_disabled" };
+  }
+  if (!email) {
+    return {
+      status: "skipped",
+      reason: "no_email",
+      warning: "No portal account was created: this lead has no email address.",
+    };
+  }
 
   // Idempotency: survives Stripe webhook retries, and a manual payment recorded
   // after a card payment on the same invoice.
@@ -218,10 +213,18 @@ export async function provisionClientPortalAccount(
 
     // Never quietly attach a client portal to a staff account.
     if (await hasPrivilegedRole(supabaseAdmin, existingId as string)) {
+      // Surfaced, not just logged: during testing staff use their own
+      // addresses as the lead email and then wonder why nothing happened.
       console.warn(
         `Refusing to link lead ${leadId} to privileged account ${existingId}`
       );
-      return { status: "skipped", reason: "privileged_account" };
+      return {
+        status: "skipped",
+        reason: "privileged_account",
+        warning:
+          `No portal account was created: ${email} is a staff account. ` +
+          `Use a client's own email address instead.`,
+      };
     }
 
     userId = existingId as string;
@@ -253,12 +256,9 @@ export async function provisionClientPortalAccount(
     console.error("Could not link portal account to lead:", linkError);
   }
 
-  const emailSent = await sendWelcome(
-    input,
-    linkedExisting ? { recoveryUrl } : { password }
-  );
-
+  // Credentials go back to the caller, which folds them into the single
+  // payment-received email rather than sending a second one.
   return linkedExisting
-    ? { status: "linked_existing", userId, emailSent }
-    : { status: "created", userId, emailSent };
+    ? { status: "linked_existing", userId, recoveryUrl }
+    : { status: "created", userId, password };
 }

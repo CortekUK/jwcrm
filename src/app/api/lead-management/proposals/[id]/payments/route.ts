@@ -80,6 +80,9 @@ export async function POST(
     // portal account once the drafting fee is covered.
     const result = await applyPaymentSideEffects(supabaseAdmin, proposalId, {
       trigger: "manual",
+      // Sent from the recorder's own Outlook when connected, matching how
+      // proposals and invoices already reach the client.
+      actorUserId: callerId,
     });
 
     if (!result.ok) {
@@ -108,6 +111,11 @@ export async function POST(
       // a provisioning failure is visible rather than silently logged.
       portal: provisioned.status,
       portalError: provisioned.status === "failed" ? provisioned.error : undefined,
+      // Did the client actually get told, and anything the team should see
+      // rather than have buried in a server log.
+      clientNotified: result.clientNotified,
+      clientNotifyError: result.clientNotifyError,
+      warnings: result.warnings,
     });
   } catch (error) {
     console.error("Error in record payment:", error);

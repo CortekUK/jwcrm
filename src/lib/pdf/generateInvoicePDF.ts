@@ -219,7 +219,6 @@ export function generateInvoicePDF(data: InvoiceData): string {
 
   // Itemised rows (one per line item), then a filler row
   const TOP_MARGIN = 14; // where the table resumes on a continuation page
-  const MIN_BODY_H = 55; // keeps the signed-off table proportions
   const MAX_ITEM_LINES = 6; // bounds one runaway description
   let rowY = tableY + thH;
   let bodyTop = rowY; // start of the item rows on the CURRENT page
@@ -257,19 +256,8 @@ export function generateInvoicePDF(data: InvoiceData): string {
     rowY += h;
   });
 
-  // Filler row: the old hardcoded Notarization Fee block was padding the table
-  // to its signed-off height. Notarization is now entered as a priced line
-  // item, so an empty row takes over the padding job.
-  const fillerH = Math.max(
-    0,
-    Math.min(MIN_BODY_H - (rowY - bodyTop), pageHeight - 90 - rowY)
-  );
-  if (fillerH > 0) {
-    box(colDescX, rowY, descW, fillerH);
-    box(colCostX, rowY, costW, fillerH);
-    box(colPriceX, rowY, priceW, fillerH);
-    rowY += fillerH;
-  }
+  // No filler row: the table ends with the last item. Padding it to a
+  // minimum height left a conspicuous empty box on a short invoice.
 
   // =========================================================================
   // BANK DETAILS + TOTALS

@@ -645,5 +645,7 @@
   "paymentRequestSent": "Payment request for {{amount}} sent to {{email}}",
   "failedToRequestPayment": "Failed to send payment request",
   "invoiceCreatedEmailFailed": "Invoice created, but the email could not be sent: {{error}}",
-  "invoiceSentFrom": "Invoice sent from {{sender}}"
+  "invoiceSentFrom": "Invoice sent from {{sender}}",
+  "clientNotified": "Client emailed: payment received, drafting starting",
+  "portalOpened": "Client portal account created"
 }
