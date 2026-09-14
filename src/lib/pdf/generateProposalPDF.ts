@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import { companyDetails } from "@/config/company";
-import { type InvoiceLineItem } from "./invoiceLineItems";
+import { lineItemCostLabel, type InvoiceLineItem } from "./invoiceLineItems";
 import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
 import { splitAroundFeeTable } from "@/lib/proposal-content";
 
@@ -394,7 +394,12 @@ export function generateProposalPDF(data: ProposalData): string {
 
     const tableX = margin;
     const tableW = pageWidth - 2 * margin;
-    const descColW = tableW * 0.7;
+    // DESCRIPTION | COST | AMOUNT — the COST column was missing here, so a
+    // proposal could not tell the client whether a price covered one will or
+    // two. The invoice has always had it; this brings the two into line.
+    const descColW = tableW * 0.58;
+    const costColW = tableW * 0.14;
+    const costColX = tableX + descColW;
     const rowH = 8;
 
     // Header row
@@ -407,6 +412,7 @@ export function generateProposalPDF(data: ProposalData): string {
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text("DESCRIPTION", tableX + 4, y + 5.5);
+    doc.text("COST", costColX + costColW / 2, y + 5.5, { align: "center" });
     doc.text("AMOUNT", tableX + tableW - 4, y + 5.5, { align: "right" });
     y += rowH;
 
@@ -443,6 +449,7 @@ export function generateProposalPDF(data: ProposalData): string {
       doc.setFontSize(9.5);
       doc.setFont("helvetica", "normal");
       doc.text(descLines, tableX + 4, y + 5.5);
+      doc.text(lineItemCostLabel(item), costColX + costColW / 2, y + 5.5, { align: "center" });
       doc.text(formatCurrency(item.amount), tableX + tableW - 4, y + 5.5, { align: "right" });
 
       if (stageTag) {

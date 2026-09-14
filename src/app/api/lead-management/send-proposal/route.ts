@@ -4,6 +4,7 @@ import { generateProposalPDF } from "@/lib/pdf/generateProposalPDF";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 import { companyDetails } from "@/config/company";
 import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
+import { lineItemCostLabel } from "@/lib/pdf/invoiceLineItems";
 import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
 import { getLeadEmailTemplates } from "@/lib/lead-management/settingsServer";
 import { resolveLeadTemplate, type RenderedLeadEmail } from "@/lib/lead-management/leadEmailTemplates";
@@ -210,6 +211,7 @@ export async function POST(request: NextRequest) {
                           };">${item.stage === "upfront" ? "Payable upfront" : "At court appointment stage"}</div>`
                         : ""
                     }</td>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #E6E6E4; text-align: center; color: #222222; font-size: 13px;">${lineItemCostLabel(item)}</td>
                     <td style="padding: 8px 12px; border-bottom: 1px solid #E6E6E4; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(item.amount)}</td>
                   </tr>`
       )
@@ -247,28 +249,34 @@ export async function POST(request: NextRequest) {
               </div>
               <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <h3 style="color: #0C5536; margin: 0 0 12px 0; font-size: 14px;">Estimated Charges</h3>
-                <table style="width: 100%; border-collapse: collapse;">
+                <!-- The items table and the totals table below are separate
+                     tables, so they only line up if both declare the same
+                     column widths. -->
+                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                  <colgroup><col style="width:58%"/><col style="width:14%"/><col style="width:28%"/></colgroup>
                   <thead>
                     <tr>
                       <th style="text-align: left; padding: 8px 12px; border-bottom: 2px solid #0C5536; font-size: 12px; color: #0C5536;">Description</th>
+                      <th style="text-align: center; padding: 8px 12px; border-bottom: 2px solid #0C5536; font-size: 12px; color: #0C5536;">Cost</th>
                       <th style="text-align: right; padding: 8px 12px; border-bottom: 2px solid #0C5536; font-size: 12px; color: #0C5536;">Amount</th>
                     </tr>
                   </thead>
                   <tbody>${itemRows}</tbody>
                 </table>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed;">
+                  <colgroup><col style="width:58%"/><col style="width:14%"/><col style="width:28%"/></colgroup>
                   <tr>
-                    <td style="padding: 4px 12px; color: #666666; font-size: 13px;">Sub-Total</td>
+                    <td colspan="2" style="padding: 4px 12px; color: #666666; font-size: 13px;">Sub-Total</td>
                     <td style="padding: 4px 12px; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(subtotalAmount)}</td>
                   </tr>
                   <tr>
                     <!-- vatLabel is already "5% VAT", or plain "VAT" when an
                          absolute override is in force — never re-derive it. -->
-                    <td style="padding: 4px 12px; color: #666666; font-size: 13px;">${vatLabel}</td>
+                    <td colspan="2" style="padding: 4px 12px; color: #666666; font-size: 13px;">${vatLabel}</td>
                     <td style="padding: 4px 12px; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(vatAmount)}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 12px; color: #0C5536; font-weight: bold; font-size: 15px; border-top: 1px solid #E6E6E4;">Total Estimated Amount</td>
+                    <td colspan="2" style="padding: 8px 12px; color: #0C5536; font-weight: bold; font-size: 15px; border-top: 1px solid #E6E6E4;">Total Estimated Amount</td>
                     <td style="padding: 8px 12px; text-align: right; color: #0C5536; font-weight: bold; font-size: 15px; border-top: 1px solid #E6E6E4;">${formattedAmount}</td>
                   </tr>
                 </table>

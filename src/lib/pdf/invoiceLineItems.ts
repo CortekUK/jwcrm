@@ -78,8 +78,12 @@ export function lineItemsSubtotal(items: InvoiceLineItem[]): number {
   return items.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
 }
 
-/** COST column text, matching the client's invoice ("X2", or "X" for one). */
+/**
+ * COST column text — always carries the number ("X1", "X2").
+ *
+ * A bare "X" for a single item left the client unable to tell one will from
+ * two, which is the whole point of the column.
+ */
 export function lineItemCostLabel(item: InvoiceLineItem): string {
-  const qty = normalizeQuantity(item.quantity);
-  return qty > 1 ? `X${qty}` : "X";
+  return `X${normalizeQuantity(item.quantity)}`;
 }
