@@ -224,6 +224,7 @@ export async function POST(request: NextRequest) {
       to: effectiveEmail,
       subject: `Your Invoice - ${proposal.invoice_number}`,
       refId: proposal.id,
+      log: { kind: "invoice", leadId, proposalId: proposal.id },
       attachments: [
         { content: invoicePDFBase64, filename: `Invoice-${proposal.invoice_number}.pdf` },
       ],
@@ -267,8 +268,15 @@ export async function POST(request: NextRequest) {
       console.error("Error logging activity:", activityError);
     }
 
+    // The invoice itself is created either way, but the caller must know
+    // whether the client actually received it — this used to report success
+    // unconditionally, which is how "the invoice email isn't going out" went
+    // unnoticed for days.
     return NextResponse.json({
       success: true,
+      emailSent: emailResult.ok,
+      emailError: emailResult.error ?? null,
+      sentAs: emailResult.sentAs ?? null,
       proposalId: proposal.id,
       invoiceNumber: proposal.invoice_number,
       paymentUrl: payUrl,

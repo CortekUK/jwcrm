@@ -329,6 +329,7 @@ export async function POST(request: NextRequest) {
       to: effectiveEmail,
       subject: proposalTemplate?.subject || `Your Proposal - ${proposal.invoice_number}`,
       refId: proposal.id,
+      log: { kind: "proposal", leadId, proposalId: proposal.id },
       attachments: [
         { content: proposalPDFBase64, filename: `Proposal-${proposal.invoice_number}.pdf` },
       ],

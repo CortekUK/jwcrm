@@ -109,6 +109,7 @@ export async function POST(
       subject: buildPaymentRequestSubject(emailData),
       html: buildPaymentRequestEmailHTML(emailData),
       refId: `payment-request-${proposalId}-${Date.now()}`,
+      log: { kind: "payment_request", leadId: lead.id, proposalId },
     });
 
     if (!result.ok) {

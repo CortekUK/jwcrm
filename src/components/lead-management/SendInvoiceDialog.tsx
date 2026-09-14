@@ -159,7 +159,26 @@ export function SendInvoiceDialog({
         throw new Error(error.error || "Failed to send invoice");
       }
 
-      toast.success(t("invoiceSentSuccess"));
+      // The invoice is created even when the email cannot be delivered, so say
+      // which of the two happened instead of reporting a flat success — a
+      // silent email failure is exactly how "the invoice never went out" hid.
+      const result = await response.json();
+      if (result.emailSent === false) {
+        toast.error(
+          t(
+            "invoiceCreatedEmailFailed",
+            "Invoice created, but the email could not be sent: {{error}}",
+            { error: result.emailError || "unknown error" }
+          ),
+          { duration: 10000 }
+        );
+      } else {
+        toast.success(
+          result.sentAs
+            ? t("invoiceSentFrom", "Invoice sent from {{sender}}", { sender: result.sentAs })
+            : t("invoiceSentSuccess")
+        );
+      }
       onOpenChange(false);
       onSuccess();
       resetForm();

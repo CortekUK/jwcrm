@@ -25,6 +25,24 @@ export type SendUserEmailInput = {
   attachments?: { filename: string; content: string /* base64 */ }[];
   /** When set, used as the message id header / Resend X-Entity-Ref-ID. */
   refId?: string;
+  /**
+   * Optional context recorded in email_send_log, so a later "it never arrived"
+   * can be answered from the lead's own history instead of a provider
+   * dashboard. Purely for the audit trail — it never affects delivery.
+   */
+  log?: {
+    kind?: string;
+    leadId?: string | null;
+    proposalId?: string | null;
+  };
+};
+
+export type SendAttempt = {
+  provider: "outlook" | "resend" | "none";
+  ok: boolean;
+  /** The mailbox the message went out as — the usual answer to "where did it go". */
+  sentAs?: string | null;
+  error?: string;
 };
 
 export type SendUserEmailResult = {
@@ -32,6 +50,10 @@ export type SendUserEmailResult = {
   provider: "outlook" | "resend" | "none";
   messageId?: string;
   error?: string;
+  /** Which mailbox actually sent it. */
+  sentAs?: string | null;
+  /** Every provider tried, in order, including the ones that failed. */
+  attempts?: SendAttempt[];
 };
 
 const supabaseAdmin = createClient(
@@ -42,6 +64,37 @@ const supabaseAdmin = createClient(
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const REFRESH_LEEWAY_MS = 60 * 1000; // refresh if expiring within a minute
+
+/**
+ * Record the outcome. Deliberately best-effort: a logging failure must never
+ * turn a delivered email into a failed request.
+ */
+async function recordSend(
+  actorUserId: string | null,
+  input: SendUserEmailInput,
+  result: SendUserEmailResult,
+  attempts: SendAttempt[]
+): Promise<void> {
+  try {
+    await supabaseAdmin.from("email_send_log").insert({
+      kind: input.log?.kind ?? null,
+      subject: input.subject,
+      recipient: input.to,
+      actor_user_id: actorUserId,
+      lead_id: input.log?.leadId ?? null,
+      proposal_id: input.log?.proposalId ?? null,
+      ok: result.ok,
+      provider: result.provider,
+      sent_as: result.sentAs ?? null,
+      message_id: result.messageId ?? null,
+      error: result.error ?? null,
+      has_attachments: (input.attachments?.length ?? 0) > 0,
+      attempts,
+    });
+  } catch (err) {
+    console.error("Could not write email_send_log:", err);
+  }
+}
 
 type OutlookRow = {
   user_id: string;
@@ -90,7 +143,8 @@ async function ensureFreshAccessToken(row: OutlookRow): Promise<string | null> {
 
 async function sendViaOutlook(
   accessToken: string,
-  input: SendUserEmailInput
+  input: SendUserEmailInput,
+  sentAs: string | null
 ): Promise<SendUserEmailResult> {
   const message = {
     message: {
@@ -115,9 +169,9 @@ async function sendViaOutlook(
   });
   if (!res.ok) {
     const body = await res.text();
-    return { ok: false, provider: "outlook", error: `Graph ${res.status}: ${body}` };
+    return { ok: false, provider: "outlook", error: `Graph ${res.status}: ${body}`, sentAs };
   }
-  return { ok: true, provider: "outlook" };
+  return { ok: true, provider: "outlook", sentAs };
 }
 
 async function sendViaResend(input: SendUserEmailInput): Promise<SendUserEmailResult> {
@@ -158,17 +212,51 @@ export async function sendUserEmail(
   actorUserId: string | null,
   input: SendUserEmailInput
 ): Promise<SendUserEmailResult> {
+  const attempts: SendAttempt[] = [];
+
   const env = getOutlookEnv();
   if (env.configured && actorUserId) {
     const row = await loadOutlookRow(actorUserId, supabaseAdmin);
     if (row) {
       const token = await ensureFreshAccessToken(row);
       if (token) {
-        const outlookResult = await sendViaOutlook(token, input);
-        if (outlookResult.ok) return outlookResult;
+        const outlookResult = await sendViaOutlook(token, input, row.outlook_email);
+        attempts.push({
+          provider: "outlook",
+          ok: outlookResult.ok,
+          sentAs: row.outlook_email,
+          error: outlookResult.error,
+        });
+        if (outlookResult.ok) {
+          const result = { ...outlookResult, attempts };
+          await recordSend(actorUserId, input, result, attempts);
+          return result;
+        }
         console.error("Outlook send failed, falling back to Resend:", outlookResult.error);
+      } else {
+        attempts.push({
+          provider: "outlook",
+          ok: false,
+          sentAs: row.outlook_email,
+          error: "Could not refresh the Outlook access token",
+        });
       }
     }
   }
-  return sendViaResend(input);
+
+  const resendResult = await sendViaResend(input);
+  attempts.push({
+    provider: resendResult.provider,
+    ok: resendResult.ok,
+    sentAs: resendResult.ok ? EMAIL_FROM : null,
+    error: resendResult.error,
+  });
+
+  const result: SendUserEmailResult = {
+    ...resendResult,
+    sentAs: resendResult.ok ? EMAIL_FROM : null,
+    attempts,
+  };
+  await recordSend(actorUserId, input, result, attempts);
+  return result;
 }

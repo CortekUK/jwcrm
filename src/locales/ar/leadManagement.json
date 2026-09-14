@@ -643,5 +643,7 @@
   "stagedSplitSummary": "مستحق الآن {{now}} · في مرحلة المحكمة {{later}}",
   "requestPayment": "طلب {{amount}}",
   "paymentRequestSent": "تم إرسال طلب دفع بقيمة {{amount}} إلى {{email}}",
-  "failedToRequestPayment": "تعذر إرسال طلب الدفع"
+  "failedToRequestPayment": "تعذر إرسال طلب الدفع",
+  "invoiceCreatedEmailFailed": "تم إنشاء الفاتورة، لكن تعذر إرسال البريد الإلكتروني: {{error}}",
+  "invoiceSentFrom": "تم إرسال الفاتورة من {{sender}}"
 }
