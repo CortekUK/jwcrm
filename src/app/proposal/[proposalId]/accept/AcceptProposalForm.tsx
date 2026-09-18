@@ -1,8 +1,11 @@
 "use client";
 
-// The confirm step. Everything the client is agreeing to is already rendered
-// by the server component above this; all this owns is the button, the POST,
-// and what the client sees afterwards.
+// The confirm step.
+//
+// This owns the whole pre-acceptance block — heading, summary and button — not
+// just the button. When it only owned the button, confirming left "Hi X, please
+// confirm below and we will send your invoice" sitting above the thank-you,
+// telling a client who had just accepted to accept.
 
 import { useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
@@ -13,9 +16,14 @@ type Props = {
   proposalId: string;
   /** Rendered in the confirmation so the client sees what they just accepted. */
   invoiceNumber: string;
+  /**
+   * Everything shown before accepting. Passed in rather than rendered by the
+   * parent so this component can replace it wholesale on success.
+   */
+  children: React.ReactNode;
 };
 
-export function AcceptProposalForm({ proposalId, invoiceNumber }: Props) {
+export function AcceptProposalForm({ proposalId, invoiceNumber, children }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,10 +51,10 @@ export function AcceptProposalForm({ proposalId, invoiceNumber }: Props) {
     return (
       <div className="text-center">
         <CheckCircle2 className="h-14 w-14 mx-auto text-green-600 mb-4" />
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Thank you — that&apos;s confirmed</h2>
-        <p className="text-gray-600">
+        <h2 className="text-xl font-semibold text-foreground mb-2">Thank you — that&apos;s confirmed</h2>
+        <p className="text-muted-foreground">
           We have recorded your acceptance of proposal{" "}
-          <span className="font-medium text-gray-900">{invoiceNumber}</span>. Your account manager
+          <span className="font-medium text-foreground">{invoiceNumber}</span>. Your account manager
           has been notified and will send your invoice shortly.
         </p>
       </div>
@@ -55,6 +63,7 @@ export function AcceptProposalForm({ proposalId, invoiceNumber }: Props) {
 
   return (
     <div>
+      {children}
       <Button
         onClick={handleAccept}
         disabled={isSubmitting}
@@ -69,7 +78,7 @@ export function AcceptProposalForm({ proposalId, invoiceNumber }: Props) {
           "Accept this proposal"
         )}
       </Button>
-      <p className="text-xs text-gray-500 text-center mt-3">
+      <p className="text-xs text-muted-foreground text-center mt-3">
         Accepting confirms you are happy to proceed. We will then send your invoice — no payment is
         taken on this page.
       </p>

@@ -1028,7 +1028,13 @@ export function LeadTable({
                               <ChevronDown className="h-4 w-4 text-[#999999]" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="min-w-[180px]">
+                          {/* 13 statuses plus the communication methods and the meeting-invite
+                              action overflow most screens, so the menu scrolls rather than
+                              running off the bottom with items unreachable. */}
+                          <DropdownMenuContent
+                            align="start"
+                            className="min-w-[180px] max-h-[min(70vh,26rem)] overflow-y-auto"
+                          >
                             {/* Status Options */}
                             <div className="px-2 py-1.5 text-xs font-semibold text-[#999999]">{t("status")}</div>
                             {statusOptions.map((option) => (

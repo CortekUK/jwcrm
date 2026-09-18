@@ -41,13 +41,13 @@ function formatDate(iso: string): string {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-gray-50 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-background py-12">
       <div className="max-w-lg w-full mx-auto px-6">
         <div className="text-center mb-8">
           <span className="text-sm font-medium tracking-widest text-[#0C5536]/60">JUST WILLS</span>
         </div>
-        <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-8 sm:p-10">{children}</div>
-        <p className="text-center text-sm text-gray-400 mt-8">
+        <div className="bg-card rounded-2xl shadow-xl shadow-black/5 p-8 sm:p-10">{children}</div>
+        <p className="text-center text-sm text-muted-foreground mt-8">
           Questions?{" "}
           <a href={`mailto:${companyDetails.email}`} className="text-[#0C5536] hover:underline">
             {companyDetails.email}
@@ -76,8 +76,8 @@ function Notice({
         ) : (
           <AlertCircle className="h-14 w-14 mx-auto text-amber-500 mb-4" />
         )}
-        <h1 className="text-2xl font-bold text-gray-900 mb-3">{title}</h1>
-        <p className="text-gray-600">{body}</p>
+        <h1 className="text-2xl font-bold text-foreground mb-3">{title}</h1>
+        <p className="text-muted-foreground">{body}</p>
       </div>
     </Shell>
   );
@@ -145,12 +145,19 @@ export default async function AcceptProposalPage({
 
   return (
     <Shell>
+      {/* The heading and summary are passed INTO the form so that confirming
+          replaces them — otherwise the client is still told to "confirm below"
+          after they already have. */}
+      <AcceptProposalForm
+        proposalId={summary.proposalId}
+        invoiceNumber={summary.invoiceNumber}
+      >
       <div className="text-center mb-8">
         <div className="w-14 h-14 mx-auto rounded-full bg-[#0C5536]/10 flex items-center justify-center mb-4">
           <FileText className="h-7 w-7 text-[#0C5536]" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Accept your proposal</h1>
-        <p className="text-gray-600">
+        <h1 className="text-2xl font-bold text-foreground mb-2">Accept your proposal</h1>
+        <p className="text-muted-foreground">
           Hi {summary.clientName}, please confirm below and we will send your invoice so drafting can
           begin.
         </p>
@@ -158,18 +165,18 @@ export default async function AcceptProposalPage({
 
       {/* Exactly the figures from the proposal they were emailed — resolved
           through the shared amounts helper, never recomputed here. */}
-      <div className="rounded-xl border border-gray-200 bg-gray-50/70 divide-y divide-gray-200 mb-8">
+      <div className="rounded-xl border border-border bg-muted/40 divide-y divide-border mb-8">
         <div className="flex items-center justify-between px-5 py-3.5">
-          <span className="text-sm text-gray-500">Reference</span>
-          <span className="text-sm font-medium text-gray-900">{summary.invoiceNumber}</span>
+          <span className="text-sm text-muted-foreground">Reference</span>
+          <span className="text-sm font-medium text-foreground">{summary.invoiceNumber}</span>
         </div>
         <div className="flex items-center justify-between px-5 py-3.5">
-          <span className="text-sm text-gray-500">Prepared for</span>
-          <span className="text-sm font-medium text-gray-900">{summary.clientName}</span>
+          <span className="text-sm text-muted-foreground">Prepared for</span>
+          <span className="text-sm font-medium text-foreground">{summary.clientName}</span>
         </div>
         <div className="flex items-center justify-between px-5 py-3.5">
-          <span className="text-sm text-gray-500">Total (incl. VAT)</span>
-          <span className="text-sm font-semibold text-gray-900">
+          <span className="text-sm text-muted-foreground">Total (incl. VAT)</span>
+          <span className="text-sm font-semibold text-foreground">
             {formatCurrency(summary.invoiceTotal, summary.currency)}
           </span>
         </div>
@@ -178,12 +185,12 @@ export default async function AcceptProposalPage({
         {summary.staged && summary.laterTotal > 0 && (
           <div className="px-5 py-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Payable now to begin drafting</span>
+              <span className="text-sm text-muted-foreground">Payable now to begin drafting</span>
               <span className="text-sm font-semibold text-[#0C5536]">
                 {formatCurrency(summary.upfrontTotal, summary.currency)}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-1.5">
+            <p className="text-xs text-muted-foreground mt-1.5">
               The remaining {formatCurrency(summary.laterTotal, summary.currency)} is payable at the
               court appointment stage.
             </p>
@@ -191,7 +198,7 @@ export default async function AcceptProposalPage({
         )}
       </div>
 
-      <AcceptProposalForm proposalId={summary.proposalId} invoiceNumber={summary.invoiceNumber} />
+      </AcceptProposalForm>
     </Shell>
   );
 }
