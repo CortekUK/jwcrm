@@ -15,6 +15,7 @@ import {
   Target,
   UserCog,
   Receipt,
+  QrCode,
 } from "lucide-react";
 
 export type DashboardType = "admin" | "hr" | "finance" | "lead-management" | "client" | "salesperson";
@@ -226,6 +227,7 @@ const financeNavItems: NavItem[] = [
 const leadManagementNavItems: NavItem[] = [
   { path: "/admin/lead-management/leads", labelKey: "leadManagement:leads", icon: Users },
   { path: "/admin/lead-management/sources", labelKey: "leadManagement:sources", icon: FolderOpen },
+  { path: "/admin/lead-management/intake-qr", labelKey: "leadManagement:intakeQr", icon: QrCode },
   { path: "/admin/my-leave", labelKey: "common:myLeave", icon: CalendarDays },
   { path: "/admin/lead-management/settings", labelKey: "common:settings", icon: Settings },
 ];
@@ -235,6 +237,9 @@ const leadManagementNavItems: NavItem[] = [
 const salespersonNavItems: NavItem[] = [
   { path: "/admin/lead-management/leads", labelKey: "salesperson:myLeads", icon: Users },
   { path: "/admin/salesperson/calendar", labelKey: "salesperson:calendar", icon: Calendar },
+  // Their own event QR code. Lives in the lead-management tree because the page
+  // is the same for both roles — it just shows a salesperson only their code.
+  { path: "/admin/lead-management/intake-qr", labelKey: "leadManagement:intakeQr", icon: QrCode },
   { path: "/admin/my-leave", labelKey: "common:myLeave", icon: CalendarDays },
   { path: "/admin/salesperson/settings", labelKey: "common:settings", icon: Settings },
 ];

@@ -13,6 +13,7 @@ import { ViewProposalDialog } from "@/components/lead-management/ViewProposalDia
 import { AddCommunicationDialog } from "@/components/lead-management/AddCommunicationDialog";
 import { AddReminderDialog } from "@/components/lead-management/reminders/AddReminderDialog";
 import { QuickActionsButton } from "@/components/lead-management/QuickActionsButton";
+import { SendMeetingInviteDialog } from "@/components/salesperson/SendMeetingInviteDialog";
 import { LeadStatus } from "@/components/lead-management/LeadStatusBadge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,6 +66,7 @@ function LeadsPageContent() {
   const [viewProposalsDialogOpen, setViewProposalsDialogOpen] = useState(false);
   const [communicationDialogOpen, setCommunicationDialogOpen] = useState(false);
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
+  const [meetingInviteDialogOpen, setMeetingInviteDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedMethodId, setSelectedMethodId] = useState<string>("");
   const [communicationMethods, setCommunicationMethods] = useState<CommunicationMethod[]>([]);
@@ -402,6 +404,14 @@ function LeadsPageContent() {
     setCommunicationDialogOpen(true);
   };
 
+  // Send a calendar invite to the lead. Unlike "Add Communication" above this
+  // actually emails the client an .ics invite, so it is offered from the same
+  // row menu rather than only from the salesperson calendar screen.
+  const handleSendMeetingInvite = (lead: Lead) => {
+    setSelectedLead(lead);
+    setMeetingInviteDialogOpen(true);
+  };
+
   // Set reminder
   const handleSetReminder = (lead: Lead) => {
     setSelectedLead(lead);
@@ -526,6 +536,7 @@ function LeadsPageContent() {
           onViewHistory={(lead) => router.push(`/admin/lead-management/leads/${lead.id}`)}
           onViewSalesperson={(salespersonId) => router.push(`/admin/lead-management/salesperson/${salespersonId}`)}
           onAddCommunication={handleAddCommunication}
+          onSendMeetingInvite={handleSendMeetingInvite}
           onSetReminder={handleSetReminder}
           onAddNew={() => setCreateDialogOpen(true)}
           communicationMethods={communicationMethods}
@@ -606,6 +617,18 @@ function LeadsPageContent() {
           open={communicationDialogOpen}
           onOpenChange={setCommunicationDialogOpen}
           preSelectedMethodId={selectedMethodId}
+          onSuccess={fetchLeads}
+        />
+      )}
+
+      {/* Send Meeting Invite Dialog */}
+      {selectedLead && (
+        <SendMeetingInviteDialog
+          open={meetingInviteDialogOpen}
+          onOpenChange={setMeetingInviteDialogOpen}
+          leadId={selectedLead.id}
+          leadName={selectedLead.full_name}
+          leadEmail={selectedLead.email}
           onSuccess={fetchLeads}
         />
       )}

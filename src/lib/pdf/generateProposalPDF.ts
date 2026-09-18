@@ -18,6 +18,13 @@ export type ProposalData = {
   lineItems?: InvoiceLineItem[]; // itemised charges (drafting, court fee, MOJ stamps, etc.)
   vatRate?: number | null; // per-proposal VAT override (percent); null/undefined = company default
   vatAmount?: number | null; // absolute VAT override; wins over vatRate
+  /**
+   * Public "accept this proposal" page for this proposal. Rendered as a real
+   * PDF link annotation, so the client can agree straight from the attachment
+   * instead of composing a reply. Omitted on drafts and previews, where the
+   * proposal has no id to accept yet.
+   */
+  acceptUrl?: string;
 };
 
 // Colors
@@ -520,6 +527,48 @@ export function generateProposalPDF(data: ProposalData): string {
     }
   };
 
+  // ========== ACCEPT CALL TO ACTION ==========
+  // Drawn immediately after the fee table: the client has just read what it
+  // costs, which is the moment they decide. The URL is the public accept PAGE,
+  // never the API route — mail and PDF scanners follow links automatically, and
+  // an accept-on-fetch would agree on the client's behalf.
+  const drawAcceptCta = () => {
+    if (!data.acceptUrl) return;
+
+    const boxH = 24;
+    if (y + boxH > pageHeight - FOOTER_RESERVE) {
+      doc.addPage();
+      y = margin;
+    }
+
+    const boxX = margin;
+    const boxW = pageWidth - 2 * margin;
+    doc.setFillColor(...PRIMARY_COLOR);
+    doc.roundedRect(boxX, y, boxW, boxH, 2, 2, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Happy to go ahead?", boxX + 6, y + 9);
+
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "normal");
+    doc.text("Accept this proposal online and we will send your invoice:", boxX + 6, y + 15);
+
+    // textWithLink both draws the text and registers the clickable annotation,
+    // so the two can never point at different places. Gold, because an
+    // underline is not available and the link has to look like one.
+    doc.setTextColor(...GOLD_COLOR);
+    doc.setFont("helvetica", "bold");
+    doc.textWithLink("Click here to accept this proposal", boxX + 6, y + 20.5, {
+      url: data.acceptUrl,
+    });
+
+    doc.setTextColor(...TEXT_COLOR);
+    doc.setFont("helvetica", "normal");
+    y += boxH + 6;
+  };
+
   // The body cannot contain a real table (the editor has no table extension and
   // htmlToPlainText would flatten one), so it carries a placeholder token and
   // the table is drawn here, exactly where the token sits. Proposals saved
@@ -530,6 +579,7 @@ export function generateProposalPDF(data: ProposalData): string {
   renderBodyText(before);
   y += 10;
   drawFeeTable();
+  drawAcceptCta();
   y += 10;
   renderBodyText(after);
 

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { resolveLeadAssignment } from "@/lib/lead-management/leadAssignment";
+import {
+  resolveLeadAssignment,
+  resolveReferralAssignment,
+} from "@/lib/lead-management/leadAssignment";
 
 // Public (unauthenticated) lead intake endpoint. Backs the QR-code intake form
 // so prospects can submit their details straight into the CRM. Uses the service
@@ -25,6 +28,9 @@ export async function POST(request: NextRequest) {
     const company_name = (body.company_name || "").toString().trim();
     const notes = (body.notes || "").toString().trim();
     const lead_type = body.lead_type === "corporate" ? "corporate" : "individual";
+    // Carried through from `/intake?ref=<userId>` — the id baked into one
+    // salesperson's QR code. Untrusted: validated in resolveReferralAssignment.
+    const ref = body.ref;
 
     // Validation
     if (full_name.length < 2) {
@@ -42,15 +48,20 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     const sourceId = source?.id ?? null;
 
-    // Assignment goes through the SAME resolver as the dashboard route, so the
-    // Team tab's assignment method, the auto-assign switch and the
-    // `auto_assign_source` rule govern QR-form leads too. This used to be a
+    // A per-person QR code wins outright: whoever's code was scanned at the
+    // event gets the lead, which is exactly what the Team tab rules cannot
+    // express. Anything else (no ref, a bogus uuid, someone who does not hold a
+    // lead-working role) falls through to the shared resolver below.
+    const referral = await resolveReferralAssignment(supabaseAdmin, ref);
+
+    // Assignment otherwise goes through the SAME resolver as the dashboard
+    // route, so the Team tab's assignment method, the auto-assign switch and
+    // the `auto_assign_source` rule govern QR-form leads too. This used to be a
     // private copy of the round-robin here, which meant public leads silently
     // ignored every one of those settings.
-    const { assignedTo, assignedAt } = await resolveLeadAssignment(
-      supabaseAdmin,
-      sourceId
-    );
+    const { assignedTo, assignedAt } = referral
+      ? referral
+      : await resolveLeadAssignment(supabaseAdmin, sourceId);
 
     const { data: lead, error } = await supabaseAdmin
       .from("leads")

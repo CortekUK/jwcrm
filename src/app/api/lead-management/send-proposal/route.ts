@@ -4,6 +4,7 @@ import { generateProposalPDF } from "@/lib/pdf/generateProposalPDF";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 import { companyDetails } from "@/config/company";
 import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
+import { proposalAcceptUrl } from "@/lib/finance/acceptLink";
 import { lineItemCostLabel } from "@/lib/pdf/invoiceLineItems";
 import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
 import { getLeadEmailTemplates } from "@/lib/lead-management/settingsServer";
@@ -135,6 +136,11 @@ export async function POST(request: NextRequest) {
       .eq("id", leadId);
 
     // 4. Generate the Proposal PDF (itemised)
+    //
+    // The accept link is minted from the proposal id, which only exists after
+    // step 2 — that ordering is why it is resolved here and not at the top.
+    const acceptUrl = proposalAcceptUrl(proposal.id);
+
     const now = new Date();
     const validUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
 
@@ -151,6 +157,7 @@ export async function POST(request: NextRequest) {
       proposalContent: proposalContent,
       lineItems: items,
       vatRate: vatRateOverride ?? null,
+      acceptUrl,
     });
 
     // Persist the PDF so the existing View/Download PDF menu in the admin UI
@@ -291,9 +298,22 @@ export async function POST(request: NextRequest) {
                     : ""
                 }
               </div>
+              <!-- The accept button. It links to a PAGE, not to the accept
+                   API: Outlook ATP and other mail scanners fetch every link in
+                   a delivered message, so a link that accepted on GET would
+                   mark proposals accepted before the client opened the email.
+                   The page shows the figures again and only its button posts. -->
+              <div style="text-align: center; margin: 24px 0 8px 0;">
+                <a href="${acceptUrl}" style="display: inline-block; background-color: #0C5536; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 15px; padding: 14px 32px; border-radius: 6px;">
+                  Accept this proposal
+                </a>
+                <div style="color: #6B6B6B; font-size: 12px; margin-top: 10px;">
+                  No payment is taken on that page — accepting simply tells us you are happy to proceed,<br/>
+                  and we will then send your invoice with a secure payment link.
+                </div>
+              </div>
               <p style="color: #6B6B6B; font-size: 13px; text-align: center;">
-                This is a proposal only — no payment is required at this stage.<br/>
-                Once you're ready to proceed, we'll send you a formal invoice with a secure payment link.
+                Prefer to reply by email? That works too — just let your account manager know.
               </p>
               <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 25px 0 10px 0;">
                 <h3 style="color: #0C5536; margin: 0 0 12px 0; font-size: 16px;">What to Expect — Process Timeline</h3>

@@ -34,6 +34,7 @@ import { companyDetails } from "@/config/company";
 import { type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 import { computeInvoiceAmounts, resolvePaymentStage } from "@/lib/finance/invoiceAmounts";
 import { paymentResolverPath, paymentResolverUrl } from "@/lib/finance/paymentLink";
+import { proposalAcceptUrl } from "@/lib/finance/acceptLink";
 import { format } from "date-fns";
 import { Download, FileText, Receipt, Loader2, ExternalLink, Eye, ChevronDown, CircleDollarSign, Plus, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -51,6 +52,10 @@ interface Proposal {
   paid_at: string | null;
   created_at: string;
   invoiced_at: string | null;
+  // Set when the client accepted the proposal through the public accept link.
+  // A derived display state only — proposal_status has no "accepted" value and
+  // deliberately never will (see the 20260918 migration).
+  accepted_at?: string | null;
   // Arrives as Json from the generated row type; cast where it is read.
   line_items: unknown;
   vat_rate?: number | null;
@@ -360,6 +365,9 @@ export function ViewProposalDialog({
       vatAmount: proposal.vat_amount,
       proposalContent: proposal.proposal_content,
       createdAt: proposal.created_at,
+      // Absolute, because this copy is downloaded and emailed by hand — it has
+      // to work from the client's inbox, not just from inside the app.
+      acceptUrl: proposalAcceptUrl(proposal.id),
     });
 
     // Wait for next render to have the ref populated
@@ -518,6 +526,14 @@ export function ViewProposalDialog({
                               </Badge>
                             );
                           })()}
+                          {/* Shown alongside, not instead of, the status: the
+                              proposal is still "sent" until it is invoiced —
+                              what changed is that the client said yes. */}
+                          {proposal.accepted_at && (
+                            <Badge variant="status" className="bg-emerald-100 text-emerald-800">
+                              {t("accepted", "Accepted")}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-2xl font-bold text-primary mt-1">
                           {formatCurrency(proposal.amount, proposal.currency)}
@@ -527,6 +543,12 @@ export function ViewProposalDialog({
                         <p>{t("created")}: {format(new Date(proposal.created_at), "MMM d, yyyy")}</p>
                         {proposal.sent_at && (
                           <p>{t("sentDate")}: {format(new Date(proposal.sent_at), "MMM d, yyyy")}</p>
+                        )}
+                        {proposal.accepted_at && (
+                          <p className="text-emerald-700 font-medium">
+                            {t("acceptedDate", "Accepted")}:{" "}
+                            {format(new Date(proposal.accepted_at), "MMM d, yyyy")}
+                          </p>
                         )}
                         {proposal.paid_at && (
                           <p className="text-green-600 font-medium">
@@ -820,6 +842,7 @@ export function ViewProposalDialog({
                                 vatAmount: proposal.vat_amount,
                                 proposalContent: proposal.proposal_content,
                                 createdAt: proposal.created_at,
+                                acceptUrl: proposalAcceptUrl(proposal.id),
                               }}
                             />
                           ) : (

@@ -25,6 +25,14 @@ export type ProposalPDFData = {
   lineItems?: InvoiceLineItem[]; // itemised charges (drafting, court fee, MOJ stamps, etc.)
   vatRate?: number | null; // per-proposal VAT override (percent); null/undefined = company default
   vatAmount?: number | null; // absolute VAT override; wins over vatRate
+  /**
+   * Public "accept this proposal" page for this proposal. The emailed PDF
+   * carries this button, so the copy staff download and send by hand has to
+   * carry it too — otherwise two clients receive visibly different versions of
+   * the same document. Omitted where there is no saved proposal to accept yet
+   * (the SendProposalDialog preview), and the CTA then simply does not render.
+   */
+  acceptUrl?: string | null;
 };
 
 type ProposalPDFTemplateProps = {
@@ -64,6 +72,7 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
       lineItems,
       vatRate,
       vatAmount,
+      acceptUrl,
     } = data;
 
     // One source of truth for the money — the same helper the emailed PDF and
@@ -204,6 +213,36 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
         )}
       </div>
     );
+
+    // The accept call to action, drawn straight after the fee table exactly as
+    // the emailed jsPDF copy draws it. A plain anchor: html2pdf keeps anchors
+    // clickable, so this needs no link-annotation handling of its own.
+    const acceptCta = acceptUrl ? (
+      <div
+        style={{
+          margin: "20px 0",
+          backgroundColor: "#0C5536",
+          borderRadius: "6px",
+          padding: "16px 20px",
+          textAlign: startAlign,
+        }}
+      >
+        <div style={{ color: "#ffffff", fontWeight: "bold", fontSize: "15px" }}>
+          {t("pdf:proposal.acceptHeading", { defaultValue: "Happy to go ahead?" })}
+        </div>
+        <div style={{ color: "#E6E6E4", fontSize: "12px", margin: "6px 0 10px 0" }}>
+          {t("pdf:proposal.acceptSubtitle", {
+            defaultValue: "Accept this proposal online and we will send your invoice:",
+          })}
+        </div>
+        <a
+          href={acceptUrl}
+          style={{ color: "#C6A03B", fontSize: "13px", fontWeight: "bold", textDecoration: "underline" }}
+        >
+          {t("pdf:proposal.acceptLink", { defaultValue: "Click here to accept this proposal" })}
+        </a>
+      </div>
+    ) : null;
 
     // The body cannot hold a real table (the TipTap editor has no table
     // extension), so it carries a placeholder token instead and each renderer
@@ -388,6 +427,7 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
               dangerouslySetInnerHTML={{ __html: bodyBefore }}
             />
             {feeTable}
+            {acceptCta}
             {bodyAfter && (
               <div
                 style={{

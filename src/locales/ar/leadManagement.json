@@ -647,5 +647,7 @@
   "invoiceCreatedEmailFailed": "تم إنشاء الفاتورة، لكن تعذر إرسال البريد الإلكتروني: {{error}}",
   "invoiceSentFrom": "تم إرسال الفاتورة من {{sender}}",
   "clientNotified": "تم إشعار العميل: تم استلام الدفعة وبدء الصياغة",
-  "portalOpened": "تم إنشاء حساب بوابة العميل"
+  "portalOpened": "تم إنشاء حساب بوابة العميل",
+  "intakeQr": "رمز الاستجابة السريعة",
+  "meetingInviteNeedsEmail": "أضف عنوان بريد إلكتروني لهذا العميل أولاً"
 }

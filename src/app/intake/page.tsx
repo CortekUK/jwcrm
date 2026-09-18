@@ -26,6 +26,11 @@ export default function IntakePage() {
     lead_type: "individual",
     notes: "",
   });
+  // The salesperson whose QR code was scanned, from `/intake?ref=<userId>`.
+  // Read off window rather than useSearchParams so this page keeps prerendering
+  // without a Suspense boundary; it is opaque to the form and only ever handed
+  // back to the API, which is where it gets validated.
+  const [ref, setRef] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +57,10 @@ export default function IntakePage() {
     };
   }, []);
 
+  useEffect(() => {
+    setRef(new URLSearchParams(window.location.search).get("ref"));
+  }, []);
+
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async (e: React.FormEvent) => {
@@ -62,7 +71,7 @@ export default function IntakePage() {
       const res = await fetch("/api/public/intake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, ref }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));

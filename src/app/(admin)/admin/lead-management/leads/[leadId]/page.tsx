@@ -26,6 +26,7 @@ import {
   Bell,
 } from "lucide-react";
 import { AddCommunicationDialog } from "@/components/lead-management/AddCommunicationDialog";
+import { SendMeetingInviteDialog } from "@/components/salesperson/SendMeetingInviteDialog";
 import { AddReminderDialog } from "@/components/lead-management/reminders/AddReminderDialog";
 import { LeadNotesSection } from "@/components/lead-management/LeadNotesSection";
 import { GenerateInvoiceDialog } from "@/components/lead-management/GenerateInvoiceDialog";
@@ -119,6 +120,7 @@ export default function LeadHistoryPage({
   const [showCommunicationDialog, setShowCommunicationDialog] = useState(false);
   const [showReminderDialog, setShowReminderDialog] = useState(false);
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
+  const [showMeetingInviteDialog, setShowMeetingInviteDialog] = useState(false);
 
   useEffect(() => {
     const fetchLeadHistory = async () => {
@@ -314,6 +316,17 @@ export default function LeadHistoryPage({
             <MessageCircle className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
             {t("addCommunication")}
           </Button>
+          {/* Sits beside "Add Communication" because that button only writes an
+              internal note — this is the one that emails the client an invite. */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMeetingInviteDialog(true)}
+            disabled={!lead.email}
+          >
+            <Calendar className="h-4 w-4 ltr:mr-2 rtl:ml-2" />
+            {t("sendMeetingInvite", "Send Meeting Invite")}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -472,6 +485,17 @@ export default function LeadHistoryPage({
         leadId={lead.id}
         leadName={lead.full_name}
         onSuccess={handleReminderAdded}
+      />
+
+      {/* The invite is logged as a communication, so the timeline is refetched
+          the same way adding one by hand does. */}
+      <SendMeetingInviteDialog
+        open={showMeetingInviteDialog}
+        onOpenChange={setShowMeetingInviteDialog}
+        leadId={lead.id}
+        leadName={lead.full_name}
+        leadEmail={lead.email}
+        onSuccess={handleCommunicationAdded}
       />
 
       <GenerateInvoiceDialog

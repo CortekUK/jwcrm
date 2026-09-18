@@ -119,3 +119,57 @@ export async function resolveLeadAssignment(
     teamSettings,
   };
 }
+
+/**
+ * Roles a `?ref=` on the public intake form is allowed to name.
+ *
+ * Per-person event QR codes hand an arbitrary visitor a URL containing a user
+ * id, so the id is untrusted input: without this check a stranger could point
+ * `?ref=` at any uuid in the system — a client, a deactivated account, the
+ * finance lead — and park leads on them. Only people who actually work leads
+ * can be a referral target.
+ */
+export const REFERRAL_ASSIGNABLE_ROLES = [
+  "salesperson",
+  "lead_management",
+  "account_manager",
+] as const;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Direct assignment from a per-salesperson intake QR code.
+ *
+ * A lead scanned at an event belongs to whoever was holding the code — that is
+ * the whole point of the per-person codes — so a valid `ref` deliberately
+ * BYPASSES the Team tab's assignment method and the auto-assign switch. An
+ * invalid, unknown or missing ref returns null so the caller falls straight
+ * back to `resolveLeadAssignment`; this must never throw and must never guess,
+ * because it runs on a public unauthenticated endpoint.
+ */
+export async function resolveReferralAssignment(
+  supabaseAdmin: SupabaseClient,
+  ref: unknown
+): Promise<{ assignedTo: string; assignedAt: string } | null> {
+  if (typeof ref !== "string") return null;
+  const candidate = ref.trim();
+  // Shape-check before it reaches Postgres: a non-uuid in a uuid comparison is
+  // an error from PostgREST, not an empty result.
+  if (!UUID_RE.test(candidate)) return null;
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("user_id", candidate)
+      .in("role", REFERRAL_ASSIGNABLE_ROLES as unknown as string[])
+      .limit(1);
+
+    if (error || !data || data.length === 0) return null;
+
+    return { assignedTo: candidate, assignedAt: new Date().toISOString() };
+  } catch {
+    // Never let a bad ref cost the firm a lead — the caller falls back.
+    return null;
+  }
+}

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProposalEditor } from "./ProposalEditor";
 import { ProposalPDFTemplate, ProposalPDFData } from "./ProposalPDFTemplate";
+import { proposalAcceptUrl } from "@/lib/finance/acceptLink";
 import {
   LineItemsEditor,
   DEFAULT_LINE_ITEM_ROWS,
@@ -327,6 +328,10 @@ export function SendProposalDialog({
         vatRate: vatRate === "" ? null : Number(vatRate),
         proposalContent: proposalContent,
         createdAt: new Date(),
+        // A proposal that has not been saved yet has nothing to accept, so the
+        // preview of a brand-new one simply shows no button — the same document
+        // the client receives once it is sent does.
+        acceptUrl: existingProposal?.id ? proposalAcceptUrl(existingProposal.id) : undefined,
       }
     : null;
 

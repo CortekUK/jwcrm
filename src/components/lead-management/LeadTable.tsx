@@ -55,6 +55,7 @@ import {
   ArrowUp,
   ArrowDown,
   CalendarIcon,
+  CalendarPlus,
   X,
   Filter,
   FileDown,
@@ -151,6 +152,9 @@ interface LeadTableProps {
   onViewHistory?: (lead: Lead) => void;
   onViewSalesperson?: (salespersonId: string) => void;
   onAddCommunication?: (lead: Lead, methodId: string) => void;
+  // Emails the lead a real calendar invite. Distinct from onAddCommunication,
+  // which only logs an internal note and sends the client nothing.
+  onSendMeetingInvite?: (lead: Lead) => void;
   onSetReminder?: (lead: Lead) => void;
   onAddNew?: () => void;
   onBulkAssign?: (leadIds: string[], salespersonId: string) => void;
@@ -186,6 +190,7 @@ export function LeadTable({
   onViewHistory,
   onViewSalesperson,
   onAddCommunication,
+  onSendMeetingInvite,
   onSetReminder,
   onAddNew,
   onBulkAssign,
@@ -1070,6 +1075,33 @@ export function LeadTable({
                                 ))}
                               </>
                             )}
+                            {/* Deliberately next to the communication methods:
+                                that menu is where users go looking for "talk to
+                                the client", but logging a communication only
+                                writes an internal note. This is the entry that
+                                actually emails them an invite. */}
+                            {onSendMeetingInvite && (
+                              <>
+                                <div className="my-1 border-t border-[#E6E6E4]" />
+                                <DropdownMenuItem
+                                  onClick={() => onSendMeetingInvite(lead)}
+                                  disabled={!lead.email}
+                                  className="cursor-pointer hover:bg-[#F5F5F3]"
+                                  title={
+                                    lead.email
+                                      ? undefined
+                                      : t("meetingInviteNeedsEmail", "Add an email address to this lead first")
+                                  }
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <CalendarPlus className="h-4 w-4 text-[#2563EB]" />
+                                    <span className="text-[#555555]">
+                                      {t("sendMeetingInvite", "Send Meeting Invite")}
+                                    </span>
+                                  </div>
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                         {(() => {
@@ -1171,6 +1203,22 @@ export function LeadTable({
                             title={t("viewHistory")}
                           >
                             <History className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {onSendMeetingInvite && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-[#999999] hover:text-[#2563EB] hover:bg-[#E6F0FF]"
+                            onClick={() => onSendMeetingInvite(lead)}
+                            disabled={!lead.email}
+                            title={
+                              lead.email
+                                ? t("sendMeetingInvite", "Send Meeting Invite")
+                                : t("meetingInviteNeedsEmail", "Add an email address to this lead first")
+                            }
+                          >
+                            <CalendarPlus className="h-4 w-4" />
                           </Button>
                         )}
                         <Button

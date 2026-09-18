@@ -128,10 +128,13 @@
     "paymentTerms": "Payment Terms",
     "paymentTermsText": "Payment is due upon acceptance of this proposal. Upon receipt of payment, services will commence as outlined above.",
     "validUntil": "Valid Until:",
-    "acceptanceNote": "To accept this proposal, please proceed with the payment using the link provided in your email.",
+    "acceptanceNote": "No payment is required at this stage. Once you're happy to proceed, accept above or let us know, and we'll send your invoice.",
     "footer": "Thank you for choosing Just Wills. We look forward to serving you.",
     "companyName": "Just Wills",
-    "companyTagline": "Professional Will Drafting Services"
+    "companyTagline": "Professional Will Drafting Services",
+    "acceptHeading": "Happy to go ahead?",
+    "acceptSubtitle": "Accept this proposal online and we will send your invoice:",
+    "acceptLink": "Click here to accept this proposal"
   },
   "invoice": {
     "title": "INVOICE",

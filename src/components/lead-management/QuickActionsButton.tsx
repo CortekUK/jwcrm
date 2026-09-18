@@ -21,7 +21,6 @@ import {
   Plus, 
   Users, 
   Megaphone, 
-  Calendar,
   Keyboard,
   X,
 } from "lucide-react";
@@ -39,7 +38,6 @@ interface QuickAction {
 interface QuickActionsButtonProps {
   onCreateLead?: () => void;
   onCreateSource?: () => void;
-  onOpenCalendar?: () => void;
   className?: string;
   position?: "bottom-right" | "bottom-left";
   showKeyboardHints?: boolean;
@@ -48,7 +46,6 @@ interface QuickActionsButtonProps {
 export function QuickActionsButton({
   onCreateLead,
   onCreateSource,
-  onOpenCalendar,
   className,
   position = "bottom-right",
   showKeyboardHints = true,
@@ -82,17 +79,6 @@ export function QuickActionsButton({
     });
   }
 
-  if (onOpenCalendar) {
-    quickActions.push({
-      id: "open-calendar",
-      label: t("openCalendar", "Calendar"),
-      icon: Calendar,
-      shortcut: "Ctrl+K",
-      onClick: onOpenCalendar,
-      color: "text-[#2563EB]",
-    });
-  }
-
   // Keyboard shortcut handler
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Show hint when Ctrl/Cmd is pressed
@@ -110,12 +96,9 @@ export function QuickActionsButton({
       } else if (e.key === "s" && e.shiftKey && onCreateSource) {
         e.preventDefault();
         onCreateSource();
-      } else if (e.key === "k" && onOpenCalendar) {
-        e.preventDefault();
-        onOpenCalendar();
       }
     }
-  }, [onCreateLead, onCreateSource, onOpenCalendar, showKeyboardHints]);
+  }, [onCreateLead, onCreateSource, showKeyboardHints]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     if (e.key === "Control" || e.key === "Meta") {
