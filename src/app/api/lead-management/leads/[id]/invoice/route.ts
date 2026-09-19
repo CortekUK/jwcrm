@@ -9,6 +9,7 @@ import { createClient } from "@supabase/supabase-js";
 import { stripe } from "@/integrations/stripe/server";
 import { generateInvoicePDF } from "@/lib/pdf/generateInvoicePDF";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
+import { resolveLeadOwner } from "@/lib/lead-management/leadOwner";
 import { companyDetails } from "@/config/company";
 import { buildInvoiceEmailHTML } from "@/lib/email/invoiceEmailTemplate";
 import { normalizeLineItems, lineItemsSubtotal } from "@/lib/pdf/invoiceLineItems";
@@ -217,7 +218,10 @@ export async function POST(
         style: "currency",
         currency,
       }).format(amount);
-      const emailResult = await sendUserEmail(callerId, {
+      const owner = await resolveLeadOwner(supabaseAdmin, lead.assigned_to);
+    const emailResult = await sendUserEmail(callerId, {
+      // Sent as the lead's owner on the verified domain — see leadOwner.ts.
+      from: owner.sender,
         to: lead.email,
         subject: `Invoice ${proposal.invoice_number} - ${formattedAmount}`,
         refId: proposal.id,

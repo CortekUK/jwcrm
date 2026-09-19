@@ -35,6 +35,19 @@ export type SendUserEmailInput = {
     leadId?: string | null;
     proposalId?: string | null;
   };
+  /**
+   * Send as a specific person instead of the generic noreply address — build it
+   * with `senderFor()`, which refuses anything outside the verified sending
+   * domain. Ignored on the Outlook path, where the mailbox IS the sender.
+   */
+  from?: string;
+  /**
+   * Where replies go. Defaults to the sender when `from` names a person, so
+   * hitting Reply reaches them rather than the shared inbox — otherwise the
+   * personal sender is cosmetic and the client's reply goes somewhere they did
+   * not expect. Falls back to the monitored address.
+   */
+  replyTo?: string;
 };
 
 export type SendAttempt = {
@@ -64,6 +77,36 @@ const supabaseAdmin = createClient(
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const REFRESH_LEEWAY_MS = 60 * 1000; // refresh if expiring within a minute
+
+/** Pull the bare address out of a "Name <addr@domain>" header value. */
+function bareAddress(value: string | undefined): string | null {
+  if (!value) return null;
+  const match = value.match(/<([^>]+)>/);
+  const address = (match ? match[1] : value).trim();
+  return address.includes("@") ? address : null;
+}
+
+/**
+ * Where a client's reply lands.
+ *
+ * Mail sent as a person replies to that person AND to the shared inbox — the
+ * client asked for the copy so a reply is never stranded in the mailbox of
+ * someone who is on leave or has left. Mail from the generic sender replies to
+ * the shared inbox only; pointing it at the noreply address would send replies
+ * to a mailbox nobody reads.
+ */
+function resolveReplyTo(input: SendUserEmailInput): string | string[] {
+  if (input.replyTo) return input.replyTo;
+
+  const sender = bareAddress(input.from);
+  const generic = bareAddress(EMAIL_FROM);
+  const shared = EMAIL_REPLY_TO;
+
+  if (sender && sender.toLowerCase() !== generic?.toLowerCase()) {
+    return sender.toLowerCase() === shared.toLowerCase() ? shared : [sender, shared];
+  }
+  return shared;
+}
 
 /**
  * Record the outcome. Deliberately best-effort: a logging failure must never
@@ -183,9 +226,9 @@ async function sendViaResend(input: SendUserEmailInput): Promise<SendUserEmailRe
   }
   try {
     const result = await resend.emails.send({
-      from: EMAIL_FROM,
+      from: input.from || EMAIL_FROM,
       to: input.to,
-      replyTo: EMAIL_REPLY_TO,
+      replyTo: resolveReplyTo(input),
       subject: input.subject,
       html: input.html,
       headers: input.refId ? { "X-Entity-Ref-ID": input.refId } : undefined,
@@ -248,13 +291,13 @@ export async function sendUserEmail(
   attempts.push({
     provider: resendResult.provider,
     ok: resendResult.ok,
-    sentAs: resendResult.ok ? EMAIL_FROM : null,
+    sentAs: resendResult.ok ? input.from || EMAIL_FROM : null,
     error: resendResult.error,
   });
 
   const result: SendUserEmailResult = {
     ...resendResult,
-    sentAs: resendResult.ok ? EMAIL_FROM : null,
+    sentAs: resendResult.ok ? input.from || EMAIL_FROM : null,
     attempts,
   };
   await recordSend(actorUserId, input, result, attempts);

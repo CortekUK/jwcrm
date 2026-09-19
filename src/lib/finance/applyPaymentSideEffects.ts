@@ -16,6 +16,7 @@ import {
   type ProvisionOutcome,
 } from "@/lib/clients/provisionClientPortalAccount";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
+import { resolveLeadOwner } from "@/lib/lead-management/leadOwner";
 import {
   buildPaymentReceivedEmailHTML,
   buildPaymentReceivedSubject,
@@ -88,7 +89,7 @@ export async function applyPaymentSideEffects(
     // vat_rate/vat_amount are mandatory here — computing the total without them
     // would settle (or fail to settle) the invoice against the wrong figure.
     .select(
-      "id, lead_id, amount, currency, line_items, status, paid_at, invoice_number, vat_rate, vat_amount, lead:leads(id, full_name, email, status, drafting_notified_at)"
+      "id, lead_id, amount, currency, line_items, status, paid_at, invoice_number, vat_rate, vat_amount, lead:leads(id, full_name, email, status, assigned_to, drafting_notified_at)"
     )
     .eq("id", proposalId)
     .single();
@@ -237,7 +238,15 @@ export async function applyPaymentSideEffects(
             : null,
     };
 
+    // From the lead's owner on the verified domain, so a payment confirmation
+    // looks like it came from the person the client has been dealing with.
+    const owner = await resolveLeadOwner(
+      supabaseAdmin,
+      (lead as { assigned_to?: string | null }).assigned_to ?? null
+    );
+
     const emailResult = await sendUserEmail(opts.actorUserId ?? null, {
+      from: owner.sender,
       to: recipient,
       subject: buildPaymentReceivedSubject(emailData),
       html: buildPaymentReceivedEmailHTML(emailData),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { generateProposalPDF } from "@/lib/pdf/generateProposalPDF";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
+import { senderFor } from "@/config/email";
 import { companyDetails } from "@/config/company";
 import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
 import { proposalAcceptUrl } from "@/lib/finance/acceptLink";
@@ -345,7 +346,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Route email via the caller's Outlook when connected, else Resend.
+    // From the account manager, on the verified domain, so the client sees a
+    // person and replies reach them. senderFor falls back to the generic
+    // address if their login is not a justwills.ae mailbox.
     const emailResult = await sendUserEmail(callerId, {
+      from: senderFor(accountManagerName, accountManagerEmail),
       to: effectiveEmail,
       subject: proposalTemplate?.subject || `Your Proposal - ${proposal.invoice_number}`,
       refId: proposal.id,

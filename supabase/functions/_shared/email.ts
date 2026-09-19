@@ -14,7 +14,9 @@ const SANDBOX_DOMAIN = 'resend.dev';
 const DEFAULT_FROM = 'Just Wills <noreply@justwills.ae>';
 
 /** Monitored inbox so replies to automated mail reach a human. */
-const DEFAULT_REPLY_TO = 'info@justwills.ae';
+// Kept in step with src/config/email.ts. info@justwills.ae does not exist, so
+// replies must go to the monitored inbox printed on the invoices.
+const DEFAULT_REPLY_TO = 'info@just-wills.net';
 
 function safeEnv(name: string, fallback: string): string {
   const value = (Deno.env.get(name) || '').trim();

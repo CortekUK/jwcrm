@@ -17,6 +17,7 @@ import { assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
 import { outstandingBalanceForProposal } from "@/lib/finance/balanceCheckout";
 import { paymentResolverUrl } from "@/lib/finance/paymentLink";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
+import { resolveLeadOwner } from "@/lib/lead-management/leadOwner";
 import {
   buildPaymentRequestEmailHTML,
   buildPaymentRequestSubject,
@@ -102,9 +103,11 @@ export async function POST(
       message,
     };
 
-    // Sent as the caller (their Outlook when connected), matching how proposals
-    // and invoices already go out, so the client sees a familiar sender.
+    // Sent as the lead's owner on the verified domain — see leadOwner.ts.
+    const owner = await resolveLeadOwner(supabaseAdmin, lead.assigned_to);
+
     const result = await sendUserEmail(callerId, {
+      from: owner.sender,
       to: lead.email,
       subject: buildPaymentRequestSubject(emailData),
       html: buildPaymentRequestEmailHTML(emailData),
