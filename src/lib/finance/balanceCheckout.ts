@@ -75,7 +75,7 @@ export async function outstandingBalanceForProposal(
     // vat_rate/vat_amount are required: without them this would price the
     // invoice at the default 5% and charge something different from the PDF.
     .select(
-      "id, amount, currency, line_items, status, invoice_number, lead_id, vat_rate, vat_amount"
+      "id, amount, currency, line_items, status, invoice_number, lead_id, vat_rate, vat_amount, invoiced_at"
     )
     .eq("id", proposalId)
     .single();
@@ -166,6 +166,14 @@ export async function createBalanceCheckoutSession(
   };
 
   if (stageState.fullySettled) return settledResult;
+
+  // No invoice raised — or the one raised was voided by a revised proposal
+  // (see upsertLeadDeal). Priced at click time, an old link would otherwise
+  // happily charge the NEW proposal's figure the client has not yet agreed to.
+  // Checked after "settled" so a paid legacy row still says it is paid.
+  if (!(balance.proposal as { invoiced_at?: string | null }).invoiced_at) {
+    return { ok: false, status: 409, error: "This invoice is no longer active" };
+  }
 
   // Charge the CURRENT STAGE, not the whole outstanding balance: on a staged
   // invoice the client pays the drafting fee now and the court fees later.

@@ -36,6 +36,51 @@ const ALLOWED_LEAD_DEAL_ROLES = new Set([
   "salesperson",
 ]);
 
+/** Money comparison that tolerates PostgREST returning numerics as strings. */
+function sameAmount(a: unknown, b: unknown): boolean {
+  const x = Number(a);
+  const y = Number(b);
+  if (Number.isNaN(x) || Number.isNaN(y)) return a === b;
+  return Math.abs(x - y) < 0.005;
+}
+
+/**
+ * Line items reduced to the fields a client reads, in a fixed key order.
+ * jsonb does not keep key order (and numerics may come back as strings), so a
+ * raw JSON.stringify comparison reports an identical re-send as "changed".
+ */
+function canonicalItems(items: unknown): string {
+  if (!Array.isArray(items)) return "[]";
+  return JSON.stringify(
+    items.map((i: Record<string, unknown>) => [
+      String(i?.description ?? ""),
+      Number(i?.amount ?? 0),
+      Number(i?.quantity ?? 1),
+      i?.stage === "upfront" || i?.stage === "later" ? i.stage : null,
+    ])
+  );
+}
+
+/**
+ * Has the offer the client is being asked to agree to actually changed?
+ *
+ * Only the three things a client would read: the total, the itemisation (which
+ * carries the amounts AND which items are due upfront), and the body text.
+ * A false positive here only clears an acceptance that the client can grant
+ * again, so this deliberately errs towards "changed".
+ */
+function proposalTermsChanged(
+  existing: Record<string, unknown>,
+  next: { amount: number; lineItems?: InvoiceLineItem[]; proposalContent?: string | null }
+): boolean {
+  if (!sameAmount(existing.amount, next.amount)) return true;
+  if (next.lineItems && canonicalItems(existing.line_items) !== canonicalItems(next.lineItems))
+    return true;
+  if (next.proposalContent !== undefined && (existing.proposal_content ?? null) !== (next.proposalContent ?? null))
+    return true;
+  return false;
+}
+
 /**
  * Finds the lead's active (not paid/cancelled) proposal row and updates it,
  * or inserts a new one. A closed deal is never reused — a fresh proposal
@@ -84,6 +129,43 @@ export async function upsertLeadDeal(
   if (mode === "invoice") baseFields.invoiced_at = now;
 
   if (existing) {
+    // A re-sent proposal on DIFFERENT terms is a new offer, so the previous
+    // acceptance no longer applies to it. Without this the row keeps its
+    // accepted_at, the accept link reports "you've already accepted this" and
+    // the client is locked out of agreeing to the revised figure — reported
+    // from live use: "if i resend a proposal for a different amount, the
+    // client cant re-accept the second proposal".
+    //
+    // Only on the proposal path: raising the invoice comes AFTER acceptance
+    // and must not wipe it. An unchanged re-send (a reminder) keeps it too.
+    const termsChanged =
+      mode === "proposal" &&
+      proposalTermsChanged(existing, { amount, lineItems, proposalContent });
+
+    const acceptanceReset = termsChanged && Boolean(existing.accepted_at);
+    if (acceptanceReset) {
+      baseFields.accepted_at = null;
+      baseFields.accepted_ip = null;
+      baseFields.accepted_user_agent = null;
+    }
+
+    // For the same reason an invoice already raised on the old terms is void:
+    // the revised proposal replaces it, and the team sends a fresh invoice once
+    // the client accepts. Clearing invoiced_at takes it off the outstanding
+    // list and makes the old pay link land on "no longer active" (see
+    // createBalanceCheckoutSession) instead of charging the new figure.
+    //
+    // Never once money has been taken against it — voiding a part-paid
+    // invoice would hide a real payment from every balance and report.
+    if (termsChanged && existing.invoiced_at) {
+      const { count, error: paymentsError } = await supabaseAdmin
+        .from("proposal_payments")
+        .select("id", { count: "exact", head: true })
+        .eq("proposal_id", existing.id);
+      if (paymentsError) throw paymentsError;
+      if (!count) baseFields.invoiced_at = null;
+    }
+
     const { data: updated, error: updateError } = await supabaseAdmin
       .from("proposals")
       .update(baseFields)
@@ -91,7 +173,7 @@ export async function upsertLeadDeal(
       .select()
       .single();
     if (updateError) throw updateError;
-    return { proposal: updated, isNew: false as const };
+    return { proposal: updated, isNew: false as const, acceptanceReset };
   }
 
   const { data: inserted, error: insertError } = await supabaseAdmin
@@ -105,7 +187,7 @@ export async function upsertLeadDeal(
     .select()
     .single();
   if (insertError) throw insertError;
-  return { proposal: inserted, isNew: true as const };
+  return { proposal: inserted, isNew: true as const, acceptanceReset: false };
 }
 
 export type LeadDealAuthResult =
