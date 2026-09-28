@@ -34,6 +34,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
 import type { InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 import { companyDetails } from "@/config/company";
+import {
+  awaitingCourtChoice,
+  normalizeCourtOptions,
+  type CourtOption,
+} from "@/lib/lead-management/courtOptions";
 
 type ItemRow = LineItemRow;
 const INITIAL_ITEMS: ItemRow[] = DEFAULT_LINE_ITEM_ROWS;
@@ -61,6 +66,10 @@ export function SendInvoiceDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
+  // Courts offered on the proposal being invoiced. Only used to let the team
+  // add the court fee when the client never chose one — the invoice itself
+  // just carries whichever court row ends up in the items.
+  const [courtOptions, setCourtOptions] = useState<CourtOption[]>([]);
 
   // Load whatever has already been agreed with this lead.
   //
@@ -77,7 +86,9 @@ export function SendInvoiceDialog({
       try {
         const { data, error } = await supabase
           .from("proposals")
-          .select("line_items, vat_rate")
+          // court_options is not in the generated types (migration
+          // 20260928000001), hence the cast below.
+          .select("line_items, vat_rate, court_options")
           .eq("lead_id", lead.id)
           .not("status", "in", "(paid,cancelled)")
           .order("created_at", { ascending: false })
@@ -85,7 +96,10 @@ export function SendInvoiceDialog({
         if (error) throw error;
         if (cancelled) return;
 
-        const existing = data?.[0];
+        const existing = (data as unknown as
+          | { line_items: unknown; vat_rate: number | null; court_options?: unknown }[]
+          | null)?.[0];
+        setCourtOptions(normalizeCourtOptions(existing?.court_options));
         if (existing) {
           setItems(toLineItemRows((existing.line_items ?? null) as InvoiceLineItem[] | null));
           setVatRate(
@@ -111,6 +125,24 @@ export function SendInvoiceDialog({
   }, [open, lead]);
 
   const parsedItems = parseLineItemRows(items);
+  // Asked for as soon as there is no court row among the items being edited —
+  // so picking one below, or the team's own choice, makes the notice go away.
+  const needsCourt = awaitingCourtChoice(parsedItems, courtOptions);
+
+  const addCourtRow = (option: CourtOption) => {
+    // Replace, never add a second: an invoice charges exactly one court.
+    setItems((prev) => [
+      ...prev.filter((row) => !row.court),
+      {
+        description: option.description,
+        amount: String(option.amount),
+        quantity: String(option.quantity),
+        // Court fees are paid at the court appointment — same as courtLineItem.
+        upfront: false,
+        court: option.court,
+      },
+    ]);
+  };
   // Same helper the PDF, the email and the payment link use, so the preview
   // below and the totals cannot drift from what the client is charged.
   const amounts = computeInvoiceAmounts(
@@ -124,6 +156,7 @@ export function SendInvoiceDialog({
     setDescription("");
     setVatRate(String(companyDetails.vatRate));
     setShowPreview(false);
+    setCourtOptions([]);
   };
 
   const handleSubmit = async () => {
@@ -236,6 +269,35 @@ export function SendInvoiceDialog({
               </div>
             </div>
           </div>
+
+          {needsCourt && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+              <p className="text-sm text-amber-900">
+                {t(
+                  "invoiceCourtNotChosen",
+                  "The client hasn't chosen a registration court yet. Pick one to add its fee:"
+                )}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {courtOptions.map((option) => (
+                  <Button
+                    key={option.court}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addCourtRow(option)}
+                    className="border-amber-300 bg-white hover:bg-amber-100"
+                  >
+                    {t(`court_${option.court}`)} ·{" "}
+                    {new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: CURRENCY,
+                    }).format(option.amount)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Line Items */}
           <LineItemsEditor

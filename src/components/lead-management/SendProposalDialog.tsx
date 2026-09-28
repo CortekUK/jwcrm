@@ -18,15 +18,28 @@ import { ProposalPDFTemplate, ProposalPDFData } from "./ProposalPDFTemplate";
 import { proposalAcceptUrl } from "@/lib/finance/acceptLink";
 import {
   LineItemsEditor,
-  DEFAULT_LINE_ITEM_ROWS,
   parseLineItemRows,
   toLineItemRows,
   type LineItemRow,
 } from "./LineItemsEditor";
+import {
+  CourtOptionsEditor,
+  courtRowsFromOptions,
+  emptyCourtRows,
+  parseCourtRows,
+  type CourtOptionRow,
+} from "./CourtOptionsEditor";
+import {
+  baseLineItems,
+  chosenCourt,
+  courtChoiceSummary,
+  planProposalCourts,
+  COURT_LABELS,
+} from "@/lib/lead-management/courtOptions";
 import { DEFAULT_PROPOSAL_CONTENT } from "@/lib/proposal-content";
 import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
 import { companyDetails } from "@/config/company";
-import type { InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { lineItemsSubtotal, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 import { Lead } from "./LeadTable";
 import { Loader2, Send, Pencil, Lock, Save, Eye } from "lucide-react";
 import { toast } from "sonner";
@@ -43,6 +56,9 @@ interface Proposal {
   line_items?: unknown;
   vat_rate?: number | null;
   vat_amount?: number | null;
+  // Registration courts offered. Not in the generated row type until
+  // migration 20260928000001 is applied, hence optional and unknown.
+  court_options?: unknown;
 }
 
 interface SendProposalDialogProps {
@@ -57,6 +73,14 @@ interface SendProposalDialogProps {
 // renderers can find the fee-table token in it. Editable before sending.
 const defaultProposalContent = DEFAULT_PROPOSAL_CONTENT;
 
+// A new proposal starts with the drafting row only: the court fee now comes
+// from the registration-court picker below it. Deliberately not the shared
+// DEFAULT_LINE_ITEM_ROWS, which SendInvoiceDialog still uses with its
+// "Court Fee" row.
+const PROPOSAL_DEFAULT_LINE_ITEM_ROWS: LineItemRow[] = [
+  { description: "Will Drafting (UAE)", amount: "", quantity: "1", upfront: false },
+];
+
 export function SendProposalDialog({
   lead,
   open,
@@ -65,7 +89,8 @@ export function SendProposalDialog({
   onLeadUpdate,
 }: SendProposalDialogProps) {
   const { t } = useTranslation("leadManagement");
-  const [items, setItems] = useState<LineItemRow[]>(DEFAULT_LINE_ITEM_ROWS);
+  const [items, setItems] = useState<LineItemRow[]>(PROPOSAL_DEFAULT_LINE_ITEM_ROWS);
+  const [courtRows, setCourtRows] = useState<CourtOptionRow[]>(emptyCourtRows);
   // VAT is per invoice now; blank falls back to the configured default.
   const [vatRate, setVatRate] = useState<string>(String(companyDetails.vatRate));
   const [proposalContent, setProposalContent] = useState(defaultProposalContent);
@@ -82,14 +107,33 @@ export function SendProposalDialog({
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
+  // The BASE items (everything except a court fee) and the ticked courts.
   const parsedItems = parseLineItemRows(items);
+  const courtOptions = parseCourtRows(courtRows);
+  const parsedVatRate = vatRate === "" ? null : Number(vatRate);
+  // What would be stored: the same planner the send route runs (through
+  // upsertLeadDeal), so the totals, the preview and Save Draft all agree with
+  // what the client will be sent — including keeping a court the client
+  // already chose on an unchanged re-send.
+  const plan = planProposalCourts({
+    baseItems: parsedItems,
+    options: courtOptions,
+    existing: existingProposal,
+    proposalContent,
+  });
   // Totals come from the shared calculator so the preview, the PDF and the
   // amount the payment link charges can never disagree.
   const amounts = computeInvoiceAmounts(
-    { amount: 0, line_items: parsedItems, vat_rate: vatRate === "" ? null : Number(vatRate) },
+    { amount: 0, line_items: plan.lineItems, vat_rate: parsedVatRate },
     companyDetails.vatRate
   );
-  const total = amounts.subtotal;
+  const total = lineItemsSubtotal(plan.lineItems);
+  // Two or three courts and no choice yet: no single total exists, so the
+  // summary shows each court's instead.
+  const courtChoice =
+    courtOptions.length > 1 && chosenCourt(plan.lineItems) === null
+      ? courtChoiceSummary(plan.lineItems, courtOptions, { vat_rate: parsedVatRate }, companyDetails.vatRate)
+      : null;
 
   // Fetch existing proposal and initialize form when dialog opens
   useEffect(() => {
@@ -129,7 +173,13 @@ export function SendProposalDialog({
         setProposalContent(proposal.proposal_content ?? defaultProposalContent);
         // toLineItemRows carries the stage + quantity back into the editor;
         // rebuilding the rows by hand used to silently unstage a re-sent invoice.
-        setItems(toLineItemRows((proposal.line_items ?? null) as InvoiceLineItem[] | null));
+        // The chosen court's fee line is left out: it belongs to the picker,
+        // and the planner puts it back on save/send. A legacy proposal (no
+        // court_options) has no such line, so its typed "Dubai Court Fee" row
+        // stays an ordinary row.
+        const base = baseLineItems((proposal.line_items ?? null) as InvoiceLineItem[] | null);
+        setItems(base.length > 0 ? toLineItemRows(base) : PROPOSAL_DEFAULT_LINE_ITEM_ROWS);
+        setCourtRows(courtRowsFromOptions((proposal as { court_options?: unknown }).court_options));
         setVatRate(
           proposal.vat_rate != null ? String(proposal.vat_rate) : String(companyDetails.vatRate)
         );
@@ -139,7 +189,8 @@ export function SendProposalDialog({
         setProposalContent(
           defaultProposalContent.replace("[Client Name]", lead.full_name)
         );
-        setItems(DEFAULT_LINE_ITEM_ROWS);
+        setItems(PROPOSAL_DEFAULT_LINE_ITEM_ROWS);
+        setCourtRows(emptyCourtRows());
         setVatRate(String(companyDetails.vatRate));
       }
     } catch (error) {
@@ -166,7 +217,16 @@ export function SendProposalDialog({
       return;
     }
 
-    if (parsedItems.length === 0 || total <= 0) {
+    // Court fees are typed per proposal with no default, so a ticked court
+    // left blank is a mistake — and the server rejects it anyway.
+    if (courtOptions.some((o) => !(o.amount > 0))) {
+      toast.error(t("courtAmountRequired", "Enter a fee greater than zero for every ticked court"));
+      return;
+    }
+
+    // Something must be chargeable. With courts ticked their (validated) fees
+    // are, even if the base rows are blank; without, the base rows must be.
+    if (courtOptions.length === 0 && (parsedItems.length === 0 || lineItemsSubtotal(parsedItems) <= 0)) {
       toast.error(t("validAmountRequired"));
       return;
     }
@@ -205,7 +265,10 @@ export function SendProposalDialog({
         body: JSON.stringify({
           leadId: lead.id,
           amount: total,
+          // Base items and the ticked courts separately: the server decides
+          // the final line items (whether a court fee is in them).
           line_items: parsedItems,
+          court_options: courtOptions,
           vat_rate: vatRate === "" ? null : Number(vatRate),
           currency: "AED",
           proposalContent,
@@ -224,7 +287,8 @@ export function SendProposalDialog({
       onOpenChange(false);
       onSuccess();
       // Reset form
-      setItems(DEFAULT_LINE_ITEM_ROWS);
+      setItems(PROPOSAL_DEFAULT_LINE_ITEM_ROWS);
+      setCourtRows(emptyCourtRows());
       setVatRate(String(companyDetails.vatRate));
       setProposalContent(defaultProposalContent);
       setExistingProposal(null);
@@ -268,16 +332,23 @@ export function SendProposalDialog({
         });
       }
 
+      // court_options is not in the generated types until migration
+      // 20260928000001 is applied, so it is added through an untyped spread.
+      // line_items/amount are the planned ones, exactly what the send route
+      // would store for the same inputs.
+      const courtFields: Record<string, unknown> = { court_options: plan.courtOptions };
+
       if (existingProposal) {
         // Update existing draft
         const { error } = await supabase
           .from("proposals")
           .update({
             amount: total,
-            line_items: parsedItems,
+            line_items: plan.lineItems,
             vat_rate: vatRate === "" ? null : Number(vatRate),
             proposal_content: proposalContent,
             updated_at: new Date().toISOString(),
+            ...courtFields,
           })
           .eq("id", existingProposal.id);
 
@@ -289,12 +360,13 @@ export function SendProposalDialog({
           .insert({
             lead_id: lead.id,
             amount: total,
-            line_items: parsedItems,
+            line_items: plan.lineItems,
             vat_rate: vatRate === "" ? null : Number(vatRate),
             currency: "AED",
             proposal_content: proposalContent,
             status: "draft",
             invoice_number: `INV-${Date.now()}`,
+            ...courtFields,
           })
           .select()
           .single();
@@ -324,7 +396,8 @@ export function SendProposalDialog({
         clientCompany: editedLead.company_name || null,
         amount: total,
         currency: "AED",
-        lineItems: parsedItems,
+        lineItems: plan.lineItems,
+        courtOptions: plan.courtOptions,
         vatRate: vatRate === "" ? null : Number(vatRate),
         proposalContent: proposalContent,
         createdAt: new Date(),
@@ -441,6 +514,10 @@ export function SendProposalDialog({
             currency="AED"
           />
 
+          {/* Registration court(s): one is an ordinary fee line, two or three
+              are offered to the client as alternatives. */}
+          <CourtOptionsEditor rows={courtRows} onChange={setCourtRows} currency="AED" />
+
           {/* VAT is set per invoice — leave blank to fall back to the default. */}
           <div className="flex items-end gap-3">
             <div className="w-32 space-y-2">
@@ -456,14 +533,34 @@ export function SendProposalDialog({
                 className="border-[#E6E6E4] focus:border-[#C6A03B]"
               />
             </div>
-            <p className="pb-2 text-sm text-muted-foreground">
-              {t("proposalTotalsSummary", "Subtotal {{subtotal}} · {{vatLabel}} {{vat}} · Total {{total}}", {
-                subtotal: amounts.subtotal.toFixed(2),
-                vatLabel: amounts.vatLabel,
-                vat: amounts.vatAmount.toFixed(2),
-                total: amounts.invoiceTotal.toFixed(2),
-              })}
-            </p>
+            {courtChoice ? (
+              // No single total until the client chooses: the fixed part, then
+              // what each court would come to, from the same calculator.
+              <div className="pb-2 text-sm text-muted-foreground">
+                <p>
+                  {t("subtotalBeforeCourtFee", "Subtotal before government fee {{subtotal}}", {
+                    subtotal: courtChoice.baseSubtotal.toFixed(2),
+                  })}
+                </p>
+                {courtChoice.options.map(({ option, amounts: optionAmounts }) => (
+                  <p key={option.court}>
+                    {t("totalWithCourt", "Total with {{court}}: {{total}}", {
+                      court: t(`court_${option.court}`, COURT_LABELS[option.court]),
+                      total: optionAmounts.invoiceTotal.toFixed(2),
+                    })}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="pb-2 text-sm text-muted-foreground">
+                {t("proposalTotalsSummary", "Subtotal {{subtotal}} · {{vatLabel}} {{vat}} · Total {{total}}", {
+                  subtotal: amounts.subtotal.toFixed(2),
+                  vatLabel: amounts.vatLabel,
+                  vat: amounts.vatAmount.toFixed(2),
+                  total: amounts.invoiceTotal.toFixed(2),
+                })}
+              </p>
+            )}
           </div>
 
           {/* Proposal Content */}

@@ -14,7 +14,17 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { companyDetails } from "@/config/company";
 import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
-import { type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import { lineItemsSubtotal, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import {
+  COURT_LABELS,
+  awaitingCourtChoice,
+  chosenCourt,
+  courtChoiceSummary,
+  isCourtId,
+  normalizeCourtOptions,
+  withChosenCourt,
+  type CourtId,
+} from "@/lib/lead-management/courtOptions";
 import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
 
 /**
@@ -23,6 +33,10 @@ import { sendUserEmail } from "@/lib/integrations/sendUserEmail";
  * `invoiced` and `paid` are refusals rather than errors: the client has moved
  * past the proposal stage, so accepting would say nothing new — but they still
  * deserve an explanation rather than a dead button.
+ *
+ * `court_required` is only ever returned by acceptProposal, never by the read:
+ * the proposal is acceptable, the request just did not say which of the offered
+ * registration courts the client is choosing.
  */
 export type ProposalAcceptState =
   | "acceptable"
@@ -31,7 +45,35 @@ export type ProposalAcceptState =
   | "cancelled"
   | "invoiced"
   | "paid"
+  | "court_required"
   | "not_found";
+
+/**
+ * One offered registration court with the figures the client would be charged
+ * if they chose it. Every number comes from courtChoiceSummary, i.e. from
+ * computeInvoiceAmounts over the exact line items choosing it would store.
+ */
+export type ProposalAcceptCourtOption = {
+  court: CourtId;
+  label: string;
+  description: string;
+  quantity: number;
+  /** The court fee line total (already extended by quantity), before VAT. */
+  amount: number;
+  invoiceTotal: number;
+  upfrontTotal: number;
+  laterTotal: number;
+  staged: boolean;
+};
+
+export type ProposalAcceptCourts = {
+  /** Offered courts in display order. Empty when the picker was not used. */
+  options: ProposalAcceptCourtOption[];
+  /** Two or more offered and none chosen yet — accepting must name one. */
+  awaitingChoice: boolean;
+  /** Read off the line items: chosen by the client, or set by the team. */
+  chosen: { court: CourtId; label: string } | null;
+};
 
 /**
  * Everything the public page may show. Deliberately narrow: the client already
@@ -51,6 +93,11 @@ export type ProposalAcceptSummary = {
   upfrontTotal: number;
   laterTotal: number;
   acceptedAt: string | null;
+  /**
+   * While `courts.awaitingChoice` the figures above cover only the part that
+   * never varies; the page shows each option's own totals instead.
+   */
+  courts: ProposalAcceptCourts;
 };
 
 type ProposalRow = {
@@ -65,6 +112,8 @@ type ProposalRow = {
   line_items: unknown;
   vat_rate: number | string | null;
   vat_amount: number | string | null;
+  // Not in the generated Supabase types (migration 20260928000001).
+  court_options?: unknown;
 };
 
 type LeadRow = {
@@ -83,6 +132,33 @@ function classify(proposal: ProposalRow): ProposalAcceptState {
   if (proposal.accepted_at) return "already_accepted";
   if (proposal.invoiced_at) return "invoiced";
   return "acceptable";
+}
+
+function summariseCourts(proposal: ProposalRow): ProposalAcceptCourts {
+  const items = (proposal.line_items as InvoiceLineItem[] | null) ?? null;
+  const offered = normalizeCourtOptions(proposal.court_options);
+  const chosen = chosenCourt(items);
+  const choice = courtChoiceSummary(
+    items,
+    offered,
+    { vat_rate: proposal.vat_rate, vat_amount: proposal.vat_amount },
+    companyDetails.vatRate
+  );
+  return {
+    options: choice.options.map(({ option, amounts }) => ({
+      court: option.court,
+      label: COURT_LABELS[option.court],
+      description: option.description,
+      quantity: option.quantity,
+      amount: option.amount,
+      invoiceTotal: amounts.invoiceTotal,
+      upfrontTotal: amounts.upfrontTotal,
+      laterTotal: amounts.laterTotal,
+      staged: amounts.staged,
+    })),
+    awaitingChoice: awaitingCourtChoice(items, offered),
+    chosen: chosen ? { court: chosen, label: COURT_LABELS[chosen] } : null,
+  };
 }
 
 function summarise(proposal: ProposalRow, lead: LeadRow | null): ProposalAcceptSummary {
@@ -109,11 +185,12 @@ function summarise(proposal: ProposalRow, lead: LeadRow | null): ProposalAcceptS
     upfrontTotal: amounts.upfrontTotal,
     laterTotal: amounts.laterTotal,
     acceptedAt: proposal.accepted_at,
+    courts: summariseCourts(proposal),
   };
 }
 
 const PROPOSAL_COLUMNS =
-  "id, lead_id, amount, currency, invoice_number, status, invoiced_at, accepted_at, line_items, vat_rate, vat_amount";
+  "id, lead_id, amount, currency, invoice_number, status, invoiced_at, accepted_at, line_items, vat_rate, vat_amount, court_options";
 
 async function loadRows(
   sb: SupabaseClient,
@@ -168,7 +245,17 @@ export type AcceptResult = {
 export async function acceptProposal(
   sb: SupabaseClient,
   proposalId: string,
-  context: { ip?: string | null; userAgent?: string | null }
+  context: {
+    ip?: string | null;
+    userAgent?: string | null;
+    /**
+     * The registration court the client picked, straight from the request body
+     * — untrusted. Only read while a choice is awaited; otherwise the court is
+     * already settled (one offered, or the team set it) and the client cannot
+     * override it.
+     */
+    court?: unknown;
+  }
 ): Promise<AcceptResult> {
   const rows = await loadRows(sb, proposalId);
   if (!rows) {
@@ -184,6 +271,24 @@ export async function acceptProposal(
     return { ok: false, state, summary: summarise(rows.proposal, rows.lead) };
   }
 
+  // Choosing the court IS accepting — one step, one write. Validated against
+  // what was offered as stored now, not what the page showed, so a page left
+  // open across a re-send cannot pick a court that is no longer on offer.
+  const currentItems = (rows.proposal.line_items as InvoiceLineItem[] | null) ?? null;
+  const offered = normalizeCourtOptions(rows.proposal.court_options);
+  let courtFields: { line_items: InvoiceLineItem[]; amount: number } | null = null;
+  let chosenByClient: CourtId | null = null;
+  if (awaitingCourtChoice(currentItems, offered)) {
+    const court = context.court;
+    if (!isCourtId(court) || !offered.some((o) => o.court === court)) {
+      return { ok: false, state: "court_required", summary: summarise(rows.proposal, rows.lead) };
+    }
+    const lineItems = withChosenCourt(currentItems, offered, court);
+    // amount follows line_items exactly as every other writer keeps it.
+    courtFields = { line_items: lineItems, amount: lineItemsSubtotal(lineItems) };
+    chosenByClient = court;
+  }
+
   const acceptedAt = new Date().toISOString();
   const { data: updated, error: updateError } = await sb
     .from("proposals")
@@ -192,6 +297,10 @@ export async function acceptProposal(
       accepted_ip: context.ip ?? null,
       accepted_user_agent: context.userAgent ?? null,
       updated_at: acceptedAt,
+      // In the same conditional update as accepted_at, so the court and the
+      // acceptance land together or not at all: a losing racer writes neither,
+      // and a repeat accept never reaches here to change the court.
+      ...(courtFields ?? {}),
     })
     .eq("id", proposalId)
     // The race guard. Two concurrent accepts both pass the check above; only
@@ -212,13 +321,23 @@ export async function acceptProposal(
   const summary = summarise(finalRow, rows.lead);
 
   if (!wonTheRace) {
-    return { ok: true, state: "already_accepted", summary, firstAccept: false };
+    // The winner may have chosen a different court (a second tab), and it is
+    // theirs that stands — so report the row as stored, not what this request
+    // tried to write. Falls back to the local view if the re-read fails.
+    const fresh = await loadRows(sb, proposalId).catch(() => null);
+    return {
+      ok: true,
+      state: "already_accepted",
+      summary: fresh ? summarise(fresh.proposal, fresh.lead) : summary,
+      firstAccept: false,
+    };
   }
 
   await notifyTeamOfAcceptance(sb, {
     proposal: finalRow,
     lead: rows.lead,
     summary,
+    chosenByClient: chosenByClient !== null,
   });
 
   // "accepted", not "already_accepted": this request is the one that did it.
@@ -239,9 +358,11 @@ async function notifyTeamOfAcceptance(
     proposal: ProposalRow;
     lead: LeadRow | null;
     summary: ProposalAcceptSummary;
+    /** True when this acceptance is what chose the court. */
+    chosenByClient: boolean;
   }
 ): Promise<void> {
-  const { proposal, lead, summary } = input;
+  const { proposal, lead, summary, chosenByClient } = input;
 
   // Unassigned leads still have to reach somebody; the shared invoice mailbox
   // is the same fallback the proposal email itself uses for the account manager.
@@ -299,6 +420,22 @@ async function notifyTeamOfAcceptance(
             <td style="padding: 10px 14px; color: #666666;">Reference</td>
             <td style="padding: 10px 14px; text-align: right; color: #222222;">${escHtml(summary.invoiceNumber)}</td>
           </tr>
+          ${
+            // Worth its own row: with several courts offered, which one the
+            // client picked decides the court fee on the invoice to be raised.
+            summary.courts.chosen
+              ? `<tr>
+                   <td style="padding: 10px 14px; color: #666666;">Registration court</td>
+                   <td style="padding: 10px 14px; text-align: right; color: #222222;">${escHtml(
+                     summary.courts.chosen.label
+                   )}${
+                     chosenByClient
+                       ? `<br/><span style="font-size:12px;color:#6B6B6B;">Chosen by the client when accepting</span>`
+                       : ""
+                   }</td>
+                 </tr>`
+              : ""
+          }
           <tr>
             <td style="padding: 10px 14px; color: #666666;">Total</td>
             <td style="padding: 10px 14px; text-align: right; color: #222222;">${fmt(summary.invoiceTotal)}</td>

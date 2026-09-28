@@ -29,6 +29,7 @@ const REFUSAL_MESSAGES: Record<string, string> = {
   cancelled: "This proposal has been cancelled, so it can no longer be accepted.",
   invoiced: "Your invoice for this proposal has already been issued — there is nothing further to accept.",
   paid: "This proposal has already been paid in full. Thank you!",
+  court_required: "Please choose your registration court before accepting.",
 };
 
 export async function POST(
@@ -36,6 +37,12 @@ export async function POST(
   context: { params: Promise<{ proposalId: string }> }
 ) {
   const { proposalId } = await context.params;
+
+  // Optional JSON body `{ court }` — the registration court chosen on the page.
+  // Tolerant of an empty or missing body: a page loaded before courts existed
+  // posts nothing, and for a proposal with no choice to make it needs nothing.
+  const body = (await request.json().catch(() => null)) as { court?: unknown } | null;
+  const court = body && typeof body === "object" ? body.court : undefined;
 
   try {
     const result = await acceptProposal(supabaseAdmin, proposalId, {
@@ -45,6 +52,7 @@ export async function POST(
         request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
         request.headers.get("x-real-ip"),
       userAgent: request.headers.get("user-agent"),
+      court,
     });
 
     if (!result.ok) {
@@ -54,7 +62,10 @@ export async function POST(
           state: result.state,
           error: REFUSAL_MESSAGES[result.state] ?? "This proposal cannot be accepted right now.",
         },
-        { status: result.state === "not_found" ? 404 : 409 }
+        {
+          status:
+            result.state === "not_found" ? 404 : result.state === "court_required" ? 400 : 409,
+        }
       );
     }
 
@@ -66,6 +77,10 @@ export async function POST(
       firstAccept: result.firstAccept === true,
       acceptedAt: result.summary?.acceptedAt ?? null,
       invoiceNumber: result.summary?.invoiceNumber ?? null,
+      // The court as recorded, which is not necessarily the one the page sent:
+      // if the team set it in the meantime, theirs stands and the page must
+      // say so rather than echo the client's pick back.
+      court: result.summary?.courts.chosen ?? null,
     });
   } catch (error) {
     console.error("Proposal acceptance failed:", error);

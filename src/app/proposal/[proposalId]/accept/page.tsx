@@ -18,6 +18,7 @@ import {
 } from "@/lib/lead-management/proposalAcceptance";
 import { companyDetails } from "@/config/company";
 import { AcceptProposalForm } from "./AcceptProposalForm";
+import { AcceptSummary } from "./AcceptSummary";
 
 // Acceptance state changes under us — never serve a cached "not yet accepted".
 export const dynamic = "force-dynamic";
@@ -26,10 +27,6 @@ const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-function formatCurrency(amount: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
-}
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -85,10 +82,14 @@ function Notice({
 
 export default async function AcceptProposalPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ proposalId: string }>;
+  // ?court= comes from the per-court buttons in the proposal email.
+  searchParams: Promise<{ court?: string | string[] }>;
 }) {
   const { proposalId } = await params;
+  const { court: requestedCourt } = await searchParams;
 
   let summary: ProposalAcceptSummary | null = null;
   try {
@@ -114,6 +115,8 @@ export default async function AcceptProposalPage({
         title="You've already accepted this"
         body={`We recorded your acceptance of ${summary.invoiceNumber}${
           summary.acceptedAt ? ` on ${formatDate(summary.acceptedAt)}` : ""
+        }${
+          summary.courts.chosen ? `, with registration at ${summary.courts.chosen.label}` : ""
         }. Your account manager has been notified and will send your invoice — there is nothing more for you to do here.`}
       />
     );
@@ -143,61 +146,66 @@ export default async function AcceptProposalPage({
     );
   }
 
+  // Preselect only a court that is actually on offer: the query string is
+  // whatever the link (or someone editing it) says, and it only ever preselects
+  // — the client still has to press confirm, and the POST re-validates.
+  const awaiting = summary.courts.awaitingChoice;
+  const initialCourt =
+    awaiting && typeof requestedCourt === "string"
+      ? summary.courts.options.find((o) => o.court === requestedCourt)?.court ?? null
+      : null;
+
   return (
     <Shell>
       {/* The heading and summary are passed INTO the form so that confirming
           replaces them — otherwise the client is still told to "confirm below"
-          after they already have. */}
+          after they already have. While a court is to be chosen the figures
+          box moves into the form too, because its totals follow the pick. */}
       <AcceptProposalForm
         proposalId={summary.proposalId}
         invoiceNumber={summary.invoiceNumber}
+        chosenCourtLabel={summary.courts.chosen?.label ?? null}
+        courtChoice={
+          awaiting
+            ? {
+                options: summary.courts.options,
+                initial: initialCourt,
+                clientName: summary.clientName,
+                currency: summary.currency,
+              }
+            : null
+        }
       >
-      <div className="text-center mb-8">
-        <div className="w-14 h-14 mx-auto rounded-full bg-[#0C5536]/10 flex items-center justify-center mb-4">
-          <FileText className="h-7 w-7 text-[#0C5536]" />
-        </div>
-        <h1 className="text-2xl font-bold text-foreground mb-2">Accept your proposal</h1>
-        <p className="text-muted-foreground">
-          Hi {summary.clientName}, please confirm below and we will send your invoice so drafting can
-          begin.
-        </p>
-      </div>
-
-      {/* Exactly the figures from the proposal they were emailed — resolved
-          through the shared amounts helper, never recomputed here. */}
-      <div className="rounded-xl border border-border bg-muted/40 divide-y divide-border mb-8">
-        <div className="flex items-center justify-between px-5 py-3.5">
-          <span className="text-sm text-muted-foreground">Reference</span>
-          <span className="text-sm font-medium text-foreground">{summary.invoiceNumber}</span>
-        </div>
-        <div className="flex items-center justify-between px-5 py-3.5">
-          <span className="text-sm text-muted-foreground">Prepared for</span>
-          <span className="text-sm font-medium text-foreground">{summary.clientName}</span>
-        </div>
-        <div className="flex items-center justify-between px-5 py-3.5">
-          <span className="text-sm text-muted-foreground">Total (incl. VAT)</span>
-          <span className="text-sm font-semibold text-foreground">
-            {formatCurrency(summary.invoiceTotal, summary.currency)}
-          </span>
-        </div>
-        {/* Only meaningful on a staged proposal: on a flat one the "payable
-            now" figure is just the total again. */}
-        {summary.staged && summary.laterTotal > 0 && (
-          <div className="px-5 py-3.5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Payable now to begin drafting</span>
-              <span className="text-sm font-semibold text-[#0C5536]">
-                {formatCurrency(summary.upfrontTotal, summary.currency)}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1.5">
-              The remaining {formatCurrency(summary.laterTotal, summary.currency)} is payable at the
-              court appointment stage.
-            </p>
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 mx-auto rounded-full bg-[#0C5536]/10 flex items-center justify-center mb-4">
+            <FileText className="h-7 w-7 text-[#0C5536]" />
           </div>
-        )}
-      </div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Accept your proposal</h1>
+          {awaiting ? (
+            <p className="text-muted-foreground">
+              Hi {summary.clientName}, please choose the court where your will is to be registered
+              and confirm below. Our fee is the same whichever you choose — only the government
+              court fee differs.
+            </p>
+          ) : (
+            <p className="text-muted-foreground">
+              Hi {summary.clientName}, please confirm below and we will send your invoice so drafting
+              can begin.
+            </p>
+          )}
+        </div>
 
+        {/* Exactly the figures from the proposal they were emailed — resolved
+            through the shared amounts helper, never recomputed here. */}
+        {!awaiting && (
+          <AcceptSummary
+            invoiceNumber={summary.invoiceNumber}
+            clientName={summary.clientName}
+            currency={summary.currency}
+            courtLabel={summary.courts.chosen?.label ?? null}
+            totals={summary}
+          />
+        )}
       </AcceptProposalForm>
     </Shell>
   );

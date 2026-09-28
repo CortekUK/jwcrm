@@ -10,6 +10,11 @@ import { companyDetails } from "@/config/company";
 import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
 import { lineItemCostLabel, type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 import { FEE_TABLE_TOKEN } from "@/lib/proposal-content";
+import {
+  awaitingCourtChoice,
+  courtChoiceSummary,
+  resolveCourtToken,
+} from "@/lib/lead-management/courtOptions";
 
 export type ProposalPDFData = {
   invoiceNumber: string;
@@ -33,6 +38,12 @@ export type ProposalPDFData = {
    * (the SendProposalDialog preview), and the CTA then simply does not render.
    */
   acceptUrl?: string | null;
+  /**
+   * proposals.court_options as stored (raw jsonb is fine; normalised here).
+   * With two or three courts offered and none chosen, the fee section shows
+   * each court's total instead of one, exactly as the emailed PDF does.
+   */
+  courtOptions?: unknown;
 };
 
 type ProposalPDFTemplateProps = {
@@ -73,6 +84,7 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
       vatRate,
       vatAmount,
       acceptUrl,
+      courtOptions,
     } = data;
 
     // One source of truth for the money — the same helper the emailed PDF and
@@ -87,6 +99,17 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
       },
       companyDetails.vatRate
     );
+
+    // Set only while the client still has a court to choose. The emailed jsPDF
+    // copy branches on the same helper, so the two documents cannot differ.
+    const courtChoice = awaitingCourtChoice(lineItems, courtOptions)
+      ? courtChoiceSummary(
+          lineItems,
+          courtOptions,
+          { vat_rate: vatRate, vat_amount: vatAmount },
+          companyDetails.vatRate
+        )
+      : null;
 
     const money = (value: number) => formatCurrencyDisplay(value, locale, currency);
     const formattedDate = formatDocumentDate(createdAt, locale);
@@ -106,55 +129,61 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
       color: "#222222",
     } as const;
 
+    // DESCRIPTION | COST | AMOUNT, shared by the ordinary fee table and the
+    // court-choice variant (which lists only the items that never vary).
+    const renderItemsTable = (rows: InvoiceLineItem[], showStages: boolean) => (
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: startAlign, padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536" }}>
+              {t("pdf:invoice.description", { defaultValue: "Description" })}
+            </th>
+            <th style={{ textAlign: "center", padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536", width: "60px" }}>
+              {t("pdf:invoice.cost", { defaultValue: "Cost" })}
+            </th>
+            <th style={{ textAlign: endAlign, padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536", width: "120px" }}>
+              {t("pdf:invoice.amount", { defaultValue: "Amount" })}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((item, index) => (
+            <tr key={index}>
+              {/* Descriptions may carry hard line breaks, so newlines must
+                  survive rather than collapsing into one run of text. */}
+              <td style={{ ...cell, textAlign: startAlign, whiteSpace: "pre-line" }}>
+                {item.description}
+                {/* When the invoice is split, say when each charge falls due —
+                    otherwise the client only sees one total and cannot tell
+                    which part actually starts the work. */}
+                {showStages && (
+                  <div
+                    style={{
+                      marginTop: "4px",
+                      fontSize: "11px",
+                      fontStyle: "italic",
+                      color: item.stage === "upfront" ? "#0C5536" : "#8a8a8a",
+                    }}
+                  >
+                    {item.stage === "upfront"
+                      ? t("pdf:invoice.payableUpfront", { defaultValue: "Payable upfront" })
+                      : t("pdf:invoice.payableAtCourt", {
+                          defaultValue: "At court appointment stage",
+                        })}
+                  </div>
+                )}
+              </td>
+              <td style={{ ...cell, textAlign: "center" }}>{lineItemCostLabel(item)}</td>
+              <td style={{ ...cell, textAlign: endAlign }}>{money(item.amount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+
     const feeTable = (
       <div style={{ margin: "20px 0" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: startAlign, padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536" }}>
-                {t("pdf:invoice.description", { defaultValue: "Description" })}
-              </th>
-              <th style={{ textAlign: "center", padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536", width: "60px" }}>
-                {t("pdf:invoice.cost", { defaultValue: "Cost" })}
-              </th>
-              <th style={{ textAlign: endAlign, padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536", width: "120px" }}>
-                {t("pdf:invoice.amount", { defaultValue: "Amount" })}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {amounts.items.map((item, index) => (
-              <tr key={index}>
-                {/* Descriptions may carry hard line breaks, so newlines must
-                    survive rather than collapsing into one run of text. */}
-                <td style={{ ...cell, textAlign: startAlign, whiteSpace: "pre-line" }}>
-                  {item.description}
-                  {/* When the invoice is split, say when each charge falls due —
-                      otherwise the client only sees one total and cannot tell
-                      which part actually starts the work. */}
-                  {amounts.staged && (
-                    <div
-                      style={{
-                        marginTop: "4px",
-                        fontSize: "11px",
-                        fontStyle: "italic",
-                        color: item.stage === "upfront" ? "#0C5536" : "#8a8a8a",
-                      }}
-                    >
-                      {item.stage === "upfront"
-                        ? t("pdf:invoice.payableUpfront", { defaultValue: "Payable upfront" })
-                        : t("pdf:invoice.payableAtCourt", {
-                            defaultValue: "At court appointment stage",
-                          })}
-                    </div>
-                  )}
-                </td>
-                <td style={{ ...cell, textAlign: "center" }}>{lineItemCostLabel(item)}</td>
-                <td style={{ ...cell, textAlign: endAlign }}>{money(item.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {renderItemsTable(amounts.items, amounts.staged)}
         <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "10px" }}>
           <tbody>
             <tr>
@@ -214,6 +243,105 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
       </div>
     );
 
+    // Two or three courts offered and none chosen yet: there is no single
+    // total, so the fixed part is shown with its pre-government-fee sub-total,
+    // then each court with the total the client would pay if they chose it.
+    const courtChoiceTable = courtChoice ? (
+      <div style={{ margin: "20px 0" }}>
+        {courtChoice.baseItems.length > 0 && (
+          <>
+            {renderItemsTable(courtChoice.baseItems, courtChoice.staged)}
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "10px" }}>
+              <tbody>
+                <tr>
+                  <td style={{ padding: "4px 12px", color: "#666666", fontSize: "13px", textAlign: startAlign }}>
+                    {t("pdf:proposal.subTotalBeforeCourt", {
+                      defaultValue: "Sub-Total (before government fee)",
+                    })}
+                  </td>
+                  <td style={{ padding: "4px 12px", color: "#222222", fontSize: "13px", textAlign: endAlign }}>
+                    {money(courtChoice.baseSubtotal)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </>
+        )}
+        <h4 style={{ color: "#0C5536", fontSize: "14px", fontWeight: "bold", margin: "22px 0 4px 0", textAlign: startAlign }}>
+          {t("pdf:proposal.chooseCourtHeading", {
+            defaultValue: "Registration court — please choose one",
+          })}
+        </h4>
+        <p style={{ color: "#6B6B6B", fontSize: "12px", margin: "0 0 10px 0", textAlign: startAlign }}>
+          {t("pdf:proposal.chooseCourtNote", {
+            defaultValue:
+              "The government fee depends on the court that registers your Will. Only the court you choose is charged.",
+          })}
+        </p>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: startAlign, padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536" }}>
+                {t("pdf:proposal.courtFee", { defaultValue: "Court fee" })}
+              </th>
+              <th style={{ textAlign: "center", padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536", width: "60px" }}>
+                {t("pdf:invoice.cost", { defaultValue: "Cost" })}
+              </th>
+              <th style={{ textAlign: endAlign, padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536", width: "110px" }}>
+                {t("pdf:invoice.amount", { defaultValue: "Amount" })}
+              </th>
+              <th style={{ textAlign: endAlign, padding: "8px 12px", borderBottom: "2px solid #0C5536", fontSize: "12px", color: "#0C5536", width: "130px" }}>
+                {t("pdf:proposal.totalIfChosen", { defaultValue: "Total incl. VAT if chosen" })}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {courtChoice.options.map(({ option, items: optionItems, amounts: optionAmounts }) => (
+              <tr key={option.court}>
+                <td style={{ ...cell, textAlign: startAlign, whiteSpace: "pre-line" }}>
+                  {option.description}
+                </td>
+                <td style={{ ...cell, textAlign: "center" }}>
+                  {lineItemCostLabel(optionItems[optionItems.length - 1])}
+                </td>
+                <td style={{ ...cell, textAlign: endAlign }}>{money(option.amount)}</td>
+                <td style={{ ...cell, textAlign: endAlign, color: "#0C5536", fontWeight: "bold" }}>
+                  {money(optionAmounts.invoiceTotal)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {/* The court fee is always due at the court appointment, so what
+            starts the work is the same whichever court the client picks. */}
+        {courtChoice.staged && (
+          <div
+            style={{
+              marginTop: "14px",
+              backgroundColor: "#F4F8F5",
+              [isRtl ? "borderRight" : "borderLeft"]: "3px solid #0C5536",
+              borderRadius: "4px",
+              padding: "12px 14px",
+              textAlign: startAlign,
+            }}
+          >
+            <div style={{ color: "#0C5536", fontWeight: "bold", fontSize: "14px" }}>
+              {t("pdf:invoice.payableNow", {
+                defaultValue: "Payable now to begin drafting: {{amount}}",
+                amount: money(courtChoice.upfrontTotal),
+              })}
+            </div>
+            <div style={{ color: "#6B6B6B", fontSize: "12px", marginTop: "4px" }}>
+              {t("pdf:proposal.courtFeePayableLater", {
+                defaultValue:
+                  "The government fee for the court you choose is payable at the court appointment stage.",
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    ) : null;
+
     // The accept call to action, drawn straight after the fee table exactly as
     // the emailed jsPDF copy draws it. A plain anchor: html2pdf keeps anchors
     // clickable, so this needs no link-annotation handling of its own.
@@ -231,15 +359,24 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
           {t("pdf:proposal.acceptHeading", { defaultValue: "Happy to go ahead?" })}
         </div>
         <div style={{ color: "#E6E6E4", fontSize: "12px", margin: "6px 0 10px 0" }}>
-          {t("pdf:proposal.acceptSubtitle", {
-            defaultValue: "Accept this proposal online and we will send your invoice:",
-          })}
+          {courtChoice
+            ? t("pdf:proposal.chooseCourtSubtitle", {
+                defaultValue:
+                  "Choose your registration court and accept online; we will then send your invoice:",
+              })
+            : t("pdf:proposal.acceptSubtitle", {
+                defaultValue: "Accept this proposal online and we will send your invoice:",
+              })}
         </div>
         <a
           href={acceptUrl}
           style={{ color: "#C6A03B", fontSize: "13px", fontWeight: "bold", textDecoration: "underline" }}
         >
-          {t("pdf:proposal.acceptLink", { defaultValue: "Click here to accept this proposal" })}
+          {/* Still one link, to the page: the page is where the court is
+              chosen, so the document needs no per-court links. */}
+          {courtChoice
+            ? t("pdf:proposal.chooseCourtLink", { defaultValue: "Choose your court & accept" })
+            : t("pdf:proposal.acceptLink", { defaultValue: "Click here to accept this proposal" })}
         </a>
       </div>
     ) : null;
@@ -249,7 +386,11 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
     // draws its own table there. The body is injected with
     // dangerouslySetInnerHTML, so the split has to happen on the HTML string
     // BEFORE injection — there is no DOM to splice into afterwards.
-    const styledContent = getStyledProposalContent(proposalContent);
+    // {{COURT}} (Stage 5) is resolved first, from the same items and options
+    // the fee table uses, so the wording follows the client's choice.
+    const styledContent = getStyledProposalContent(
+      proposalContent ? resolveCourtToken(proposalContent, lineItems, courtOptions) : proposalContent
+    );
     const tokenIndex = styledContent.indexOf(FEE_TABLE_TOKEN);
     const bodyBefore =
       tokenIndex === -1 ? styledContent : styledContent.slice(0, tokenIndex);
@@ -426,7 +567,7 @@ export const ProposalPDFTemplate = forwardRef<HTMLDivElement, ProposalPDFTemplat
               }}
               dangerouslySetInnerHTML={{ __html: bodyBefore }}
             />
-            {feeTable}
+            {courtChoiceTable ?? feeTable}
             {acceptCta}
             {bodyAfter && (
               <div

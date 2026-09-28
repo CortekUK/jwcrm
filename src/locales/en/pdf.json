@@ -134,7 +134,15 @@
     "companyTagline": "Professional Will Drafting Services",
     "acceptHeading": "Happy to go ahead?",
     "acceptSubtitle": "Accept this proposal online and we will send your invoice:",
-    "acceptLink": "Click here to accept this proposal"
+    "acceptLink": "Click here to accept this proposal",
+    "subTotalBeforeCourt": "Sub-Total (before government fee)",
+    "chooseCourtHeading": "Registration court — please choose one",
+    "chooseCourtNote": "The government fee depends on the court that registers your Will. Only the court you choose is charged.",
+    "courtFee": "Court fee",
+    "totalIfChosen": "Total incl. VAT if chosen",
+    "courtFeePayableLater": "The government fee for the court you choose is payable at the court appointment stage.",
+    "chooseCourtSubtitle": "Choose your registration court and accept online; we will then send your invoice:",
+    "chooseCourtLink": "Choose your court & accept"
   },
   "invoice": {
     "title": "INVOICE",

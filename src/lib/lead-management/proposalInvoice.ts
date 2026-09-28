@@ -1,5 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
+import {
+  canonicalLineItems,
+  lineItemsSubtotal,
+  type InvoiceLineItem,
+} from "@/lib/pdf/invoiceLineItems";
+import {
+  planProposalCourts,
+  sameCourtOptions,
+  type CourtOption,
+} from "@/lib/lead-management/courtOptions";
 
 /**
  * Shared by all three lead-invoicing entry points (Send Proposal, Send
@@ -26,6 +35,15 @@ export type UpsertLeadDealParams = {
   vatRate?: number | null;
   /** Absolute VAT override; wins over vatRate wherever the money is computed. */
   vatAmount?: number | null;
+  /**
+   * Registration courts offered (proposal mode only). Undefined leaves
+   * court_options and the court line exactly as they are — which is how the
+   * invoice paths, which never offer a choice, keep behaving unchanged.
+   * When supplied, `lineItems` are the BASE items and this function decides
+   * whether a court fee line goes into them (see planProposalCourts), and
+   * `amount` is recomputed from the result.
+   */
+  courtOptions?: CourtOption[];
 };
 
 const ALLOWED_LEAD_DEAL_ROLES = new Set([
@@ -45,36 +63,30 @@ function sameAmount(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Line items reduced to the fields a client reads, in a fixed key order.
- * jsonb does not keep key order (and numerics may come back as strings), so a
- * raw JSON.stringify comparison reports an identical re-send as "changed".
- */
-function canonicalItems(items: unknown): string {
-  if (!Array.isArray(items)) return "[]";
-  return JSON.stringify(
-    items.map((i: Record<string, unknown>) => [
-      String(i?.description ?? ""),
-      Number(i?.amount ?? 0),
-      Number(i?.quantity ?? 1),
-      i?.stage === "upfront" || i?.stage === "later" ? i.stage : null,
-    ])
-  );
-}
-
-/**
  * Has the offer the client is being asked to agree to actually changed?
  *
- * Only the three things a client would read: the total, the itemisation (which
- * carries the amounts AND which items are due upfront), and the body text.
+ * Only the things a client would read: the total, the itemisation (which
+ * carries the amounts AND which items are due upfront), the body text, and the
+ * registration courts they are offered to choose between.
  * A false positive here only clears an acceptance that the client can grant
  * again, so this deliberately errs towards "changed".
  */
 function proposalTermsChanged(
   existing: Record<string, unknown>,
-  next: { amount: number; lineItems?: InvoiceLineItem[]; proposalContent?: string | null }
+  next: {
+    amount: number;
+    lineItems?: InvoiceLineItem[];
+    proposalContent?: string | null;
+    courtOptions?: CourtOption[] | null;
+  }
 ): boolean {
   if (!sameAmount(existing.amount, next.amount)) return true;
-  if (next.lineItems && canonicalItems(existing.line_items) !== canonicalItems(next.lineItems))
+  if (next.lineItems && canonicalLineItems(existing.line_items) !== canonicalLineItems(next.lineItems))
+    return true;
+  // With two or three courts offered the fee lines are NOT in line_items, so
+  // re-pricing a court or offering a different set changes neither the amount
+  // nor the items — without this it would keep the old acceptance.
+  if (next.courtOptions !== undefined && !sameCourtOptions(existing.court_options, next.courtOptions))
     return true;
   if (next.proposalContent !== undefined && (existing.proposal_content ?? null) !== (next.proposalContent ?? null))
     return true;
@@ -93,13 +105,13 @@ export async function upsertLeadDeal(
   const {
     leadId,
     mode,
-    amount,
     currency,
-    lineItems,
     proposalContent,
     vatRate,
     vatAmount,
+    courtOptions,
   } = params;
+  let { amount, lineItems } = params;
 
   const { data: existing, error: findError } = await supabaseAdmin
     .from("proposals")
@@ -112,6 +124,24 @@ export async function upsertLeadDeal(
 
   if (findError) throw findError;
 
+  // Court options: the planner decides whether a court fee line belongs in
+  // the items, keeping a client's earlier choice only on an unchanged
+  // re-send. The amount is then the subtotal of what is actually stored, not
+  // what the caller sent — with several courts offered the caller's figure
+  // cannot know whether a choice survived.
+  let plannedCourtOptions: CourtOption[] | null | undefined;
+  if (mode === "proposal" && courtOptions !== undefined) {
+    const plan = planProposalCourts({
+      baseItems: lineItems ?? [],
+      options: courtOptions,
+      existing: existing as Record<string, unknown> | null,
+      proposalContent,
+    });
+    lineItems = plan.lineItems;
+    plannedCourtOptions = plan.courtOptions;
+    amount = lineItemsSubtotal(plan.lineItems);
+  }
+
   const now = new Date().toISOString();
   const baseFields: Record<string, unknown> = {
     amount,
@@ -120,6 +150,9 @@ export async function upsertLeadDeal(
     sent_at: now,
   };
   if (lineItems) baseFields.line_items = lineItems;
+  // proposals.court_options is not in the generated types yet (migration
+  // 20260928000001); baseFields is an untyped record, so no cast is needed.
+  if (plannedCourtOptions !== undefined) baseFields.court_options = plannedCourtOptions;
   if (proposalContent !== undefined) baseFields.proposal_content = proposalContent;
   // Only written when supplied — an omitted override must stay NULL rather
   // than being stamped with a default, which is what keeps legacy invoices
@@ -140,7 +173,12 @@ export async function upsertLeadDeal(
     // and must not wipe it. An unchanged re-send (a reminder) keeps it too.
     const termsChanged =
       mode === "proposal" &&
-      proposalTermsChanged(existing, { amount, lineItems, proposalContent });
+      proposalTermsChanged(existing, {
+        amount,
+        lineItems,
+        proposalContent,
+        courtOptions: plannedCourtOptions,
+      });
 
     const acceptanceReset = termsChanged && Boolean(existing.accepted_at);
     if (acceptanceReset) {

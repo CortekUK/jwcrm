@@ -10,6 +10,13 @@
 // Instead the body carries FEE_TABLE_TOKEN, and each renderer splits on it and
 // draws its own table from the invoice line items. Staff can move the token to
 // reposition the table; they cannot corrupt the numbers.
+//
+// Stage 5 names the court the same way: COURT_TOKEN is resolved by each
+// renderer to the client's chosen court, the only court offered, or "the
+// relevant court" while undecided. Proposals saved before the token existed
+// carry the literal "Abu Dhabi judge" and are deliberately left as written.
+
+import { COURT_TOKEN } from "@/lib/lead-management/courtOptions";
 
 /** Placeholder marking where the itemised fee table is drawn. */
 export const FEE_TABLE_TOKEN = "{{FEE_TABLE}}";
@@ -50,7 +57,7 @@ export const DEFAULT_PROPOSAL_CONTENT = `
 <p><strong>Stage 2</strong> - Drafting of Will</p>
 <p><strong>Stage 3</strong> – Approval from Client (A draft will be sent to you for your understanding prior to the Arabic translation, you can make changes if you desire)</p>
 <p><strong>Stage 4</strong> – Arabic translation &amp; legal stamping</p>
-<p><strong>Stage 5</strong> – Finalizing the schedule with Abu Dhabi judge for documents stamping as per your preferred date &amp; time</p>
+<p><strong>Stage 5</strong> – Finalizing the schedule with ${COURT_TOKEN} for documents stamping as per your preferred date &amp; time</p>
 <p><strong>Note: The Will covers the below:</strong></p>
 <ul>
   <li>UAE assets</li>

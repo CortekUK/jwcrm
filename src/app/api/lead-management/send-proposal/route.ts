@@ -6,7 +6,22 @@ import { senderFor } from "@/config/email";
 import { companyDetails } from "@/config/company";
 import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
 import { proposalAcceptUrl } from "@/lib/finance/acceptLink";
-import { lineItemCostLabel } from "@/lib/pdf/invoiceLineItems";
+import {
+  lineItemsSubtotal,
+  normalizeLineItems,
+  type InvoiceLineItem,
+} from "@/lib/pdf/invoiceLineItems";
+import {
+  awaitingCourtChoice,
+  baseLineItems,
+  courtChoiceSummary,
+  normalizeCourtOptions,
+} from "@/lib/lead-management/courtOptions";
+import {
+  buildDefaultProposalEmailHtml,
+  buildProposalStructuredHtml,
+  proposalFormattedAmount,
+} from "@/lib/lead-management/proposalEmailHtml";
 import { upsertLeadDeal, assertCanManageLeadDeal } from "@/lib/lead-management/proposalInvoice";
 import { getLeadEmailTemplates } from "@/lib/lead-management/settingsServer";
 import { resolveLeadTemplate, type RenderedLeadEmail } from "@/lib/lead-management/leadEmailTemplates";
@@ -38,9 +53,44 @@ export async function POST(request: NextRequest) {
       leadName,
       line_items,
       vat_rate,
+      court_options,
     } = body;
 
-    if (!leadId || !amount || !proposalContent) {
+    // The amount is no longer required up front: with courts offered the
+    // server works it out from the items, and a proposal whose only charges
+    // are the court options is legitimate. The "something to charge" check
+    // happens below, once the items and options are parsed.
+    if (!leadId || !proposalContent) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Registration courts offered (Abu Dhabi / Dubai / DIFC). Absent from
+    // the body -> undefined, which leaves court_options untouched, so a stale
+    // browser tab running the old dialog still sends a working proposal.
+    const courtOptions =
+      court_options === undefined ? undefined : normalizeCourtOptions(court_options);
+    // Fees are typed per proposal; there is no default to fall back on, so an
+    // offered court with no fee is a mistake, not a free option.
+    if (courtOptions?.some((o) => !(o.amount > 0))) {
+      return NextResponse.json(
+        { error: "Every offered registration court needs a fee greater than zero" },
+        { status: 400 }
+      );
+    }
+
+    // The BASE items (drafting, notarization, …). Any court line in them is
+    // dropped: whether a court fee is in the items is upsertLeadDeal's call.
+    // A proposal offering courts may have no base items at all, and must not
+    // gain normalizeLineItems' invented "Will (UAE)" row for the flat amount.
+    const rawBase = baseLineItems(Array.isArray(line_items) ? line_items : []);
+    const baseItems =
+      rawBase.length > 0 || !courtOptions?.length
+        ? baseLineItems(normalizeLineItems(rawBase, Number(amount) || 0))
+        : [];
+    if (lineItemsSubtotal(baseItems) <= 0 && !courtOptions?.length) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -91,24 +141,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Itemised charges (drafting / court fee / MOJ stamps etc). Subtotal is
-    // their sum; falls back to the flat amount when no items are supplied.
-    // Resolved through the shared helper so the PDF, the email and the later
-    // payment link can never disagree about the VAT or the total.
-    const {
-      items,
-      subtotal: subtotalAmount,
-      vatAmount,
-      vatLabel,
-      invoiceTotal: totalAmount,
-      staged,
-      upfrontTotal,
-      laterTotal,
-    } = computeInvoiceAmounts(
-      { amount, line_items, vat_rate },
-      companyDetails.vatRate
-    );
-
     // Undefined means "no override" — the column must stay NULL so every
     // reader keeps falling back to companyDetails.vatRate.
     const vatRateOverride: number | null | undefined =
@@ -117,15 +149,45 @@ export async function POST(request: NextRequest) {
     // 2. Create or update this lead's active proposal record. A proposal is
     //    purely informational — no Stripe session, no payment capability.
     //    That only happens later when staff explicitly send an invoice.
+    //    With courts offered, upsertLeadDeal decides the final line items
+    //    (and the amount) — so everything below reads the SAVED row, never
+    //    the request.
     const { proposal } = await upsertLeadDeal(supabaseAdmin, {
       leadId,
       mode: "proposal",
-      amount: subtotalAmount,
+      amount: lineItemsSubtotal(baseItems),
       currency,
-      lineItems: items,
+      lineItems: baseItems,
       proposalContent,
       vatRate: vatRateOverride,
+      courtOptions,
     });
+
+    // Itemised charges (drafting / court fee / MOJ stamps etc), resolved from
+    // the saved row through the shared helper so the PDF, the email and the
+    // later payment link can never disagree about the VAT or the total.
+    const savedItems = (proposal.line_items ?? null) as InvoiceLineItem[] | null;
+    // Not in the generated types until migration 20260928000001 is applied.
+    const savedCourtOptions = (proposal as { court_options?: unknown }).court_options ?? null;
+    const amounts = computeInvoiceAmounts(
+      {
+        amount: proposal.amount,
+        line_items: savedItems,
+        vat_rate: proposal.vat_rate,
+        vat_amount: proposal.vat_amount,
+      },
+      companyDetails.vatRate
+    );
+    // Set only while the client has a court to choose; every client-facing
+    // figure then comes from the per-court options instead of one total.
+    const courtChoice = awaitingCourtChoice(savedItems, savedCourtOptions)
+      ? courtChoiceSummary(
+          savedItems,
+          savedCourtOptions,
+          { vat_rate: proposal.vat_rate, vat_amount: proposal.vat_amount },
+          companyDetails.vatRate
+        )
+      : null;
 
     // 3. Update lead status to pending
     await supabaseAdmin
@@ -153,11 +215,16 @@ export async function POST(request: NextRequest) {
       clientEmail: effectiveEmail,
       clientPhone: lead.phone,
       clientCompany: lead.company_name,
-      amount: subtotalAmount,
+      amount: amounts.subtotal,
       currency: currency,
       proposalContent: proposalContent,
-      lineItems: items,
-      vatRate: vatRateOverride ?? null,
+      // The saved items as stored: while a court is still to be chosen the
+      // renderer must see the empty-or-base list itself, not a copy that
+      // normalizeLineItems has padded with an invented "Will (UAE)" row.
+      lineItems: savedItems ?? undefined,
+      courtOptions: savedCourtOptions,
+      vatRate: proposal.vat_rate ?? null,
+      vatAmount: proposal.vat_amount ?? null,
       acceptUrl,
     });
 
@@ -188,138 +255,23 @@ export async function POST(request: NextRequest) {
 
     // 5. Send email with the Proposal PDF attached only — no invoice, no
     //    payment link. The client hasn't agreed to anything yet.
-    const formattedAmount = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-    }).format(totalAmount);
+    // "from AED …" while a court is still to be chosen — there is no single
+    // total until then.
+    const formattedAmount = proposalFormattedAmount(currency, amounts, courtChoice);
 
-    // Descriptions are multi-line now (the notarization row carries its fee
-    // breakdown on its own lines), so escape first and only then turn the hard
-    // line breaks into <br/> — the other order would let markup through.
-    const fmtCurrency = (n: number) =>
-      new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n);
-
-    const escHtml = (v: string) =>
-      v
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-
-    const itemRows = items
-      .map(
-        (item) => `
-                  <tr>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E6E6E4; color: #222222; font-size: 13px;">${escHtml(item.description).replace(/\n/g, "<br/>")}${
-                      // Say when each charge falls due, so the client can see
-                      // which part of the total actually starts the work.
-                      staged
-                        ? `<div style="margin-top:4px;font-size:11px;font-style:italic;color:${
-                            item.stage === "upfront" ? "#0C5536" : "#8a8a8a"
-                          };">${item.stage === "upfront" ? "Payable upfront" : "At court appointment stage"}</div>`
-                        : ""
-                    }</td>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E6E6E4; text-align: center; color: #222222; font-size: 13px;">${lineItemCostLabel(item)}</td>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #E6E6E4; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(item.amount)}</td>
-                  </tr>`
-      )
-      .join("");
-
-    // Build the "What to Expect" process timeline block
-    const timelineRows = companyDetails.processTimeline
-      .map(
-        (step) => `
-                  <tr>
-                    <td style="padding: 10px 12px 10px 0; vertical-align: top; white-space: nowrap; color: #0C5536; font-weight: bold; font-size: 13px;">${step.title}</td>
-                    <td style="padding: 10px 0; color: #444444; font-size: 13px; line-height: 1.5;">${step.detail}</td>
-                  </tr>`
-      )
-      .join("");
-
-    // The structured blocks (charges table, process timeline) are kept
-    // whichever way the prose is produced — a template author edits the
-    // wording, not the itemised figures the client needs to see.
-    const proposalStructuredHtml = `
-              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <td style="padding: 8px 0; color: #666666;">Reference Number:</td>
-                    <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #222222;">${proposal.invoice_number}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; color: #666666;">Account Manager:</td>
-                    <td style="padding: 8px 0; text-align: right; color: #222222;">
-                      <span style="font-weight: bold;">${accountManagerName}</span><br/>
-                      <a href="mailto:${accountManagerEmail}" style="color: #0C5536; font-size: 13px; text-decoration: none;">${accountManagerEmail}</a>
-                    </td>
-                  </tr>
-                </table>
-              </div>
-              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <h3 style="color: #0C5536; margin: 0 0 12px 0; font-size: 14px;">Estimated Charges</h3>
-                <!-- The items table and the totals table below are separate
-                     tables, so they only line up if both declare the same
-                     column widths. -->
-                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                  <colgroup><col style="width:58%"/><col style="width:14%"/><col style="width:28%"/></colgroup>
-                  <thead>
-                    <tr>
-                      <th style="text-align: left; padding: 8px 12px; border-bottom: 2px solid #0C5536; font-size: 12px; color: #0C5536;">Description</th>
-                      <th style="text-align: center; padding: 8px 12px; border-bottom: 2px solid #0C5536; font-size: 12px; color: #0C5536;">Cost</th>
-                      <th style="text-align: right; padding: 8px 12px; border-bottom: 2px solid #0C5536; font-size: 12px; color: #0C5536;">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>${itemRows}</tbody>
-                </table>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed;">
-                  <colgroup><col style="width:58%"/><col style="width:14%"/><col style="width:28%"/></colgroup>
-                  <tr>
-                    <td colspan="2" style="padding: 4px 12px; color: #666666; font-size: 13px;">Sub-Total</td>
-                    <td style="padding: 4px 12px; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(subtotalAmount)}</td>
-                  </tr>
-                  <tr>
-                    <!-- vatLabel is already "5% VAT", or plain "VAT" when an
-                         absolute override is in force — never re-derive it. -->
-                    <td colspan="2" style="padding: 4px 12px; color: #666666; font-size: 13px;">${vatLabel}</td>
-                    <td style="padding: 4px 12px; text-align: right; color: #222222; font-size: 13px;">${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(vatAmount)}</td>
-                  </tr>
-                  <tr>
-                    <td colspan="2" style="padding: 8px 12px; color: #0C5536; font-weight: bold; font-size: 15px; border-top: 1px solid #E6E6E4;">Total Estimated Amount</td>
-                    <td style="padding: 8px 12px; text-align: right; color: #0C5536; font-weight: bold; font-size: 15px; border-top: 1px solid #E6E6E4;">${formattedAmount}</td>
-                  </tr>
-                </table>
-                ${
-                  // The figure the client decides on: what it costs to start,
-                  // versus what waits until the court date.
-                  staged && laterTotal > 0
-                    ? `<div style="margin-top:14px;background-color:#F4F8F5;border-left:3px solid #0C5536;border-radius:4px;padding:12px 14px;">
-                        <div style="color:#0C5536;font-weight:bold;font-size:14px;">Payable now to begin drafting: ${fmtCurrency(upfrontTotal)}</div>
-                        <div style="color:#6B6B6B;font-size:12px;margin-top:4px;">The remaining ${fmtCurrency(laterTotal)} is payable at the court appointment stage.</div>
-                      </div>`
-                    : ""
-                }
-              </div>
-              <!-- The accept button. It links to a PAGE, not to the accept
-                   API: Outlook ATP and other mail scanners fetch every link in
-                   a delivered message, so a link that accepted on GET would
-                   mark proposals accepted before the client opened the email.
-                   The page shows the figures again and only its button posts. -->
-              <div style="text-align: center; margin: 24px 0 8px 0;">
-                <a href="${acceptUrl}" style="display: inline-block; background-color: #0C5536; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 15px; padding: 14px 32px; border-radius: 6px;">
-                  Accept this proposal
-                </a>
-                <div style="color: #6B6B6B; font-size: 12px; margin-top: 10px;">
-                  No payment is taken on that page — accepting simply tells us you are happy to proceed,<br/>
-                  and we will then send your invoice with a secure payment link.
-                </div>
-              </div>
-              <p style="color: #6B6B6B; font-size: 13px; text-align: center;">
-                Prefer to reply by email? That works too — just let your account manager know.
-              </p>
-              <div style="background-color: #ffffff; border: 1px solid #E6E6E4; border-radius: 8px; padding: 20px; margin: 25px 0 10px 0;">
-                <h3 style="color: #0C5536; margin: 0 0 12px 0; font-size: 16px;">What to Expect — Process Timeline</h3>
-                <table style="width: 100%; border-collapse: collapse;">${timelineRows}</table>
-              </div>`;
+    // The structured blocks (charges table, accept button, process timeline)
+    // are kept whichever way the prose is produced — a template author edits
+    // the wording, not the itemised figures the client needs to see.
+    const proposalStructuredHtml = buildProposalStructuredHtml({
+      currency,
+      invoiceNumber: proposal.invoice_number,
+      accountManagerName,
+      accountManagerEmail,
+      acceptUrl,
+      amounts,
+      courtChoice,
+      formattedAmount,
+    });
 
     // When the "Proposal Email" template is active it supplies the subject and
     // the prose. Toggled off (or blank), we fall back to the original
@@ -358,37 +310,14 @@ export async function POST(request: NextRequest) {
       attachments: [
         { content: proposalPDFBase64, filename: `Proposal-${proposal.invoice_number}.pdf` },
       ],
-      html: proposalTemplate?.html ?? `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: #0C5536; padding: 20px; text-align: center;">
-              <h1 style="color: #C6A03B; margin: 0; font-size: 22px;">${companyDetails.legalName}</h1>
-              <p style="color: #E6E6E4; margin: 5px 0 0 0; font-size: 12px;">Professional Will Drafting Services &middot; ${companyDetails.invoiceCity}</p>
-            </div>
-            <div style="padding: 30px; background-color: #FAFAF8;">
-              <h2 style="color: #0C5536; margin-top: 0;">Dear ${effectiveName},</h2>
-              <p style="color: #222222; line-height: 1.6;">
-                Thank you for your interest in our services. Please find attached your <strong>Proposal</strong> for your review.
-              </p>
-
-              <!-- Same structured blocks the template path is given, rendered
-                   from one builder so the two can never drift apart. -->
-              ${proposalStructuredHtml}
-
-              <p style="color: #444444; font-size: 14px; line-height: 1.6; margin: 18px 0 0 0;">
-                If you have any questions, please contact <strong>${accountManagerName}</strong> at
-                <a href="mailto:${accountManagerEmail}" style="color: #0C5536; text-decoration: none;">${accountManagerEmail}</a>.
-              </p>
-            </div>
-            <div style="background-color: #222222; padding: 15px; text-align: center;">
-              <p style="color: #E6E6E4; margin: 0; font-size: 12px;">
-                &copy; ${new Date().getFullYear()} ${companyDetails.legalName}. All rights reserved.
-              </p>
-              <p style="color: #666666; margin: 5px 0 0 0; font-size: 11px;">
-                TRN: ${companyDetails.trn} &middot; Questions? Contact us at ${companyDetails.invoiceEmail}
-              </p>
-            </div>
-          </div>
-        `,
+      html:
+        proposalTemplate?.html ??
+        buildDefaultProposalEmailHtml({
+          effectiveName,
+          accountManagerName,
+          accountManagerEmail,
+          structuredHtml: proposalStructuredHtml,
+        }),
     });
     if (!emailResult.ok) {
       console.error("Error sending proposal email:", emailResult.error);

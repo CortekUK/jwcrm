@@ -35,6 +35,11 @@ import { type InvoiceLineItem } from "@/lib/pdf/invoiceLineItems";
 import { computeInvoiceAmounts, resolvePaymentStage } from "@/lib/finance/invoiceAmounts";
 import { paymentResolverPath, paymentResolverUrl } from "@/lib/finance/paymentLink";
 import { proposalAcceptUrl } from "@/lib/finance/acceptLink";
+import {
+  chosenCourt,
+  normalizeCourtOptions,
+  type CourtId,
+} from "@/lib/lead-management/courtOptions";
 import { format } from "date-fns";
 import { Download, FileText, Receipt, Loader2, ExternalLink, Eye, ChevronDown, CircleDollarSign, Plus, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -60,6 +65,9 @@ interface Proposal {
   line_items: unknown;
   vat_rate?: number | null;
   vat_amount?: number | null;
+  // Registration courts offered (raw jsonb; the renderers normalise it). Not
+  // in the generated row type until migration 20260928000001 is applied.
+  court_options?: unknown;
 }
 
 interface ProposalPayment {
@@ -104,6 +112,11 @@ export function ViewProposalDialog({
   const [paymentNotes, setPaymentNotes] = useState("");
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
   const [requestingPaymentFor, setRequestingPaymentFor] = useState<string | null>(null);
+
+  // Registration court the team is about to set, per proposal. Absent = the
+  // Select shows the court currently on the proposal.
+  const [courtDraft, setCourtDraft] = useState<Record<string, CourtId>>({});
+  const [savingCourtFor, setSavingCourtFor] = useState<string | null>(null);
 
   // Refs for PDF templates
   const proposalRef = useRef<HTMLDivElement>(null);
@@ -277,6 +290,44 @@ export function ViewProposalDialog({
     }
   };
 
+  // The team setting or changing the court. The client's own choice is final
+  // on their side, so this is the only way it changes after they pick — and
+  // how a court the client gave by phone gets recorded.
+  const handleSaveCourt = async (proposal: Proposal, court: CourtId) => {
+    setSavingCourtFor(proposal.id);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch(`/api/lead-management/proposals/${proposal.id}/court`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ court }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Failed to update the registration court");
+
+      toast.success(t("courtSaved", "Registration court updated"));
+      setCourtDraft((prev) => {
+        const next = { ...prev };
+        delete next[proposal.id];
+        return next;
+      });
+      await fetchProposals();
+    } catch (error) {
+      console.error("Error changing the registration court:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t("failedToSaveCourt", "Failed to update the registration court")
+      );
+    } finally {
+      setSavingCourtFor(null);
+    }
+  };
+
   const fetchProposals = async () => {
     if (!lead) return;
 
@@ -363,6 +414,7 @@ export function ViewProposalDialog({
       lineItems: (proposal.line_items as InvoiceLineItem[] | null) ?? undefined,
       vatRate: proposal.vat_rate,
       vatAmount: proposal.vat_amount,
+      courtOptions: proposal.court_options,
       proposalContent: proposal.proposal_content,
       createdAt: proposal.created_at,
       // Absolute, because this copy is downloaded and emailed by hand — it has
@@ -557,6 +609,76 @@ export function ViewProposalDialog({
                         )}
                       </div>
                     </div>
+
+                    {/* Registration court — only when the client was offered a
+                        choice. With one court there is nothing to change. */}
+                    {(() => {
+                      const offered = normalizeCourtOptions(proposal.court_options);
+                      if (offered.length < 2) return null;
+                      const current = chosenCourt(proposal.line_items as InvoiceLineItem[] | null);
+                      const closed = proposal.status === "paid" || proposal.status === "cancelled";
+                      const locked = closed || !!proposal.invoiced_at;
+                      const draft = courtDraft[proposal.id] ?? current ?? "";
+                      const saving = savingCourtFor === proposal.id;
+                      return (
+                        <div className="pt-3 border-t space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                            <span className="text-muted-foreground">
+                              {t("chosenRegistrationCourt", "Registration court")}
+                            </span>
+                            {current ? (
+                              <span className="font-medium">{t(`court_${current}`)}</span>
+                            ) : (
+                              <span className="font-medium text-amber-700">
+                                {t("awaitingClientCourtChoice", "Awaiting the client's choice")}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={draft}
+                              onValueChange={(value) =>
+                                setCourtDraft((prev) => ({ ...prev, [proposal.id]: value as CourtId }))
+                              }
+                              disabled={locked || saving}
+                            >
+                              <SelectTrigger className="h-8 w-[260px] text-sm">
+                                <SelectValue placeholder={t("selectCourt", "Select a court")} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {offered.map((o) => (
+                                  <SelectItem key={o.court} value={o.court}>
+                                    {t(`court_${o.court}`)} — {formatCurrency(o.amount, proposal.currency)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={locked || saving || !draft || draft === current}
+                              onClick={() => draft && handleSaveCourt(proposal, draft)}
+                            >
+                              {saving && <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />}
+                              {t("save")}
+                            </Button>
+                          </div>
+                          {locked && (
+                            <p className="text-xs text-muted-foreground">
+                              {closed
+                                ? t(
+                                    "courtLockedClosed",
+                                    "This proposal is closed, so its court can no longer be changed."
+                                  )
+                                : t(
+                                    "courtLockedInvoiced",
+                                    "The invoice has been raised — change the court fee on the invoice instead."
+                                  )}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Action Buttons */}
                     <div className="flex flex-wrap items-center gap-2 pt-3 border-t">
@@ -840,6 +962,7 @@ export function ViewProposalDialog({
                                 lineItems: (proposal.line_items as InvoiceLineItem[] | null) ?? undefined,
                                 vatRate: proposal.vat_rate,
                                 vatAmount: proposal.vat_amount,
+                                courtOptions: proposal.court_options,
                                 proposalContent: proposal.proposal_content,
                                 createdAt: proposal.created_at,
                                 acceptUrl: proposalAcceptUrl(proposal.id),

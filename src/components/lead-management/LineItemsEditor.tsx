@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2 } from "lucide-react";
 import { companyDetails } from "@/config/company";
-import type { InvoiceLineItem, LineItemStage } from "@/lib/pdf/invoiceLineItems";
+import type { CourtId, InvoiceLineItem, LineItemStage } from "@/lib/pdf/invoiceLineItems";
 import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
 import { formatMoney } from "@/lib/finance/outstandingBalance";
 
@@ -24,6 +24,11 @@ export type LineItemRow = {
    * client is never asked to choose an amount.
    */
   upfront: boolean;
+  /**
+   * Carried through untouched so a registration-court fee line keeps its court
+   * when an invoice is raised from the proposal. Not editable here.
+   */
+  court?: CourtId;
 };
 
 export const DEFAULT_LINE_ITEM_ROWS: LineItemRow[] = [
@@ -56,6 +61,7 @@ export function parseLineItemRows(rows: LineItemRow[]): InvoiceLineItem[] {
         amount: parseFloat(r.amount) || 0,
         quantity: Number.isFinite(qty) && qty > 0 ? qty : 1,
         stage,
+        ...(r.court ? { court: r.court } : {}),
       };
     });
 }
@@ -68,6 +74,7 @@ export function toLineItemRows(items: InvoiceLineItem[] | null | undefined): Lin
     amount: i.amount != null ? String(i.amount) : "",
     quantity: String(i.quantity ?? 1),
     upfront: i.stage === "upfront",
+    ...(i.court ? { court: i.court } : {}),
   }));
 }
 

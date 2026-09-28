@@ -3,6 +3,11 @@ import { companyDetails } from "@/config/company";
 import { lineItemCostLabel, type InvoiceLineItem } from "./invoiceLineItems";
 import { computeInvoiceAmounts } from "@/lib/finance/invoiceAmounts";
 import { splitAroundFeeTable } from "@/lib/proposal-content";
+import {
+  awaitingCourtChoice,
+  courtChoiceSummary,
+  resolveCourtToken,
+} from "@/lib/lead-management/courtOptions";
 
 export type ProposalData = {
   invoiceNumber: string;
@@ -25,6 +30,12 @@ export type ProposalData = {
    * proposal has no id to accept yet.
    */
   acceptUrl?: string;
+  /**
+   * proposals.court_options as stored (raw jsonb is fine; normalised here).
+   * With two or three courts offered and none chosen yet, the fee section
+   * shows each court's total instead of a single one.
+   */
+  courtOptions?: unknown;
 };
 
 // Colors
@@ -88,6 +99,17 @@ export function generateProposalPDF(data: ProposalData): string {
     unit: "mm",
     format: "a4",
   });
+
+  // Resolved once, before anything is drawn: the header amount, the fee
+  // section and the accept box all change while a court is still to be chosen.
+  const courtChoice = awaitingCourtChoice(data.lineItems, data.courtOptions)
+    ? courtChoiceSummary(
+        data.lineItems,
+        data.courtOptions,
+        { vat_rate: data.vatRate, vat_amount: data.vatAmount },
+        companyDetails.vatRate
+      )
+    : null;
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -173,7 +195,15 @@ export function generateProposalPDF(data: ProposalData): string {
   doc.text(formatDate(data.validUntil), margin + 35, y + 24);
   doc.setTextColor(...PRIMARY_COLOR);
   doc.setFontSize(11);
-  doc.text(formatCurrency(data.amount), margin + 35, y + 31);
+  // There is no single amount until the client picks a court, so show the
+  // cheapest option's — on the same pre-VAT basis as a normal proposal here.
+  doc.text(
+    courtChoice && courtChoice.options.length > 0
+      ? `from ${formatCurrency(Math.min(...courtChoice.options.map((o) => o.amounts.subtotal)))}`
+      : formatCurrency(data.amount),
+    margin + 35,
+    y + 31
+  );
 
   // Right column - Client Details
   doc.setFillColor(...LIGHT_GRAY);
@@ -393,12 +423,9 @@ export function generateProposalPDF(data: ProposalData): string {
       companyDetails.vatRate
     );
 
-  const drawFeeTable = () => {
-    if (y > pageHeight - FOOTER_RESERVE - 26 - items.length * 8) {
-      doc.addPage();
-      y = margin;
-    }
-
+  // DESCRIPTION | COST | AMOUNT rows, shared by the ordinary fee table and the
+  // court-choice variant (which lists only the items that never vary).
+  const drawItemsTable = (rowsToDraw: InvoiceLineItem[], showStages: boolean) => {
     const tableX = margin;
     const tableW = pageWidth - 2 * margin;
     // DESCRIPTION | COST | AMOUNT — the COST column was missing here, so a
@@ -428,14 +455,14 @@ export function generateProposalPDF(data: ProposalData): string {
     // sized to its own text instead of being clipped to one line.
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
-    for (const item of items) {
+    for (const item of rowsToDraw) {
       const descLines: string[] = item.description
         .split("\n")
         .flatMap((part) => doc.splitTextToSize(part, descColW - 8) as string[]);
       // Say WHEN each charge falls due. Without it the client sees only the
       // 9,450 total and has no way to know that a little over two thirds of it
       // is what actually starts the work.
-      const stageTag = staged
+      const stageTag = showStages
         ? item.stage === "upfront"
           ? "Payable upfront"
           : "At court appointment stage"
@@ -470,6 +497,24 @@ export function generateProposalPDF(data: ProposalData): string {
       }
       y += thisRowH;
     }
+  };
+
+  const drawFeeTable = () => {
+    if (courtChoice) {
+      drawCourtChoiceTable();
+      return;
+    }
+
+    if (y > pageHeight - FOOTER_RESERVE - 26 - items.length * 8) {
+      doc.addPage();
+      y = margin;
+    }
+
+    const tableX = margin;
+    const tableW = pageWidth - 2 * margin;
+    const descColW = tableW * 0.58;
+
+    drawItemsTable(items, staged);
 
     y += 4;
 
@@ -527,6 +572,132 @@ export function generateProposalPDF(data: ProposalData): string {
     }
   };
 
+  // ========== COURT CHOICE (two or three courts offered, none chosen) ==========
+  // There is no single total until the client picks a court, so the table
+  // lists the fixed part with its pre-government-fee sub-total, then each
+  // court with the total the client would pay if they chose it. Every figure
+  // comes from courtChoiceSummary, i.e. computeInvoiceAmounts over the exact
+  // items the proposal will carry after that choice.
+  const drawCourtChoiceTable = () => {
+    if (!courtChoice) return;
+    const tableX = margin;
+    const tableW = pageWidth - 2 * margin;
+    const rowH = 8;
+
+    if (courtChoice.baseItems.length > 0) {
+      if (y > pageHeight - FOOTER_RESERVE - 20 - courtChoice.baseItems.length * 8) {
+        doc.addPage();
+        y = margin;
+      }
+      drawItemsTable(courtChoice.baseItems, courtChoice.staged);
+      y += 6;
+      // Same right-aligned label/value columns as the ordinary totals block.
+      const valueRightX = tableX + tableW - 4;
+      doc.setFontSize(9.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...GRAY_COLOR);
+      doc.text("Sub-Total (before government fee):", valueRightX - 34, y, { align: "right" });
+      doc.setTextColor(...TEXT_COLOR);
+      doc.text(formatCurrency(courtChoice.baseSubtotal), valueRightX, y, { align: "right" });
+      y += 8;
+    }
+
+    // Heading, note, header row and every option row travel together: a
+    // "choose one" list split across pages reads as two separate lists.
+    const neededForOptions = 16 + rowH + courtChoice.options.length * 12;
+    if (y + neededForOptions > pageHeight - FOOTER_RESERVE) {
+      doc.addPage();
+      y = margin;
+    }
+
+    doc.setTextColor(...PRIMARY_COLOR);
+    doc.setFontSize(10.5);
+    doc.setFont("helvetica", "bold");
+    doc.text("Registration court \u2014 please choose one", tableX, y + 4);
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...GRAY_COLOR);
+    doc.text(
+      "The government fee depends on the court that registers your Will. Only the court you choose is charged.",
+      tableX,
+      y + 9.5
+    );
+    y += 13;
+
+    // COURT FEE | COST | AMOUNT | TOTAL INCL. VAT
+    const descColW = tableW * 0.44;
+    const costColW = tableW * 0.12;
+    const costColX = tableX + descColW;
+    const amountRightX = tableX + tableW * 0.76 - 4;
+    const totalRightX = tableX + tableW - 4;
+
+    doc.setFillColor(...LIGHT_GRAY);
+    doc.rect(tableX, y, tableW, rowH, "F");
+    doc.setDrawColor(...GOLD_COLOR);
+    doc.setLineWidth(0.3);
+    doc.rect(tableX, y, tableW, rowH);
+    doc.setTextColor(...PRIMARY_COLOR);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("COURT FEE", tableX + 4, y + 5.5);
+    doc.text("COST", costColX + costColW / 2, y + 5.5, { align: "center" });
+    doc.text("AMOUNT", amountRightX, y + 5.5, { align: "right" });
+    doc.text("TOTAL INCL. VAT", totalRightX, y + 5.5, { align: "right" });
+    y += rowH;
+
+    for (const { option, items: optionItems, amounts } of courtChoice.options) {
+      doc.setFontSize(9.5);
+      doc.setFont("helvetica", "normal");
+      const descLines: string[] = option.description
+        .split("\n")
+        .flatMap((part) => doc.splitTextToSize(part, descColW - 8) as string[]);
+      const thisRowH = Math.max(rowH, descLines.length * lineHeight + 3);
+      if (y + thisRowH > pageHeight - FOOTER_RESERVE - 6) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.setDrawColor(220, 220, 218);
+      doc.rect(tableX, y, tableW, thisRowH);
+      doc.setTextColor(...TEXT_COLOR);
+      doc.text(descLines, tableX + 4, y + 5.5);
+      doc.text(lineItemCostLabel(optionItems[optionItems.length - 1]), costColX + costColW / 2, y + 5.5, {
+        align: "center",
+      });
+      doc.text(formatCurrency(option.amount), amountRightX, y + 5.5, { align: "right" });
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...PRIMARY_COLOR);
+      doc.text(formatCurrency(amounts.invoiceTotal), totalRightX, y + 5.5, { align: "right" });
+      y += thisRowH;
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...TEXT_COLOR);
+    y += 4;
+
+    // The court fee is always due at the court appointment, so what starts
+    // the work is the same whichever court the client picks.
+    if (courtChoice.staged) {
+      y += 2;
+      doc.setFillColor(...LIGHT_GRAY);
+      doc.roundedRect(tableX, y, tableW, 16, 2, 2, "F");
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...PRIMARY_COLOR);
+      doc.text(
+        `Payable now to begin drafting: ${formatCurrency(courtChoice.upfrontTotal)}`,
+        tableX + 5,
+        y + 6.5
+      );
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...GRAY_COLOR);
+      doc.text(
+        "The government fee for the court you choose is payable at the court appointment stage.",
+        tableX + 5,
+        y + 12
+      );
+      y += 20;
+    }
+  };
+
   // ========== ACCEPT CALL TO ACTION ==========
   // Drawn immediately after the fee table: the client has just read what it
   // costs, which is the moment they decide. The URL is the public accept PAGE,
@@ -553,16 +724,29 @@ export function generateProposalPDF(data: ProposalData): string {
 
     doc.setFontSize(9.5);
     doc.setFont("helvetica", "normal");
-    doc.text("Accept this proposal online and we will send your invoice:", boxX + 6, y + 15);
+    doc.text(
+      courtChoice
+        ? "Choose your registration court and accept online; we will then send your invoice:"
+        : "Accept this proposal online and we will send your invoice:",
+      boxX + 6,
+      y + 15
+    );
 
     // textWithLink both draws the text and registers the clickable annotation,
     // so the two can never point at different places. Gold, because an
     // underline is not available and the link has to look like one.
     doc.setTextColor(...GOLD_COLOR);
     doc.setFont("helvetica", "bold");
-    doc.textWithLink("Click here to accept this proposal", boxX + 6, y + 20.5, {
-      url: data.acceptUrl,
-    });
+    // Still ONE link, to the page (not the API): the page is where the court
+    // is chosen, so a PDF needs no per-court links of its own.
+    doc.textWithLink(
+      courtChoice ? "Choose your court & accept" : "Click here to accept this proposal",
+      boxX + 6,
+      y + 20.5,
+      {
+        url: data.acceptUrl,
+      }
+    );
 
     doc.setTextColor(...TEXT_COLOR);
     doc.setFont("helvetica", "normal");
@@ -574,7 +758,12 @@ export function generateProposalPDF(data: ProposalData): string {
   // the table is drawn here, exactly where the token sits. Proposals saved
   // before the token existed have none: `before` is then the whole body and
   // `after` is empty, which reproduces today's body-then-table order unchanged.
-  const { before, after } = splitAroundFeeTable(data.proposalContent);
+  //
+  // {{COURT}} (Stage 5) is resolved first, from the same line items and
+  // options the fee table uses, so the wording follows the client's choice.
+  const { before, after } = splitAroundFeeTable(
+    resolveCourtToken(data.proposalContent, data.lineItems, data.courtOptions)
+  );
 
   renderBodyText(before);
   y += 10;

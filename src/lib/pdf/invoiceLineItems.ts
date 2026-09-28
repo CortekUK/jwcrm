@@ -16,6 +16,13 @@
  */
 export type LineItemStage = "upfront" | "later";
 
+/**
+ * The registration court a line pays for. Set only on the government-fee line
+ * produced by the court-option picker (see lead-management/courtOptions.ts), so
+ * the chosen court can always be read back off the line items themselves.
+ */
+export type CourtId = "abu_dhabi" | "dubai" | "difc";
+
 export type InvoiceLineItem = {
   /** May contain newlines; renderers must honour hard line breaks. */
   description: string;
@@ -24,6 +31,8 @@ export type InvoiceLineItem = {
   /** Display-only multiplier shown in the invoice COST column ("X2"). */
   quantity?: number;
   stage?: LineItemStage;
+  /** Present only on the chosen registration court's fee line. */
+  court?: CourtId;
 };
 
 // Suggested default items shown when a new invoice is created. Amounts are 0
@@ -42,6 +51,10 @@ function normalizeStage(value: unknown): LineItemStage | undefined {
   return value === "upfront" || value === "later" ? value : undefined;
 }
 
+function normalizeCourt(value: unknown): CourtId | undefined {
+  return value === "abu_dhabi" || value === "dubai" || value === "difc" ? value : undefined;
+}
+
 // Returns the items to render. Falls back to a single "Will (UAE)" row using
 // the flat amount so older invoices (no line items) still render correctly.
 export function normalizeLineItems(
@@ -54,12 +67,16 @@ export function normalizeLineItems(
   if (cleaned.length > 0) {
     return cleaned.map((i) => {
       const stage = normalizeStage(i.stage);
+      const court = normalizeCourt(i.court);
       return {
         // trim() only strips the ends, so interior newlines survive.
         description: i.description.trim(),
         amount: Number(i.amount) || 0,
         quantity: normalizeQuantity(i.quantity),
         ...(stage ? { stage } : {}),
+        // Dropping this would forget which court the client chose the first
+        // time the items passed through any renderer or route.
+        ...(court ? { court } : {}),
       };
     });
   }
@@ -76,6 +93,30 @@ export function normalizeLineItems(
 
 export function lineItemsSubtotal(items: InvoiceLineItem[]): number {
   return items.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+}
+
+/**
+ * Line items reduced to the fields a client reads, in a fixed key order, for
+ * "has this changed?" comparisons. jsonb does not keep key order (and numerics
+ * may come back as strings), so a raw JSON.stringify comparison reports an
+ * identical re-send as "changed".
+ *
+ * Lives here rather than in proposalInvoice.ts because the court-option
+ * planner (lead-management/courtOptions.ts) must decide "unchanged" exactly the
+ * way the acceptance reset does — two definitions would let a re-send keep the
+ * client's court choice while wiping their acceptance, or the reverse.
+ */
+export function canonicalLineItems(items: unknown): string {
+  if (!Array.isArray(items)) return "[]";
+  return JSON.stringify(
+    items.map((i: Record<string, unknown>) => [
+      String(i?.description ?? ""),
+      Number(i?.amount ?? 0),
+      Number(i?.quantity ?? 1),
+      i?.stage === "upfront" || i?.stage === "later" ? i.stage : null,
+      normalizeCourt(i?.court) ?? null,
+    ])
+  );
 }
 
 /**
