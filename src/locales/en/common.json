@@ -73,5 +73,28 @@
   "retry": "Retry",
   "saving": "Saving...",
   "showingOf": "Showing {{from}}-{{to}} of {{total}}",
-  "viewAll": "View All"
+  "viewAll": "View All",
+  "feedback": {
+    "button": "Report an issue",
+    "title": "Report an issue",
+    "description": "Tell the team what isn't working or what could be better. Your report is emailed to the office.",
+    "category": "Category",
+    "categories": {
+      "bug": "Something isn't working",
+      "suggestion": "Suggestion",
+      "question": "Question"
+    },
+    "message": "Message",
+    "messagePlaceholder": "What happened? What did you expect to happen?",
+    "screenshot": "Screenshot",
+    "from": "From",
+    "page": "Page",
+    "send": "Send report",
+    "sending": "Sending…",
+    "sent": "Thanks — your report has been sent to the team.",
+    "failed": "Could not send your report",
+    "notSignedIn": "Your session has expired. Please sign in again.",
+    "invalidImage": "Screenshot must be a PNG, JPEG, GIF or WebP image",
+    "imageTooLarge": "Screenshot must be 3 MB or smaller"
+  }
 }

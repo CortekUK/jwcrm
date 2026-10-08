@@ -55,6 +55,8 @@ interface AddReminderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  /** Optional day to pre-fill (e.g. the calendar day the user clicked). */
+  defaultDate?: Date | null;
 }
 
 const reminderFormSchema = z.object({
@@ -73,6 +75,7 @@ export function AddReminderDialog({
   open,
   onOpenChange,
   onSuccess,
+  defaultDate,
 }: AddReminderDialogProps) {
   const { t } = useTranslation("leadManagement");
   const { user } = useAuth();
@@ -150,18 +153,35 @@ export function AddReminderDialog({
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
-      const tomorrow = addDays(new Date(), 1);
-      tomorrow.setHours(9, 0, 0, 0);
+      const now = new Date();
+      let initial = addDays(now, 1);
+      initial.setHours(9, 0, 0, 0);
+
+      // Pre-fill the requested day at 09:00; if that's already past (e.g. today
+      // after 9am) use the next full hour today; never pre-fill a past day.
+      if (defaultDate) {
+        const candidate = new Date(defaultDate);
+        candidate.setHours(9, 0, 0, 0);
+        if (!isBefore(candidate, now)) {
+          initial = candidate;
+        } else if (candidate.toDateString() === now.toDateString()) {
+          const nextHour = new Date(now);
+          nextHour.setHours(now.getHours() + 1, 0, 0, 0);
+          if (nextHour.toDateString() === now.toDateString()) {
+            initial = nextHour;
+          }
+        }
+      }
 
       form.reset({
         title: leadName ? `${t("followUpWith")} ${leadName}` : "",
         description: "",
-        date: tomorrow,
-        hour: "09",
+        date: initial,
+        hour: initial.getHours().toString().padStart(2, "0"),
         minute: "00",
       });
     }
-  }, [open, form, leadName, t]);
+  }, [open, form, leadName, t, defaultDate]);
 
   const handleSubmit = async (data: ReminderFormValues) => {
     // Construct the reminder datetime in LOCAL timezone

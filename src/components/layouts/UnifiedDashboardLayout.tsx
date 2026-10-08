@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useTranslation } from "react-i18next";
 import { SidebarProvider, useSidebar } from "@/contexts/SidebarContext";
 import { UserProfileMenu } from "@/components/layouts/UserProfileMenu";
+import { ReportIssueButton } from "@/components/feedback/ReportIssueButton";
 import { cn } from "@/lib/utils";
 
 interface UnifiedDashboardLayoutProps {
@@ -187,8 +188,9 @@ function SidebarContent() {
         {/* User Profile Menu (consolidated: profile, language, sign out) */}
         <div className={cn(
           "border-t border-sidebar-border",
-          isCollapsed ? "p-2" : "p-3"
+          isCollapsed ? "p-2 space-y-1" : "p-3 space-y-1"
         )}>
+          <ReportIssueButton variant={isCollapsed ? "compact" : "sidebar"} />
           <UserProfileMenu 
             compact={isCollapsed} 
             showReminderBadge={selectedRole === "salesperson" || selectedRole === "hr"}
@@ -264,44 +266,47 @@ function MobileSidebar() {
       <div className="flex items-center gap-2">
         <h1 className="text-lg font-serif font-semibold text-[#0C5536]">Just Wills</h1>
       </div>
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <Menu className="h-6 w-6" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side={isRtl ? "right" : "left"} className="w-[220px] bg-sidebar p-0">
-          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          <div className="flex h-full flex-col">
-            {/* Logo/Brand Section */}
-            <div className="border-b border-sidebar-border py-6 px-6">
-              <div className="text-center">
-                <h1 className="text-2xl font-serif font-semibold tracking-tight text-sidebar-foreground mb-1">
-                  Just Wills
-                </h1>
-                <p className="text-[12px] font-medium text-[#C6A03B] tracking-wider uppercase">
-                  {t("common:internalDashboard")}
-                </p>
+      <div className="flex items-center gap-1">
+        <ReportIssueButton variant="icon" />
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side={isRtl ? "right" : "left"} className="w-[220px] bg-sidebar p-0">
+            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+            <div className="flex h-full flex-col">
+              {/* Logo/Brand Section */}
+              <div className="border-b border-sidebar-border py-6 px-6">
+                <div className="text-center">
+                  <h1 className="text-2xl font-serif font-semibold tracking-tight text-sidebar-foreground mb-1">
+                    Just Wills
+                  </h1>
+                  <p className="text-[12px] font-medium text-[#C6A03B] tracking-wider uppercase">
+                    {t("common:internalDashboard")}
+                  </p>
+                </div>
+              </div>
+
+              {/* Role Switcher */}
+              <div className="px-4 py-3 border-b border-sidebar-border">
+                <RoleSwitcher />
+              </div>
+
+              {/* Navigation */}
+              <nav className="flex-1 space-y-[14px] p-4 overflow-y-auto">
+                <NavContent />
+              </nav>
+
+              {/* User Profile Menu (consolidated: profile, language, sign out) */}
+              <div className="border-t border-sidebar-border p-3">
+                <UserProfileMenu showReminderBadge={selectedRole === "salesperson" || selectedRole === "hr"} />
               </div>
             </div>
-
-            {/* Role Switcher */}
-            <div className="px-4 py-3 border-b border-sidebar-border">
-              <RoleSwitcher />
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 space-y-[14px] p-4 overflow-y-auto">
-              <NavContent />
-            </nav>
-
-            {/* User Profile Menu (consolidated: profile, language, sign out) */}
-            <div className="border-t border-sidebar-border p-3">
-              <UserProfileMenu showReminderBadge={selectedRole === "salesperson" || selectedRole === "hr"} />
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </SheetContent>
+        </Sheet>
+      </div>
     </header>
   );
 }

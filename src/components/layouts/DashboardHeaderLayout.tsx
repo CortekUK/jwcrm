@@ -8,6 +8,7 @@ import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ReportIssueButton } from "@/components/feedback/ReportIssueButton";
 import { DashboardType, getDashboardBySlug } from "@/config/dashboards";
 
 interface DashboardHeaderLayoutProps {
@@ -65,6 +66,7 @@ export function DashboardHeaderLayout({
             </nav>
           </div>
           <div className="flex items-center gap-4">
+            <ReportIssueButton variant="header" />
             <LanguageSwitcher />
             <div className="flex items-center gap-3 px-3 py-1.5 bg-[rgba(12,85,54,0.08)] rounded-lg border border-[#0C5536]/20">
               <div className="hidden md:flex items-center gap-2">

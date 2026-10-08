@@ -22,6 +22,12 @@ import {
   Plus,
   Bell,
   AlertCircle,
+  PhoneCall,
+  User,
+  Building,
+  ExternalLink,
+  Search,
+  CheckCircle2,
 } from "lucide-react";
 import {
   format,
@@ -51,6 +57,15 @@ import {
   CommunicationData,
 } from "@/components/salesperson/CalendarDayDetailModal";
 import { SendMeetingInviteDialog } from "@/components/salesperson/SendMeetingInviteDialog";
+import { AddReminderDialog } from "@/components/lead-management/reminders/AddReminderDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const getWeekdayLabels = (t: (key: string) => string): string[] => [
@@ -83,6 +98,44 @@ const METHOD_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
 
 type ViewMode = "month" | "week";
 
+// A planned call / follow-up from lead_reminders (Set Reminder dialog,
+// call-attempt retries, new-lead and stale-lead follow-ups).
+interface CalendarReminder {
+  id: string;
+  lead_id: string;
+  salesperson_id: string;
+  title: string;
+  description: string | null;
+  remind_at: string;
+  status: "pending" | "triggered" | "done" | "dismissed";
+  completed_at: string | null;
+  created_at: string;
+  lead: {
+    id: string;
+    full_name: string;
+    email: string | null;
+    phone: string | null;
+    company_name: string | null;
+  } | null;
+}
+
+interface PickerLead {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  company_name: string | null;
+}
+
+// Reminder chips: gold "call" styling; done ones muted + struck through.
+const REMINDER_COLORS = {
+  bg: "bg-[#FFF4D6]",
+  text: "text-[#8A6D1F]",
+  border: "border-[#C6A03B]/40",
+};
+
+const isReminderDone = (r: CalendarReminder) => r.status === "done";
+
 export default function SalespersonCalendarPage() {
   const { t } = useTranslation(["salesperson", "common"]);
   const router = useRouter();
@@ -94,6 +147,7 @@ export default function SalespersonCalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [communications, setCommunications] = useState<CommunicationData[]>([]);
+  const [reminders, setReminders] = useState<CalendarReminder[]>([]);
 
   // Modal states
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -102,6 +156,21 @@ export default function SalespersonCalendarPage() {
   const [selectedCommunication, setSelectedCommunication] =
     useState<CommunicationData | null>(null);
   const [quickAddDate, setQuickAddDate] = useState<Date | null>(null);
+
+  // Reminder detail dialog (one reminder or all of a day's reminders)
+  const [reminderDetailOpen, setReminderDetailOpen] = useState(false);
+  const [reminderDetailItems, setReminderDetailItems] = useState<CalendarReminder[]>([]);
+  const [reminderDetailDate, setReminderDetailDate] = useState<Date | null>(null);
+
+  // Quick-add chooser: "Schedule call / reminder" vs "Send meeting invite"
+  const [quickAddChooserOpen, setQuickAddChooserOpen] = useState(false);
+  const [quickAddStep, setQuickAddStep] = useState<"choose" | "pickLead">("choose");
+  const [pickerLeads, setPickerLeads] = useState<PickerLead[]>([]);
+  const [pickerLeadsLoaded, setPickerLeadsLoaded] = useState(false);
+  const [pickerLeadsLoading, setPickerLeadsLoading] = useState(false);
+  const [leadSearch, setLeadSearch] = useState("");
+  const [reminderLead, setReminderLead] = useState<PickerLead | null>(null);
+  const [addReminderOpen, setAddReminderOpen] = useState(false);
 
   const today = new Date();
 
@@ -141,8 +210,9 @@ export default function SalespersonCalendarPage() {
         throw new Error("Failed to fetch communications");
       }
 
-      const { data } = await response.json();
+      const { data, reminders: reminderData } = await response.json();
       setCommunications(data || []);
+      setReminders(reminderData || []);
     } catch (error) {
       console.error("Error fetching communications:", error);
       toast({
@@ -181,6 +251,20 @@ export default function SalespersonCalendarPage() {
     return map;
   }, [communications]);
 
+  // Group reminders by date (local day of remind_at)
+  const remindersByDate = useMemo(() => {
+    const map = new Map<string, CalendarReminder[]>();
+
+    reminders.forEach((reminder) => {
+      const dateStr = format(parseISO(reminder.remind_at), "yyyy-MM-dd");
+      const existing = map.get(dateStr) || [];
+      existing.push(reminder);
+      map.set(dateStr, existing);
+    });
+
+    return map;
+  }, [reminders]);
+
   // Calculate summary stats
   const stats = useMemo(() => {
     const rangeComms = communications.filter((comm) => {
@@ -190,6 +274,20 @@ export default function SalespersonCalendarPage() {
 
     const todayStr = format(today, "yyyy-MM-dd");
     const todayComms = communicationsByDate.get(todayStr) || [];
+
+    // Open (not done) call reminders count towards the same stats
+    const openReminders = reminders.filter((r) => !isReminderDone(r));
+    const todayReminders = openReminders.filter(
+      (r) => format(parseISO(r.remind_at), "yyyy-MM-dd") === todayStr
+    );
+    const next7DaysReminders = openReminders.filter((r) => {
+      const daysFromNow = differenceInDays(parseISO(r.remind_at), today);
+      return daysFromNow >= 0 && daysFromNow <= 7;
+    });
+    const overdueReminders = openReminders.filter((r) => {
+      const d = parseISO(r.remind_at);
+      return isPast(d) && !isToday(d);
+    });
 
     // Upcoming in next 7 days
     const next7Days = communications.filter((comm) => {
@@ -211,15 +309,19 @@ export default function SalespersonCalendarPage() {
       const commDate = parseISO(comm.scheduled_at);
       return commDate >= thisWeekStart && commDate <= thisWeekEnd;
     });
+    const thisWeekReminders = openReminders.filter((r) => {
+      const d = parseISO(r.remind_at);
+      return d >= thisWeekStart && d <= thisWeekEnd;
+    });
 
     return {
       totalInRange: rangeComms.length,
-      upcomingToday: todayComms.length,
-      upcoming7Days: next7Days.length,
-      thisWeek: thisWeekComms.length,
-      overdue: overdue.length,
+      upcomingToday: todayComms.length + todayReminders.length,
+      upcoming7Days: next7Days.length + next7DaysReminders.length,
+      thisWeek: thisWeekComms.length + thisWeekReminders.length,
+      overdue: overdue.length + overdueReminders.length,
     };
-  }, [communications, communicationsByDate, today, dateRange]);
+  }, [communications, communicationsByDate, reminders, today, dateRange]);
 
   const handlePrevious = () => {
     if (viewMode === "week") {
@@ -244,14 +346,80 @@ export default function SalespersonCalendarPage() {
     }
   };
 
+  const openReminderDetails = (items: CalendarReminder[], day: Date | null) => {
+    if (items.length === 0) return;
+    setReminderDetailItems(items);
+    setReminderDetailDate(day);
+    setReminderDetailOpen(true);
+  };
+
   const handleQuickAddClick = (e: React.MouseEvent, day: Date) => {
     e.stopPropagation();
     setQuickAddDate(day);
+    setQuickAddStep("choose");
+    setLeadSearch("");
+    setQuickAddChooserOpen(true);
+  };
+
+  const loadPickerLeads = useCallback(async () => {
+    if (!user?.id || pickerLeadsLoaded || pickerLeadsLoading) return;
+    setPickerLeadsLoading(true);
+    try {
+      const response = await fetch(`/api/lead-management/salesperson/${user.id}/leads`);
+      if (!response.ok) throw new Error("Failed to fetch leads");
+      const json = await response.json();
+      const leads: PickerLead[] = (json?.data?.leads || []).map(
+        (lead: PickerLead) => ({
+          id: lead.id,
+          full_name: lead.full_name,
+          email: lead.email,
+          phone: lead.phone,
+          company_name: lead.company_name,
+        })
+      );
+      setPickerLeads(leads);
+      setPickerLeadsLoaded(true);
+    } catch (error) {
+      console.error("Error fetching leads for reminder:", error);
+      toast({
+        title: t("common:error"),
+        description: t("failedToFetchLeads", "Failed to load your leads"),
+        variant: "destructive",
+      });
+    } finally {
+      setPickerLeadsLoading(false);
+    }
+  }, [user?.id, pickerLeadsLoaded, pickerLeadsLoading, toast, t]);
+
+  const handleChooseReminder = () => {
+    setQuickAddStep("pickLead");
+    loadPickerLeads();
+  };
+
+  const handleChooseMeetingInvite = () => {
+    setQuickAddChooserOpen(false);
     setMeetingInviteOpen(true);
   };
 
+  const handlePickLead = (lead: PickerLead) => {
+    setReminderLead(lead);
+    setQuickAddChooserOpen(false);
+    setAddReminderOpen(true);
+  };
+
+  const filteredPickerLeads = useMemo(() => {
+    const q = leadSearch.trim().toLowerCase();
+    if (!q) return pickerLeads;
+    return pickerLeads.filter((lead) =>
+      [lead.full_name, lead.email, lead.phone, lead.company_name]
+        .filter(Boolean)
+        .some((v) => (v as string).toLowerCase().includes(q))
+    );
+  }, [pickerLeads, leadSearch]);
+
   const handleViewLead = (leadId: string) => {
     setDayModalOpen(false);
+    setReminderDetailOpen(false);
     // `/admin/salesperson/leads?leadId=…` redirects to a list that ignores the
     // param, so the lead you clicked was lost. Go straight to its detail page.
     router.push(`/admin/lead-management/leads/${leadId}`);
@@ -283,13 +451,13 @@ export default function SalespersonCalendarPage() {
 
   // Get color for communication type
   const getCommColor = (comm: CommunicationData) => {
-    const method = comm.method?.icon || "default";
+    const method = comm.communication_method?.icon || "default";
     return COMMUNICATION_COLORS[method] || COMMUNICATION_COLORS.default;
   };
 
   // Get icon for communication type
   const getCommIcon = (comm: CommunicationData) => {
-    const method = comm.method?.icon || "phone";
+    const method = comm.communication_method?.icon || "phone";
     return METHOD_ICONS[method] || Phone;
   };
 
@@ -297,10 +465,38 @@ export default function SalespersonCalendarPage() {
   const renderDayCell = (day: Date, isWeekView: boolean = false) => {
     const dateStr = format(day, "yyyy-MM-dd");
     const dayComms = communicationsByDate.get(dateStr) || [];
+    const dayReminders = remindersByDate.get(dateStr) || [];
     const isTodayDate = isToday(day);
     const dayNumber = day.getDate();
     const isWeekend = isFriday(day) || isSaturday(day);
     const hasCommunications = dayComms.length > 0;
+    const hasReminders = dayReminders.length > 0;
+    const hasItems = hasCommunications || hasReminders;
+
+    // Communications and reminders merged in time order for chip rendering
+    const dayItems: Array<
+      | { kind: "communication"; at: string; comm: CommunicationData }
+      | { kind: "reminder"; at: string; reminder: CalendarReminder }
+    > = [
+      ...dayComms.map((comm) => ({
+        kind: "communication" as const,
+        at: comm.scheduled_at,
+        comm,
+      })),
+      ...dayReminders.map((reminder) => ({
+        kind: "reminder" as const,
+        at: reminder.remind_at,
+        reminder,
+      })),
+    ].sort((a, b) => parseISO(a.at).getTime() - parseISO(b.at).getTime());
+
+    const handleCellClick = () => {
+      if (hasCommunications) {
+        handleDayClick(day, dayComms);
+      } else if (hasReminders) {
+        openReminderDetails(dayReminders, day);
+      }
+    };
     const isCurrentMonth = day.getMonth() === currentDate.getMonth();
 
     // Week view cell
@@ -342,15 +538,44 @@ export default function SalespersonCalendarPage() {
             </Button>
           </div>
 
-          {/* Communications */}
+          {/* Communications + call reminders */}
           <div className="space-y-1.5 overflow-y-auto max-h-[160px]">
-            {dayComms.map((comm, idx) => {
+            {dayItems.map((item) => {
+              if (item.kind === "reminder") {
+                const reminder = item.reminder;
+                const done = isReminderDone(reminder);
+                return (
+                  <div
+                    key={`r-${reminder.id}`}
+                    className={cn(
+                      "flex items-center gap-2 p-2 rounded border border-dashed cursor-pointer hover:shadow-sm transition-shadow",
+                      REMINDER_COLORS.bg,
+                      REMINDER_COLORS.border,
+                      done && "opacity-60"
+                    )}
+                    onClick={() => openReminderDetails([reminder], day)}
+                    title={`${t("callReminder", "Call / Reminder")}: ${reminder.title}`}
+                  >
+                    <PhoneCall className={cn("h-3 w-3 flex-shrink-0", REMINDER_COLORS.text)} />
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-xs font-medium truncate", REMINDER_COLORS.text, done && "line-through")}>
+                        {format(parseISO(reminder.remind_at), "h:mm a")} · {reminder.title}
+                      </p>
+                      <p className={cn("text-xs text-[#6B6B6B] truncate", done && "line-through")}>
+                        {reminder.lead?.full_name || t("callReminder", "Call / Reminder")}
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
+              const comm = item.comm;
               const colors = getCommColor(comm);
               const Icon = getCommIcon(comm);
-              
+
               return (
                 <div
-                  key={idx}
+                  key={`c-${comm.id}`}
                   className={cn(
                     "flex items-center gap-2 p-2 rounded border cursor-pointer hover:shadow-sm transition-shadow",
                     colors.bg,
@@ -374,7 +599,7 @@ export default function SalespersonCalendarPage() {
     }
 
     // Month view cell
-    if (isWeekend && !hasCommunications) {
+    if (isWeekend && !hasItems) {
       return (
         <div
           key={dateStr}
@@ -393,7 +618,7 @@ export default function SalespersonCalendarPage() {
         className={cn(
           "h-20 md:h-24 p-1 rounded-md border transition-colors relative group",
           isTodayDate && "ring-2 ring-[hsl(var(--jw-primary-green))]",
-          hasCommunications
+          hasItems
             ? isWeekend
               ? "bg-[#E6F7F1]/70 border-[#0C5536]/20 cursor-pointer hover:bg-[#E6F7F1]"
               : "bg-[#E6F7F1] border-[#0C5536]/20 cursor-pointer hover:bg-[#D4EFE4]"
@@ -402,7 +627,7 @@ export default function SalespersonCalendarPage() {
               : "bg-white border-[#E6E6E4]",
           !isCurrentMonth && "opacity-50"
         )}
-        onClick={() => hasCommunications && handleDayClick(day, dayComms)}
+        onClick={handleCellClick}
       >
         <div className="flex justify-between items-start">
           <span
@@ -417,13 +642,29 @@ export default function SalespersonCalendarPage() {
           >
             {dayNumber}
           </span>
-          {hasCommunications && (
-            <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-[#FFF9E6] text-[#C6A03B] border-0">
-              {dayComms.length}
-            </Badge>
-          )}
+          <div className="flex items-center gap-0.5">
+            {hasReminders && (
+              <Badge
+                variant="secondary"
+                className="text-xs px-1.5 py-0 bg-[#FFF4D6] text-[#8A6D1F] border-0 gap-0.5 cursor-pointer"
+                title={t("callReminders", "Calls / Reminders")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openReminderDetails(dayReminders, day);
+                }}
+              >
+                <PhoneCall className="h-2.5 w-2.5" />
+                {dayReminders.length}
+              </Badge>
+            )}
+            {hasCommunications && (
+              <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-[#FFF9E6] text-[#C6A03B] border-0">
+                {dayComms.length}
+              </Badge>
+            )}
+          </div>
         </div>
-        
+
         {/* Quick add button */}
         {!isWeekend && (
           <Button
@@ -436,14 +677,40 @@ export default function SalespersonCalendarPage() {
           </Button>
         )}
 
-        {hasCommunications && (
+        {hasItems && (
           <div className="mt-1 space-y-0.5">
-            {dayComms.slice(0, 2).map((comm, idx) => {
+            {dayItems.slice(0, 2).map((item) => {
+              if (item.kind === "reminder") {
+                const reminder = item.reminder;
+                const done = isReminderDone(reminder);
+                return (
+                  <div
+                    key={`r-${reminder.id}`}
+                    className={cn(
+                      "text-xs truncate rounded px-1 flex items-center gap-1",
+                      REMINDER_COLORS.bg,
+                      REMINDER_COLORS.text,
+                      done && "opacity-60 line-through"
+                    )}
+                    title={`${format(parseISO(reminder.remind_at), "h:mm a")} - ${reminder.title}${reminder.lead ? ` (${reminder.lead.full_name})` : ""}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openReminderDetails([reminder], day);
+                    }}
+                  >
+                    <PhoneCall className="h-2.5 w-2.5 flex-shrink-0" />
+                    <span className="font-medium">{format(parseISO(reminder.remind_at), "h:mm")}</span>
+                    <span className="truncate hidden md:inline">{reminder.title}</span>
+                  </div>
+                );
+              }
+
+              const comm = item.comm;
               const colors = getCommColor(comm);
-              
+
               return (
                 <div
-                  key={idx}
+                  key={`c-${comm.id}`}
                   className={cn(
                     "text-xs truncate rounded px-1 flex items-center gap-1",
                     colors.bg, colors.text
@@ -454,9 +721,9 @@ export default function SalespersonCalendarPage() {
                 </div>
               );
             })}
-            {dayComms.length > 2 && (
+            {dayItems.length > 2 && (
               <span className="text-xs text-[#777777]">
-                +{dayComms.length - 2} more
+                +{dayItems.length - 2} more
               </span>
             )}
           </div>
@@ -672,6 +939,10 @@ export default function SalespersonCalendarPage() {
               <Users className="h-4 w-4 text-[#D97706]" />
               <span className="text-sm text-[#555555]">{t("inPerson", "In-Person")}</span>
             </div>
+            <div className="flex items-center gap-2">
+              <PhoneCall className="h-4 w-4 text-[#8A6D1F]" />
+              <span className="text-sm text-[#555555]">{t("callReminders", "Calls / Reminders")}</span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -685,6 +956,235 @@ export default function SalespersonCalendarPage() {
         onViewLead={handleViewLead}
         onSendMeetingInvite={handleSendMeetingInvite}
       />
+
+      {/* Call / Reminder Detail Dialog */}
+      <Dialog open={reminderDetailOpen} onOpenChange={setReminderDetailOpen}>
+        <DialogContent className="sm:max-w-[550px] max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[hsl(var(--jw-primary-green))]">
+              <PhoneCall className="h-5 w-5 text-[#C6A03B]" />
+              {reminderDetailItems.length === 1
+                ? t("callReminder", "Call / Reminder")
+                : t("callReminders", "Calls / Reminders")}
+            </DialogTitle>
+            {reminderDetailDate && (
+              <DialogDescription className="ltr:ml-7 rtl:mr-7">
+                {format(reminderDetailDate, "EEEE, MMMM d, yyyy")}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          <div className="space-y-3 overflow-y-auto py-2">
+            {reminderDetailItems.map((reminder) => {
+              const done = isReminderDone(reminder);
+              const statusLabel =
+                reminder.status === "done"
+                  ? t("reminderStatusDone", "Done")
+                  : reminder.status === "triggered"
+                    ? t("reminderStatusDue", "Due")
+                    : t("reminderStatusUpcoming", "Upcoming");
+              return (
+                <div
+                  key={reminder.id}
+                  className={cn(
+                    "p-4 rounded-lg border bg-white",
+                    REMINDER_COLORS.border,
+                    done && "opacity-70"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="min-w-0">
+                      <p className={cn("font-semibold text-[#222222]", done && "line-through")}>
+                        {reminder.title}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-sm text-[#555555] mt-1">
+                        <Clock className="h-3.5 w-3.5 text-[#C6A03B]" />
+                        {format(parseISO(reminder.remind_at), "EEE, MMM d 'at' h:mm a")}
+                      </div>
+                    </div>
+                    <Badge
+                      className={cn(
+                        "border-0 flex-shrink-0 gap-1",
+                        reminder.status === "done"
+                          ? "bg-[#E6F7F1] text-[#0C5536]"
+                          : reminder.status === "triggered"
+                            ? "bg-[#FEECEC] text-[#C0392B]"
+                            : "bg-[#FFF4D6] text-[#8A6D1F]"
+                      )}
+                    >
+                      {done ? <CheckCircle2 className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
+                      {statusLabel}
+                    </Badge>
+                  </div>
+
+                  {reminder.description && (
+                    <p className="text-sm text-[#555555] whitespace-pre-wrap mb-3">
+                      {reminder.description}
+                    </p>
+                  )}
+
+                  {reminder.lead && (
+                    <div className="space-y-1 text-sm text-[#555555] border-t border-[#E6E6E4] pt-3">
+                      <div className="flex items-center gap-2">
+                        <User className="h-3.5 w-3.5 text-[#6B6B6B]" />
+                        <span className="font-medium text-[#222222]">{reminder.lead.full_name}</span>
+                      </div>
+                      {reminder.lead.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-3.5 w-3.5 text-[#6B6B6B]" />
+                          <a href={`tel:${reminder.lead.phone}`} className="hover:underline">
+                            {reminder.lead.phone}
+                          </a>
+                        </div>
+                      )}
+                      {reminder.lead.email && (
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-3.5 w-3.5 text-[#6B6B6B]" />
+                          <span className="truncate">{reminder.lead.email}</span>
+                        </div>
+                      )}
+                      {reminder.lead.company_name && (
+                        <div className="flex items-center gap-2">
+                          <Building className="h-3.5 w-3.5 text-[#6B6B6B]" />
+                          <span className="truncate">{reminder.lead.company_name}</span>
+                        </div>
+                      )}
+                      <div className="pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-[#E6E6E4] hover:bg-[#FDFBF4] hover:border-[#C6A03B]"
+                          onClick={() => handleViewLead(reminder.lead_id)}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 ltr:mr-1.5 rtl:ml-1.5" />
+                          {t("viewLead", "View Lead")}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick-add chooser: schedule a call/reminder or send a meeting invite */}
+      <Dialog
+        open={quickAddChooserOpen}
+        onOpenChange={(open) => {
+          setQuickAddChooserOpen(open);
+          if (!open && !addReminderOpen && !meetingInviteOpen) {
+            setQuickAddDate(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[hsl(var(--jw-primary-green))]">
+              <Plus className="h-5 w-5 text-[#C6A03B]" />
+              {quickAddStep === "choose"
+                ? t("addToCalendar", "Add to calendar")
+                : t("selectLead", "Select a lead")}
+            </DialogTitle>
+            {quickAddDate && (
+              <DialogDescription className="ltr:ml-7 rtl:mr-7">
+                {format(quickAddDate, "EEEE, MMMM d, yyyy")}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          {quickAddStep === "choose" ? (
+            <div className="grid gap-3 py-2">
+              <Button
+                variant="outline"
+                className="h-auto justify-start gap-3 p-4 border-[#E6E6E4] hover:bg-[#FDFBF4] hover:border-[#C6A03B]"
+                onClick={handleChooseReminder}
+              >
+                <PhoneCall className="h-5 w-5 text-[#C6A03B]" />
+                <span className="font-medium text-[#222222]">
+                  {t("scheduleCallReminder", "Schedule call / reminder")}
+                </span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto justify-start gap-3 p-4 border-[#E6E6E4] hover:bg-[#FDFBF4] hover:border-[#C6A03B]"
+                onClick={handleChooseMeetingInvite}
+              >
+                <Mail className="h-5 w-5 text-[#2563EB]" />
+                <span className="font-medium text-[#222222]">
+                  {t("sendMeetingInvite", "Send meeting invite")}
+                </span>
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              <div className="relative">
+                <Search className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9CA3AF]" />
+                <Input
+                  autoFocus
+                  value={leadSearch}
+                  onChange={(e) => setLeadSearch(e.target.value)}
+                  placeholder={t("searchLeads", "Search your leads...")}
+                  className="ltr:pl-9 rtl:pr-9 border-[#E6E6E4] focus:border-[#C6A03B] focus:ring-1 focus:ring-[#C6A03B]"
+                />
+              </div>
+              <div className="max-h-[300px] overflow-y-auto rounded-md border border-[#E6E6E4] divide-y divide-[#E6E6E4]">
+                {pickerLeadsLoading ? (
+                  <div className="flex items-center justify-center p-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--jw-primary-green))]" />
+                  </div>
+                ) : filteredPickerLeads.length === 0 ? (
+                  <p className="p-4 text-sm text-center text-[#777777]">
+                    {t("noLeadsFound", "No leads found")}
+                  </p>
+                ) : (
+                  filteredPickerLeads.map((lead) => (
+                    <button
+                      key={lead.id}
+                      type="button"
+                      className="w-full text-start px-3 py-2 hover:bg-[#FDFBF4] transition-colors"
+                      onClick={() => handlePickLead(lead)}
+                    >
+                      <p className="text-sm font-medium text-[#222222] truncate">{lead.full_name}</p>
+                      <p className="text-xs text-[#777777] truncate">
+                        {[lead.phone, lead.email, lead.company_name].filter(Boolean).join(" · ")}
+                      </p>
+                    </button>
+                  ))
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setQuickAddStep("choose")}
+                className="text-[#555555]"
+              >
+                <ChevronLeft className="h-4 w-4 ltr:mr-1 rtl:ml-1" />
+                {t("common:back", "Back")}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule call / reminder for the picked lead */}
+      {reminderLead && (
+        <AddReminderDialog
+          open={addReminderOpen}
+          onOpenChange={(open) => {
+            setAddReminderOpen(open);
+            if (!open) {
+              setReminderLead(null);
+              setQuickAddDate(null);
+            }
+          }}
+          leadId={reminderLead.id}
+          leadName={reminderLead.full_name}
+          defaultDate={quickAddDate}
+          onSuccess={fetchCommunications}
+        />
+      )}
 
       {/* Meeting Invite Dialog */}
       {(selectedCommunication || quickAddDate) && (
