@@ -135,7 +135,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    // Prefer the server-only key; fall back to the existing project key (also
+    // used by document scanning) so one key serves both.
+    const apiKey =
+      process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
         { error: "The help assistant isn't set up yet. Please try again later or use “Report an issue”." },
