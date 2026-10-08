@@ -184,6 +184,20 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error("assistant: OpenAI request failed", err);
       const status = (err as { status?: number })?.status;
+      const code = (err as { code?: string })?.code;
+      // OpenAI also uses 429 for an account with no credit left — not "busy".
+      if (code === "insufficient_quota") {
+        return NextResponse.json(
+          { error: "The help assistant is unavailable (AI account out of credit). Please tell an admin." },
+          { status: 503 }
+        );
+      }
+      if (status === 401) {
+        return NextResponse.json(
+          { error: "The help assistant is unavailable (AI key rejected). Please tell an admin." },
+          { status: 503 }
+        );
+      }
       if (status === 429) {
         return NextResponse.json(
           { error: "The help assistant is busy right now. Please try again in a minute." },
