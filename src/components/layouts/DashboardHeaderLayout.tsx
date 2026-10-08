@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ReportIssueButton } from "@/components/feedback/ReportIssueButton";
+import { AssistantWidget } from "@/components/assistant/AssistantWidget";
 import { DashboardType, getDashboardBySlug } from "@/config/dashboards";
 
 interface DashboardHeaderLayoutProps {
@@ -89,6 +90,7 @@ export function DashboardHeaderLayout({
         </div>
       </header>
       <main className="p-6 lg:p-8">{children}</main>
+      <AssistantWidget />
     </div>
   );
 }

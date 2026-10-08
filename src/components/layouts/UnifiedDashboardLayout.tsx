@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { SidebarProvider, useSidebar } from "@/contexts/SidebarContext";
 import { UserProfileMenu } from "@/components/layouts/UserProfileMenu";
 import { ReportIssueButton } from "@/components/feedback/ReportIssueButton";
+import { AssistantWidget } from "@/components/assistant/AssistantWidget";
 import { cn } from "@/lib/utils";
 
 interface UnifiedDashboardLayoutProps {
@@ -328,6 +329,7 @@ export function UnifiedDashboardLayout({ children }: UnifiedDashboardLayoutProps
             <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">{children}</main>
           </div>
         </div>
+        <AssistantWidget />
       </TooltipProvider>
     </SidebarProvider>
   );

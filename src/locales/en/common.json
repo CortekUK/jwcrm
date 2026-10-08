@@ -96,5 +96,31 @@
     "notSignedIn": "Your session has expired. Please sign in again.",
     "invalidImage": "Screenshot must be a PNG, JPEG, GIF or WebP image",
     "imageTooLarge": "Screenshot must be 3 MB or smaller"
+  },
+  "assistant": {
+    "title": "Help assistant",
+    "open": "Open help assistant",
+    "close": "Close",
+    "newChat": "New chat",
+    "intro": "Hi! Ask me how to do something in the CRM and I'll walk you through it. I can't see your data — just how the system works.",
+    "tryAsking": "Try asking:",
+    "placeholder": "Ask how to do something…",
+    "send": "Send",
+    "thinking": "Thinking…",
+    "failed": "The help assistant couldn't answer",
+    "notSignedIn": "Your session has expired. Please sign in again.",
+    "empty": "The assistant didn't reply. Please try again.",
+    "tooLong": "Please keep your message under 2000 characters.",
+    "disclaimer": "Answers are guidance only and may be wrong. Chats aren't saved.",
+    "starters": {
+      "addUser": "How do I add a new staff user?",
+      "sendProposal": "How do I send a proposal?",
+      "leaveBalance": "How do I check an employee's remaining leave?",
+      "approveLeave": "How do I approve a leave request?",
+      "convertLead": "How do I convert a lead into a client?",
+      "assignLead": "How do I assign a lead to a salesperson?",
+      "recordPayment": "How do I record a payment on an invoice?",
+      "requestLeave": "How do I request leave?"
+    }
   }
 }
